@@ -186,7 +186,6 @@ addEventListener('blur', () => {
   stick.cam = 0;
 });
 addEventListener('contextmenu', (e) => e.preventDefault());
-addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
 const cam = { yaw: 0, yawT: 0, pitch: 0.85, dist: 30, distT: 28, target: new THREE.Vector3(0, 0.8, -3), t: 0 };
 addEventListener(
@@ -203,90 +202,185 @@ function pinchDist() {
   return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
 }
 
+function swallow(e) {
+  if (e.cancelable) e.preventDefault();
+  e.stopPropagation();
+}
+
+let lastTouchAt = 0;
+addEventListener('touchstart', () => { lastTouchAt = performance.now(); }, { passive: true });
+function isGhostMouse(e) {
+  if (e.touches || e.changedTouches || e.pointerType === 'touch') return false;
+  return performance.now() - lastTouchAt < 800;
+}
+
+function forChanged(e, fn) {
+  if (e.changedTouches) {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      fn({ id: 't' + t.identifier, x: t.clientX, y: t.clientY, touch: true });
+    }
+    return;
+  }
+  if (e.pointerType === 'touch') return;
+  fn({ id: 'p' + (e.pointerId ?? 1), x: e.clientX, y: e.clientY, touch: false });
+}
+
+function uiTarget(el) {
+  return !!el?.closest?.('#touch, #hud, button, .tbtn');
+}
+
 function onCamDown(e) {
   if (e.button && e.button !== 0) return;
-  if (e.target.closest('#touch, #hud, #help, button')) return;
+  if (isGhostMouse(e)) return;
+  if (uiTarget(e.target)) return;
   if (state.mode === 'title') {
+    if (e.touches || e.pointerType === 'touch') setTouchUI(true);
     startGame();
     ignoreCam = true;
     return;
   }
   if (ignoreCam || state.mode !== 'play') return;
-  if (e.pointerType === 'touch') setTouchUI(true);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (pointers.size === 1) camDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
-  if (pointers.size === 2) {
-    camDrag = null;
-    pinch0 = pinchDist();
-  }
+  forChanged(e, (p) => {
+    if (p.touch) setTouchUI(true);
+    pointers.set(p.id, { x: p.x, y: p.y });
+    if (pointers.size === 1) camDrag = { id: p.id, x: p.x, y: p.y, moved: false };
+    if (pointers.size === 2) {
+      camDrag = null;
+      pinch0 = pinchDist();
+    }
+  });
 }
 
 function onCamMove(e) {
-  const p = pointers.get(e.pointerId);
-  if (p) {
-    p.x = e.clientX;
-    p.y = e.clientY;
-  }
-  if (pointers.size >= 2 && pinch0) {
-    const d = pinchDist();
-    cam.distT = THREE.MathUtils.clamp(cam.distT + (pinch0 - d) * 0.04, 12, 36);
-    pinch0 = d;
-    return;
-  }
-  if (!camDrag || camDrag.id !== e.pointerId) return;
-  const dx = e.clientX - camDrag.x;
-  if (!camDrag.moved && Math.abs(dx) < 8) return;
-  camDrag.moved = true;
-  cam.yawT -= dx * 0.006;
-  camDrag.x = e.clientX;
-  camDrag.y = e.clientY;
+  forChanged(e, (p) => {
+    const cur = pointers.get(p.id);
+    if (!cur) return;
+    cur.x = p.x;
+    cur.y = p.y;
+    if (pointers.size >= 2 && pinch0) {
+      const d = pinchDist();
+      cam.distT = THREE.MathUtils.clamp(cam.distT + (pinch0 - d) * 0.04, 12, 36);
+      pinch0 = d;
+      return;
+    }
+    if (!camDrag || camDrag.id !== p.id) return;
+    const dx = p.x - camDrag.x;
+    if (!camDrag.moved && Math.abs(dx) < 8) return;
+    camDrag.moved = true;
+    cam.yawT -= dx * 0.006;
+    camDrag.x = p.x;
+    camDrag.y = p.y;
+  });
 }
 
 function onCamUp(e) {
-  pointers.delete(e.pointerId);
-  if (camDrag && camDrag.id === e.pointerId) camDrag = null;
+  forChanged(e, (p) => {
+    pointers.delete(p.id);
+    if (camDrag && camDrag.id === p.id) camDrag = null;
+  });
   if (pointers.size < 2) pinch0 = 0;
-  if (e.type === 'pointerup' || e.type === 'pointercancel') ignoreCam = false;
+  ignoreCam = false;
 }
 
+function bindStart() {
+  const go = (e) => {
+    if (state.mode !== 'title') return;
+    if (uiTarget(e.target) || e.target.closest?.('#help')) return;
+    if (e.touches || e.pointerType === 'touch') setTouchUI(true);
+    startGame();
+    ignoreCam = true;
+  };
+  $('title').addEventListener('touchstart', go, { passive: true });
+  $('title').addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch' || isGhostMouse(e)) return;
+    go(e);
+  });
+}
+
+function bindPress(el, { down, up, move }) {
+  el.addEventListener(
+    'touchstart',
+    (e) => {
+      swallow(e);
+      forChanged(e, down);
+    },
+    { passive: false }
+  );
+  if (move) {
+    addEventListener(
+      'touchmove',
+      (e) => {
+        let hit = false;
+        forChanged(e, (p) => {
+          if (move(p, e)) hit = true;
+        });
+        if (hit && e.cancelable) e.preventDefault();
+      },
+      { passive: false }
+    );
+  }
+  const touchUp = (e) => forChanged(e, up);
+  addEventListener('touchend', touchUp);
+  addEventListener('touchcancel', touchUp);
+  el.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch' || isGhostMouse(e)) return;
+    swallow(e);
+    forChanged(e, down);
+  });
+  if (move) {
+    addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'touch' || isGhostMouse(e)) return;
+      forChanged(e, (p) => move(p, e));
+    });
+  }
+  const pUp = (e) => {
+    if (e.pointerType === 'touch' || isGhostMouse(e)) return;
+    forChanged(e, up);
+  };
+  addEventListener('pointerup', pUp);
+  addEventListener('pointercancel', pUp);
+}
+
+$('title').addEventListener('touchstart', () => setTouchUI(true), { passive: true });
 renderer.domElement.addEventListener('pointerdown', onCamDown);
-addEventListener('pointerdown', (e) => {
-  if (e.pointerType === 'touch') setTouchUI(true);
-  if (state.mode === 'title' && !e.target.closest('#help, #touch, button')) startGame();
-});
+renderer.domElement.addEventListener('touchstart', onCamDown, { passive: true });
 addEventListener('pointermove', onCamMove);
+addEventListener('touchmove', onCamMove, { passive: true });
 addEventListener('pointerup', onCamUp);
 addEventListener('pointercancel', onCamUp);
+addEventListener('touchend', onCamUp);
+addEventListener('touchcancel', onCamUp);
 
 function bindHold(el, on, off) {
-  const down = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    el.setPointerCapture?.(e.pointerId);
-    el.classList.add('held');
-    on(e);
-  };
-  const up = (e) => {
-    el.classList.remove('held');
-    off?.(e);
-  };
-  el.addEventListener('pointerdown', down);
-  el.addEventListener('pointerup', up);
-  el.addEventListener('pointercancel', up);
+  let heldId = null;
+  bindPress(el, {
+    down: (p) => {
+      if (heldId != null) return;
+      heldId = p.id;
+      el.classList.add('held');
+      on();
+    },
+    up: (p) => {
+      if (heldId !== p.id) return;
+      heldId = null;
+      el.classList.remove('held');
+      off?.();
+    },
+  });
 }
 
 function bindStick() {
   const pad = $('stick');
   const knob = $('stick-knob');
-  const R = () => pad.clientWidth * 0.5;
-  let active = -1;
-  const setFrom = (e) => {
+  let active = null;
+  const setFrom = (p) => {
     const r = pad.getBoundingClientRect();
     const cx = r.left + r.width / 2;
     const cy = r.top + r.height / 2;
-    let dx = e.clientX - cx;
-    let dy = e.clientY - cy;
-    const max = R() - 8;
+    let dx = p.x - cx;
+    let dy = p.y - cy;
+    const max = Math.max(16, pad.clientWidth * 0.5 - 8);
     const len = Math.hypot(dx, dy) || 1;
     if (len > max) {
       dx *= max / len;
@@ -297,42 +391,44 @@ function bindStick() {
     stick.y = dy / max;
   };
   const clear = () => {
-    active = -1;
+    active = null;
     stick.x = 0;
     stick.y = 0;
     knob.style.transform = 'translate(0,0)';
   };
-  pad.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    active = e.pointerId;
-    pad.setPointerCapture(e.pointerId);
-    setFrom(e);
+  bindPress(pad, {
+    down: (p) => {
+      active = p.id;
+      setFrom(p);
+    },
+    move: (p) => {
+      if (p.id !== active) return false;
+      setFrom(p);
+      return true;
+    },
+    up: (p) => {
+      if (p.id === active) clear();
+    },
   });
-  pad.addEventListener('pointermove', (e) => {
-    if (e.pointerId === active) setFrom(e);
+}
+
+function bindTap(el, fn) {
+  bindPress(el, {
+    down: () => fn(),
+    up: () => {},
   });
-  pad.addEventListener('pointerup', (e) => {
-    if (e.pointerId === active) clear();
-  });
-  pad.addEventListener('pointercancel', clear);
 }
 
 function bindTouch() {
+  bindStart();
   bindStick();
   bindHold($('btn-run'), () => (stick.run = true), () => (stick.run = false));
   bindHold($('btn-cam-l'), () => (stick.cam = -1), () => (stick.cam = 0));
   bindHold($('btn-cam-r'), () => (stick.cam = 1), () => (stick.cam = 0));
-  $('btn-act').addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  bindTap($('btn-act'), () => {
     if (state.mode === 'play') act();
   });
-  $('btn-help').addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    $('help').classList.toggle('hidden');
-  });
+  bindTap($('btn-help'), () => $('help').classList.toggle('hidden'));
 }
 
 /* ------------------------------------------------------------------ player */
@@ -521,7 +617,7 @@ function toast(msg, cls = '') {
 function act() {
   if (P.cool > 0) return;
   const i = nearestSlot();
-  if (i < 0) return;
+  if (i < 0) return toast('WALK TO A GARDEN BED');
   const d = slotsData[i];
   const s = world.slots[i];
   const fdx = s.x - P.x;
@@ -746,7 +842,7 @@ function boot() {
   updateHud();
   $('loading').classList.add('gone');
   if (params.has('autostart')) startGame();
-  window.__mm = { scene, renderer, state, cam, P, slotsData, world, camera, player, startGame, act, setStage, plantMeshes };
+  window.__mm = { scene, renderer, state, cam, P, slotsData, world, camera, player, startGame, act, setStage, plantMeshes, stick };
 }
 
 requestAnimationFrame(() => setTimeout(boot, 30));
