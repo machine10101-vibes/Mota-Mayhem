@@ -76,6 +76,11 @@ function buildGround(colliderInfo) {
       const onPath = Math.abs(wx) < pathHalf && wz > -9.8 && wz < YARD.z + 0.5;
       const plaza = wz > -9.9 && wz < -7.6 && Math.abs(wx) < 4.2 - (wz > -8.4 ? (wz + 8.4) * -0.0 : 0);
       const eastLane = wx > 14.2 && wx < YARD.x + 0.8 && Math.abs(wz) < 1.55;
+      const underShed = wx > 12.95 && wx < 19.15 && wz < -2.25 && wz > -12.3;
+      if (underShed) {
+        m.set(vx, -1, vz, 0x3a2a1c, 0.04);
+        continue;
+      }
       if (onPath || plaza || eastLane) {
         const s = stonePave(vx, vz);
         if (s.grout) m.set(vx, -1, vz, 0x4d4033, 0.06);
@@ -420,57 +425,81 @@ function buildSoilPatch() {
 
 /* ------------------------------------------------------------------- props */
 
+const SHED_AT = { x: 16, z: -9.5 };
+const SHED_VX = 16;
+const SHED_L = {
+  x0: -48,
+  x1: 48,
+  z0: -40,
+  z1: 116,
+  door0: -38,
+  door1: -6,
+  beams: [24, -4, -28],
+  pegs: [-26, -14, 12, 24],
+};
+const shedWX = (lx) => SHED_AT.x + lx / SHED_VX;
+const shedWZ = (lz) => SHED_AT.z + lz / SHED_VX;
+
 function buildShed() {
   const m = new VoxelModel();
-  const W = 96;
-  const D = 80;
-  const WH = 52;
-  const hx = W / 2;
-  const hz = D / 2;
-  const siding = (x, y, z) => ((x + 100) % 8 === 0 ? 0x6e8c5e : pick([0x86a574, 0x7f9e6e, 0x8caa7a], x >> 3, 0, z, 121));
-  m.box(-hx, 3, hz - 2, hx, WH, hz, siding, 0.03);
-  m.box(-hx, 3, -hz, hx, WH, -hz + 2, siding, 0.03);
-  m.box(-hx, 3, -hz, -hx + 2, WH, hz, (x, y, z) => ((z + 100) % 8 === 0 ? 0x6e8c5e : 0x86a574), 0.03);
-  m.box(hx - 2, 3, -hz, hx, WH, hz, (x, y, z) => ((z + 100) % 8 === 0 ? 0x6e8c5e : 0x86a574), 0.03);
-  m.box(-hx - 1, 0, -hz - 1, hx + 1, 3, hz + 1, (x, y, z) => pick([0x8c8e90, 0x7c7e80], x >> 2, 0, z >> 2, 122), 0.05);
-  m.delBox(-16, 3, hz - 3, 16, 44, hz + 1);
+  const { x0, x1, z0, z1, door0, door1 } = SHED_L;
+  const wallH = 54;
+  const siding = (x, y, z) => ((x + z + 100) % 8 === 0 ? 0x6e8c5e : pick([0x86a574, 0x7f9e6e, 0x8caa7a], x >> 3, 0, z, 121));
+  const sideSiding = (x, y, z) => ((z + 100) % 8 === 0 ? 0x6e8c5e : 0x86a574);
+  m.box(x0 - 1, 0, z0 - 1, x1 + 1, 3, z1 + 1, (x, y, z) => pick([0x8c8e90, 0x7c7e80], x >> 2, 0, z >> 2, 122), 0.05);
+  m.box(x0, 3, z1 - 2, x1, wallH, z1, siding, 0.03);
+  m.box(x0, 3, z0, x1, wallH, z0 + 2, siding, 0.03);
+  m.box(x0, 3, z0, x0 + 2, wallH, z1, sideSiding, 0.03);
+  m.box(x1 - 2, 3, z0, x1, wallH, z1, sideSiding, 0.03);
+  m.delBox(door0, 3, z1 - 3, door1, 44, z1 + 1);
   const fr = 0x4d3320;
-  m.box(-17, 3, hz - 1, -15, 46, hz + 1, fr, 0.02);
-  m.box(15, 3, hz - 1, 17, 46, hz + 1, fr, 0.02);
-  m.box(-17, 44, hz - 1, 17, 46, hz + 1, fr, 0.02);
-  m.delBox(26, 20, hz - 2, 42, 38, hz);
-  m.box(26, 20, hz - 1, 42, 38, hz, (x, y) => ((x + y) % 9 < 2 ? 0xd5ecf7 : 0x74a8c6), 0.02);
-  const f = 0xf3ecdc;
-  m.box(25, 19, hz - 1, 43, 21, hz + 1, f, 0.02);
-  m.box(25, 37, hz - 1, 43, 39, hz + 1, f, 0.02);
-  m.box(25, 19, hz - 1, 27, 39, hz + 1, f, 0.02);
-  m.box(41, 19, hz - 1, 43, 39, hz + 1, f, 0.02);
-  m.box(33, 19, hz - 1, 35, 39, hz + 1, f, 0.02);
-  m.box(25, 28, hz - 1, 43, 30, hz + 1, f, 0.02);
-  m.box(24, 14, hz, 44, 19, hz + 5, 0x8a5a30, 0.04);
-  m.box(25, 17, hz + 1, 43, 19, hz + 4, 0x4b3424, 0.05);
+  m.box(door0 - 1, 3, z1 - 1, door0 + 1, 46, z1 + 1, fr, 0.02);
+  m.box(door1 - 1, 3, z1 - 1, door1 + 1, 46, z1 + 1, fr, 0.02);
+  m.box(door0 - 1, 44, z1 - 1, door1 + 1, 46, z1 + 1, fr, 0.02);
+  const punchWindow = (wx0, wy0, wx1, wy1, wz0, wz1) => {
+    m.delBox(wx0, wy0, wz0, wx1, wy1, wz1);
+    m.box(wx0, wy0, wz0, wx1, wy1, wz1, (x, y) => ((x + y) % 9 < 2 ? 0xd5ecf7 : 0x74a8c6), 0.02);
+    const f = 0xf3ecdc;
+    m.box(wx0 - 1, wy0 - 1, wz0, wx1 + 1, wy0 + 1, wz1 + 1, f, 0.02);
+    m.box(wx0 - 1, wy1 - 1, wz0, wx1 + 1, wy1 + 1, wz1 + 1, f, 0.02);
+    m.box(wx0 - 1, wy0, wz0, wx0 + 1, wy1, wz1 + 1, f, 0.02);
+    m.box(wx1 - 1, wy0, wz0, wx1 + 1, wy1, wz1 + 1, f, 0.02);
+    m.box(wx0 + (wx1 - wx0) / 2 - 1, wy0, wz0, wx0 + (wx1 - wx0) / 2 + 1, wy1, wz1 + 1, f, 0.02);
+    m.box(wx0, wy0 + (wy1 - wy0) / 2 - 1, wz0, wx1, wy0 + (wy1 - wy0) / 2 + 1, wz1 + 1, f, 0.02);
+  };
+  punchWindow(22, 20, 42, 38, z1 - 2, z1);
+  punchWindow(x1 - 2, 18, x1, 36, 36, 54);
+  punchWindow(x1 - 2, 18, x1, 36, -22, -4);
+  m.box(20, 14, z1, 44, 19, z1 + 3, 0x8a5a30, 0.04);
+  m.box(21, 17, z1 + 1, 43, 19, z1 + 2, 0x4b3424, 0.05);
   const fc = [0xf08ab0, 0xf5d547, 0xf6f3ea, 0xb48be8];
-  for (let x = 26; x < 43; x += 2) {
-    m.set(x, 19, hz + 2, 0x3f8a2a, 0.05);
-    m.set(x, 20, hz + 2, pick(fc, x, 0, 0, 124), 0.03);
-    m.set(x, 19, hz + 3, 0x4a9a30, 0.05);
+  for (let x = 22; x < 43; x += 2) {
+    m.set(x, 19, z1 + 2, 0x3f8a2a, 0.05);
+    m.set(x, 20, z1 + 2, pick(fc, x, 0, 0, 124), 0.03);
+    m.set(x, 19, z1 + 3, 0x4a9a30, 0.05);
   }
+  m.box(x0 + 2, 0, z0 + 2, x1 - 2, 1, z1 - 2, 0x3a2a1c, 0.05);
   const roof = new VoxelModel();
-  const yt = (z) => WH + Math.round((44 - Math.abs(z)) * 0.7);
-  for (let z = -44; z <= 44; z++) {
-    const top = yt(z);
-    const row = Math.floor((44 - Math.abs(z)) / 3);
-    for (let x = -52; x <= 52; x++) {
-      const tile = Math.floor((x + (row % 2) * 4) / 8);
-      let col = hash3(tile, row, z < 0 ? 1 : 0, 125) < 0.5 ? 0x9b4a3a : 0x8a3e31;
-      if ((x + (row % 2) * 4) % 8 === 0) col = shade(col, 0.82);
-      if ((44 - Math.abs(z)) % 3 === 0) col = shade(col, 0.88);
+  const peak = (x) => wallH + Math.round((1 - Math.min(1, Math.abs(x) / 48)) * 22);
+  for (let z = z0 - 6; z <= z1 + 6; z++) {
+    const row = Math.floor((z - z0) / 3);
+    for (let x = -54; x <= 54; x++) {
+      const top = peak(x);
+      const tile = Math.floor((z + (row % 2) * 4) / 8);
+      let col = hash3(tile, row, x < 0 ? 1 : 0, 125) < 0.5 ? 0x9b4a3a : 0x8a3e31;
+      if ((z + (row % 2) * 4) % 8 === 0) col = shade(col, 0.82);
+      if (Math.abs(x) % 3 === 0) col = shade(col, 0.9);
       for (let y = top - 2; y <= top; y++) roof.set(x, y, z, y === top ? col : shade(col, 0.7), 0.02);
     }
-    if (Math.abs(z) <= 1) for (let x = -52; x <= 52; x++) roof.set(x, top + 1, z, 0xb85a48, 0.03);
+    if (Math.abs(z % 28) <= 1) for (let x = -54; x <= 54; x++) roof.set(x, peak(x) + 1, z, 0xb85a48, 0.03);
   }
-  for (let z = -hz; z < hz; z++) for (const x of [-hx - 3, hx + 1]) for (let y = WH; y <= yt(z) - 3; y++) m.set(x, y, z, 0x86a574, 0.03);
-  m.box(-hx + 2, 0, -hz + 2, hx - 2, 1, hz - 2, 0x3a2a1c, 0.05);
+  for (const gz of [z0, z1 - 2]) {
+    for (let x = x0; x < x1; x++) {
+      const top = peak(x);
+      for (let y = wallH - 2; y <= top; y++) roof.set(x, y, gz, 0x86a574, 0.03);
+      roof.set(x, top, gz + 1, 0x6e8c5e, 0.03);
+    }
+  }
   return { shell: m, roof };
 }
 
@@ -512,18 +541,16 @@ function buildCureJar() {
 function buildShedInterior() {
   const m = new VoxelModel();
   const wood = 0x8a5e36;
-  m.box(-28, 22, -18, 28, 24, -16, wood, 0.03);
-  m.box(-28, 22, 2, 28, 24, 4, wood, 0.03);
-  for (const x of [-22, -8, 8, 22]) {
-    m.box(x, 14, -18, x + 1, 24, -16, 0xc9b98a, 0.02);
-    m.box(x, 14, 2, x + 1, 24, 4, 0xc9b98a, 0.02);
+  for (const z of SHED_L.beams) {
+    m.box(-34, 22, z - 1, 34, 24, z + 1, wood, 0.03);
+    for (const x of SHED_L.pegs) m.box(x, 12, z - 1, x + 1, 24, z + 1, 0xc9b98a, 0.02);
   }
-  m.box(-36, 8, -22, -30, 10, 16, wood, 0.03);
-  m.box(-38, 0, -22, -36, 10, -19, wood, 0.03);
-  m.box(-38, 0, 14, -36, 10, 17, wood, 0.03);
-  m.box(24, 0, -6, 34, 10, 6, 0x5c6770, 0.03);
-  m.box(26, 10, -4, 32, 16, 4, 0x8aa0aa, 0.02);
-  m.box(28, 16, -1, 30, 20, 2, 0xd7dee4, 0.02);
+  m.box(-40, 8, 50, -31, 10, 104, wood, 0.03);
+  m.box(31, 8, 50, 40, 10, 104, wood, 0.03);
+  for (const z of [50, 76, 102]) {
+    m.box(-42, 0, z, -40, 10, z + 2, wood, 0.03);
+    m.box(40, 0, z, 42, 10, z + 2, wood, 0.03);
+  }
   return m;
 }
 
@@ -814,26 +841,24 @@ export function buildWorld() {
   });
 
   const shedParts = buildShed();
-  const SHED_S = 1 / 16;
-  place(group, shedParts.shell, SHED_S, 16, 0, -9.5);
-  const shedRoof = place(group, shedParts.roof, SHED_S, 16, 0, -9.5);
+  const SHED_S = 1 / SHED_VX;
+  place(group, shedParts.shell, SHED_S, SHED_AT.x, 0, SHED_AT.z);
+  const shedRoof = place(group, shedParts.roof, SHED_S, SHED_AT.x, 0, SHED_AT.z);
+  const doorZ = shedWZ(SHED_L.z1) + 0.06;
   const doorL = new THREE.Group();
   doorL.add(toMesh(buildDoorLeaf(1), SHED_S));
-  doorL.position.set(16 - 16 * SHED_S, 0, -9.5 + 40 * SHED_S + 0.06);
+  doorL.position.set(shedWX(SHED_L.door0), 0, doorZ);
   group.add(doorL);
   const doorR = new THREE.Group();
   doorR.add(toMesh(buildDoorLeaf(-1), SHED_S));
-  doorR.position.set(16 + 16 * SHED_S, 0, -9.5 + 40 * SHED_S + 0.06);
+  doorR.position.set(shedWX(SHED_L.door1), 0, doorZ);
   group.add(doorR);
-  place(group, buildShedInterior(), SHED_S, 16, 0, -9.5);
+  place(group, buildShedInterior(), SHED_S, SHED_AT.x, 0, SHED_AT.z);
   const budGeo = buildHangBud().build(SHED_S);
   const jarGeo = buildCureJar().build(SHED_S);
-  const hooks = [
-    [14.66, -10.56],
-    [15.53, -10.56],
-    [16.53, -10.56],
-    [17.41, -10.56],
-  ].map(([x, z]) => {
+  const hookAt = [];
+  for (const lz of SHED_L.beams) for (const lx of SHED_L.pegs) hookAt.push([shedWX(lx + 0.5), shedWZ(lz)]);
+  const hooks = hookAt.map(([x, z]) => {
     const mesh = new THREE.Mesh(budGeo, voxelMaterial);
     mesh.position.set(x, 1.05, z);
     mesh.scale.setScalar(1.45);
@@ -842,12 +867,8 @@ export function buildWorld() {
     group.add(mesh);
     return { x, z, y: 0, mesh, item: null };
   });
-  const cureJars = [
-    [13.94, -10.45],
-    [13.94, -9.95],
-    [13.94, -9.45],
-    [13.94, -8.95],
-  ].map(([x, z]) => {
+  const jarZ = [-3.35, -3.9, -4.45, -5.0, -5.55, -6.1];
+  const cureJars = [13.95, 18.05].flatMap((x) => jarZ.map((z) => [x, z])).map(([x, z]) => {
     const mesh = new THREE.Mesh(jarGeo, voxelMaterial);
     mesh.position.set(x, 0.62, z);
     mesh.scale.setScalar(1.4);
@@ -857,25 +878,23 @@ export function buildWorld() {
     return { x, z, y: 0.62, mesh, item: null };
   });
   colliders.push(
-    { x0: 12.85, x1: 19.15, z0: -12.25, z1: -11.5 },
-    { x0: 12.85, x1: 13.5, z0: -12.2, z1: -6.75 },
-    { x0: 18.5, x1: 19.15, z0: -12.2, z1: -6.75 },
-    { x0: 12.85, x1: 14.85, z0: -7.4, z1: -6.7 },
-    { x0: 17.15, x1: 19.15, z0: -7.4, z1: -6.7 },
+    { x0: 12.85, x1: 19.2, z0: -12.35, z1: -11.55 },
+    { x0: 12.85, x1: 13.42, z0: -12.2, z1: -2.15 },
+    { x0: 18.62, x1: 19.2, z0: -12.2, z1: -2.15 },
+    { x0: 12.85, x1: 13.55, z0: -2.55, z1: -2.15 },
+    { x0: 15.72, x1: 19.2, z0: -2.55, z1: -2.15 },
   );
   const shed = {
     roof: shedRoof,
     doorL,
     doorR,
     open: false,
-    doorBlocks: [
-      { x0: 14.9, x1: 16.02, z0: -7.4, z1: -6.72 },
-      { x0: 15.98, x1: 17.12, z0: -7.4, z1: -6.72 },
-    ],
+    door: { x: 14.62, z: -1.62 },
+    doorBlocks: [{ x0: 13.68, x1: 15.68, z0: -2.7, z1: -1.9 }],
     hooks,
     cureJars,
     contains(x, z) {
-      return x > 13.55 && x < 18.45 && z < -7.5 && z > -11.45;
+      return x > 13.5 && x < 18.5 && z < -2.6 && z > -11.5;
     },
   };
 
