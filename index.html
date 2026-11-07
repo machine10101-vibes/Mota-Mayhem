@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mota Mayhem</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><rect width='8' height='8' fill='%232f4420'/><path d='M3 0h2v3h-2zM0 2h2v2h-2zM6 2h2v2h-2zM2 3h4v3h-4zM3 6h2v2h-2z' fill='%2393c85a'/></svg>" />
+  </head>
+  <body>
+    <div id="stage"></div>
+
+    <div id="hud" class="hidden">
+      <div class="panel brand"><canvas id="leaf-icon" width="8" height="10"></canvas><span>MOTA MAYHEM</span></div>
+      <div class="panel inv">
+        <div class="row"><span class="lbl">SEEDS</span><b id="seeds">0</b></div>
+        <div class="row"><span class="lbl">GRAMS</span><b id="grams">0</b></div>
+        <div class="jars">
+          <div class="jar g4"><i>AAAA</i><b id="jar-AAAA">0</b></div>
+          <div class="jar g3"><i>AAA</i><b id="jar-AAA">0</b></div>
+          <div class="jar g2"><i>AA</i><b id="jar-AA">0</b></div>
+          <div class="jar g1"><i>A</i><b id="jar-A">0</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tip"><div id="tip-name"></div><div class="bar"><div id="tip-water"></div></div><div class="bar grow"><div id="tip-grow"></div></div><div id="tip-grade"></div></div>
+    <div id="prompt"></div>
+    <div id="toasts"></div>
+
+    <div id="help" class="panel">
+      <b>MOVE</b> WASD / ARROWS &nbsp; <b>RUN</b> SHIFT<br />
+      <b>ACT</b> SPACE &nbsp; <b>CAMERA</b> Q / E / DRAG / WHEEL<br />
+      <b>PIXELS</b> [ ] &nbsp; <b>HELP</b> H
+    </div>
+
+    <div id="title">
+      <div class="top">
+        <div class="logo"><canvas id="leaf-logo" width="8" height="10"></canvas><h1>MOTA<br />MAYHEM</h1></div>
+        <p class="sub">TRIPLE-A BACKYARD FARMING</p>
+      </div>
+      <p class="press">PRESS SPACE TO START</p>
+    </div>
+    <div id="loading"><span>GROWING THE YARD...</span></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
