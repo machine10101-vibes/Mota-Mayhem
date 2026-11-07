@@ -805,7 +805,7 @@ function actPlot(plot) {
   } else if (d.state === 'ready') {
     const grade = gradeOf(d);
     const grams = gramsFor(grade);
-    if (state.wet.length >= 12) return toast('HANDS ARE FULL — DRY THE SHED');
+    if (state.wet.length >= 12) return toast('HANDS ARE FULL — HANG IT IN THE SHED');
     const id = strainOf(d.strain).id;
     state.wet.push({ grade, grams, strain: id });
     state.harvested++;
@@ -851,7 +851,20 @@ const GRADES = ['A', 'AA', 'AAA', 'AAAA'];
 const DRY_TIME = 14;
 const CURE_TIME = 16;
 function dropGrade(g) {
-  return GRADES[Math.max(0, GRADES.indexOf(g) - 1)];
+  const i = GRADES.indexOf(g);
+  return GRADES[Math.max(0, i - 1)] || g;
+}
+
+function applyGradeDrop(it) {
+  const next = dropGrade(it.grade);
+  if (!next || next === it.grade) return false;
+  it.grade = next;
+  it.grams = gramsFor(next);
+  return true;
+}
+
+function syncCuredGrams() {
+  state.grams = GRADES.reduce((n, g) => n + (state.jars[g] | 0) * gramsFor(g), 0);
 }
 
 const ROOT_TIME = 12;
@@ -861,16 +874,22 @@ const MOTHER_DUR = [8, 10];
 function stationFocus() {
   if (!world?.shed) return null;
   let best = null;
-  const consider = (x, z, kind, ref, reach = 1.55, y = 0.08) => {
+  const consider = (x, z, kind, ref, reach = 1.55, y = 0.08, priority = 0) => {
     const d2 = (x - P.x) ** 2 + (z - P.z) ** 2;
     if (d2 > reach * reach) return;
-    if (!best || d2 < best.d2) best = { kind, ref, x, z, d2, y };
+    if (!best || priority > best.priority || (priority === best.priority && d2 < best.d2)) best = { kind, ref, x, z, d2, y, priority };
   };
   const shed = world.shed;
   consider(16, -6.35, 'shed-door', null, 1.75);
   if (shed.open || shed.contains(P.x, P.z)) {
-    for (const h of shed.hooks) consider(h.x, h.z + 0.7, 'hook', h, 1.45);
-    for (const j of shed.cureJars) if (j.item) consider(j.x + 0.7, j.z, 'jar', j, 1.35);
+    for (const h of shed.hooks) consider(h.x, h.z + 0.4, 'hook', h, 1.35);
+    for (const j of shed.cureJars) {
+      if (!j.item) continue;
+      const burp = !!(j.item.needsBurp && !j.item.burped && !j.item.missed);
+      const missed = !!(j.item.missed && (j.item.cure || 0) < 1);
+      const explain = missed && state.wet.length === 0;
+      consider(j.x + 0.55, j.z, 'jar', j, burp ? 2.4 : explain ? 2.2 : 1.2, 0.08, burp ? 2 : explain ? 1 : 0);
+    }
   }
   const house = world.house;
   consider(0, -13.15, 'house-door', null, 1.7);
@@ -944,6 +963,7 @@ function actStation(f) {
       player.playAction('harvest');
       toast(`${bud.grade} HUNG TO DRY`);
       updateHud();
+      markDirty();
       return true;
     }
     if (h.item.dry < 1) {
@@ -955,13 +975,14 @@ function actStation(f) {
       toast('CURE JARS ARE FULL');
       return true;
     }
-    slot.item = { grade: h.item.grade, grams: h.item.grams, strain: h.item.strain || 'bd', t: 0, cure: 0, burped: false, missed: false, needsBurp: false, sealed: false };
+    slot.item = { grade: h.item.grade, grams: gramsFor(h.item.grade), strain: h.item.strain || 'bd', t: 0, cure: 0, burped: false, missed: false, needsBurp: false, sealed: false };
     slot.mesh.visible = true;
     h.item = null;
     h.mesh.visible = false;
     P.cool = 0.4;
     toast('JARRED — BURP IT WHILE IT CURES', 'good');
     updateHud();
+    markDirty();
     return true;
   }
   const it = f.ref.item;
@@ -970,9 +991,11 @@ function actStation(f) {
     it.needsBurp = false;
     P.cool = 0.3;
     toast('BURPED — CURE STAYS ON TRACK', 'good');
+    markDirty();
     return true;
   }
-  toast(it?.cure >= 1 ? 'CURED' : it?.burped ? 'CURING' : 'WAIT TO BURP');
+  if (it?.missed) return toast('BURP MISSED — LET IT FINISH');
+  toast(it?.burped ? 'CURING' : 'WAIT TO BURP');
   return true;
 }
 
@@ -1125,6 +1148,7 @@ function actStand() {
   P.cool = 0.35;
   if (offer.n > 0) {
     for (const g of GRADES) state.jars[g] = 0;
+    syncCuredGrams();
     state.mota += offer.mota;
     toast(`+${offer.mota} MOTA`, 'good');
     markDirty();
@@ -1179,8 +1203,8 @@ function updateShed(dt) {
       it.hold += dt;
       if (it.hold > 10 && !it.dropped) {
         it.dropped = true;
-        it.grade = dropGrade(it.grade);
-        toast('OVERDRIED — GRADE DROPPED');
+        if (applyGradeDrop(it)) toast('OVERDRIED — GRADE DROPPED');
+        markDirty();
       }
     }
     const sway = Math.sin(cam.t * 1.6 + h.x) * 0.04;
@@ -1196,17 +1220,19 @@ function updateShed(dt) {
     if (it.cure >= 0.62 && it.needsBurp && !it.burped) {
       it.missed = true;
       it.needsBurp = false;
-      it.grade = dropGrade(it.grade);
-      toast('MISSED THE BURP — GRADE DROPPED');
+      if (applyGradeDrop(it)) toast('MISSED THE BURP — GRADE DROPPED');
+      markDirty();
     }
     if (it.cure >= 1) {
       it.sealed = true;
-      state.jars[it.grade]++;
-      state.grams += it.grams;
-      toast(`+${it.grams}G  ${it.grade} CURED`, 'good');
+      const grade = it.grade;
+      state.jars[grade] = (state.jars[grade] | 0) + 1;
+      syncCuredGrams();
+      toast(`+${gramsFor(grade)}G  ${grade} CURED`, 'good');
       j.mesh.visible = false;
       j.item = null;
       updateHud();
+      markDirty();
     }
   }
   const house = world.house;
@@ -1445,13 +1471,17 @@ function stationUi(st, actLbl) {
   if (st.kind === 'hook') {
     const it = st.ref.item;
     if (!it) return { text: state.wet.length ? `${actLbl}  HANG TO DRY` : 'HARVEST FIRST', btn: state.wet.length ? 'HANG' : 'ACT' };
-    if (it.dry < 1) return { text: `DRYING ${Math.round(it.dry * 100)}%`, btn: 'ACT' };
-    return { text: `${actLbl}  JAR ${it.grade}`, btn: 'JAR' };
+    if (it.dry < 1) return { text: `DRYING ${Math.round(it.dry * 100)}%  ${it.grade}`, btn: 'ACT' };
+    const left = Math.max(0, Math.ceil(10 - (it.hold || 0)));
+    return { text: `${actLbl}  JAR ${it.grade} · ${left}s`, btn: 'JAR' };
   }
   if (st.kind === 'jar') {
     const it = st.ref.item;
-    if (it?.needsBurp && !it.burped) return { text: `${actLbl}  BURP JAR`, btn: 'BURP' };
-    return { text: `CURING ${Math.round((it?.cure || 0) * 100)}%`, btn: 'ACT' };
+    const pct = Math.round((it?.cure || 0) * 100);
+    if (it?.needsBurp && !it.burped && !it.missed) return { text: `${actLbl}  BURP JAR`, btn: 'BURP' };
+    if (it?.missed) return { text: `BURP MISSED · CURING ${pct}%`, btn: 'ACT' };
+    if (!it?.burped && (it?.cure || 0) >= 0.2) return { text: `CURING ${pct}% · BURP SOON`, btn: 'ACT' };
+    return { text: `CURING ${pct}%`, btn: 'ACT' };
   }
   if (st.kind === 'mother') {
     const mom = st.ref;
@@ -1864,9 +1894,9 @@ function resetWorld() {
 
 function applySave(save) {
   state.mota = save.mota | 0;
-  state.grams = save.grams | 0;
   state.harvested = save.harvested | 0;
   for (const g of GRADES) state.jars[g] = Math.max(0, save.jars?.[g] | 0);
+  syncCuredGrams();
   state.wet = Array.isArray(save.wet) ? save.wet.slice(0, 12).map((w) => ({ grade: GRADES.includes(w.grade) ? w.grade : 'A', grams: w.grams | 0, strain: strainOf(w.strain).id })) : [];
   state.seeds = { bd: Math.max(0, save.seeds?.bd | 0), gdp: Math.max(0, save.seeds?.gdp | 0) };
   state.clones = Array.isArray(save.clones) ? save.clones.slice(0, 8).map((c) => ({ strain: strainOf(c.strain || c).id })) : [];
