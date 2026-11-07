@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { VoxelModel, hash3, mulberry, noise2, shade, mix, toMesh, toChunkedMeshes, voxelMaterial } from './voxel.js';
-import { buildPlant, PVS } from './plants.js';
+import { buildHangNug, buildPlant, PVS } from './plants.js';
 import { attachEstate, HOUSE, LOFT } from './estate.js';
 
 export const YARD = { x: 20, z: 14 };
@@ -514,21 +514,6 @@ function buildDoorLeaf(dir) {
   return m;
 }
 
-function buildHangBud() {
-  const m = new VoxelModel();
-  m.box(0, 8, 0, 1, 12, 1, 0xc9b98a, 0.02);
-  const pal = [0x8cc34b, 0x5d9a2f, 0xf4fbe6];
-  for (let y = 0; y < 8; y++) {
-    const r = 1.2 + Math.sin((y / 8) * Math.PI) * 2.4;
-    for (let x = -3; x <= 3; x++)
-      for (let z = -3; z <= 3; z++) {
-        if (Math.hypot(x, z) > r) continue;
-        m.set(x, y, z, pal[(x + y + z + 6) % 3], 0.05);
-      }
-  }
-  return m;
-}
-
 function buildCureJar() {
   const m = new VoxelModel();
   m.box(-2, 0, -2, 3, 1, 3, 0x6e5034, 0.02);
@@ -854,7 +839,7 @@ export function buildWorld() {
   doorR.position.set(shedWX(SHED_L.door1), 0, doorZ);
   group.add(doorR);
   place(group, buildShedInterior(), SHED_S, SHED_AT.x, 0, SHED_AT.z);
-  const budGeo = buildHangBud().build(SHED_S);
+  const budGeo = buildHangNug().build(SHED_S);
   const jarGeo = buildCureJar().build(SHED_S);
   const hookAt = [];
   for (const lz of SHED_L.beams) for (const lx of SHED_L.pegs) hookAt.push([shedWX(lx + 0.5), shedWZ(lz)]);
