@@ -6,7 +6,7 @@ import { createPlayer, LOOK_KEYS, LOOK_OPTIONS, normalizeLook } from './characte
 import { buildWorld, SLOT_OFFSETS } from './world.js';
 import { buildPlant, PVS } from './plants.js';
 import { VoxelModel, toMesh, voxelMaterial } from './voxel.js';
-import { MOTA_PER_G, SEED_PACK, WAREHOUSE_PRICE } from './estate.js';
+import { HOUSE, MOTA_PER_G, SEED_PACK, WAREHOUSE_PRICE } from './estate.js';
 import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf } from './strains.js';
 import { loadSave, writeSave } from './save.js';
@@ -94,10 +94,10 @@ sun.target.position.set(0, 0, -3);
 sun.castShadow = true;
 sun.shadow.mapSize.set(coarse ? 2048 : 4096, coarse ? 2048 : 4096);
 const sc = sun.shadow.camera;
-sc.left = -28;
+sc.left = -36;
 sc.right = 46;
 sc.top = 26;
-sc.bottom = -24;
+sc.bottom = -34;
 sc.near = 5;
 sc.far = 110;
 sun.shadow.bias = -0.0004;
@@ -488,10 +488,10 @@ function playLimits() {
   const insideH = H.contains(P.x, P.z);
   const crossH = H.open && Math.abs(P.x) < 1.65 && P.z < -12.4 && P.z > -15.2;
   if (insideH || crossH) {
-    const lim = { x0: -19.1, x1: 19.1, z0: -18.12, z1: 13.3 };
+    const lim = { x0: -19.1, x1: 19.1, z0: HOUSE.walkZ, z1: 13.3 };
     if (P.z < -14.05) {
-      lim.x0 = -11.75;
-      lim.x1 = 11.75;
+      lim.x0 = -HOUSE.walkX;
+      lim.x1 = HOUSE.walkX;
     }
     return lim;
   }
@@ -1458,9 +1458,9 @@ function updateCamera(dt) {
     let zLo = P.z < -8 ? -12 : -9;
     let zHi = 7;
     if (P.z < -13.6) {
-      xLo = -12;
-      xHi = 12;
-      zLo = -19.2;
+      xLo = -HOUSE.half;
+      xHi = HOUSE.half;
+      zLo = HOUSE.back - 0.4;
     }
     if (P.x > 18) {
       xLo = 16;

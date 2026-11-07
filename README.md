@@ -38,7 +38,7 @@ from how consistently you watered, then you finish it in the shed. Open the shed
 to dry, jar it, and burp the jar while it cures. Skipping the burp or leaving a hang too long drops the grade.
 Cured flower lands in the jars.
 
-Open the house from the porch. The mother room on the left starts with two empty pots. Plant a seed you are
+Open the house from the porch. The mother, clone, and veg rooms run deep enough to walk into and wide enough to move around the pots. The mother room on the left starts with two empty pots. Plant a seed you are
 holding and that plant grows into a mother, then stays there for cuttings. The clone room is straight ahead,
 and the veg room is on the right. Water a mother, take a cutting, wait for it to root, move it into veg, then
 carry the finished clone out to a bed or the warehouse. The porch stand sells cured jars for MOTA, the in-game

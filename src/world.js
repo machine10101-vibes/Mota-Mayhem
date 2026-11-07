@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { VoxelModel, hash3, mulberry, noise2, shade, mix, toMesh, toChunkedMeshes, voxelMaterial } from './voxel.js';
 import { buildPlant, PVS } from './plants.js';
-import { attachEstate } from './estate.js';
+import { attachEstate, HOUSE } from './estate.js';
 
 export const YARD = { x: 20, z: 14 };
 export const BED_SIZE = { w: 5.6, d: 4.9 };
@@ -248,8 +248,9 @@ function buildFence(group) {
   const gx = 2.4;
   add(YARD.x - gx, -(YARD.x + gx) / 2, YARD.z, 0, true);
   add(YARD.x - gx, (YARD.x + gx) / 2, YARD.z, 0, true);
-  add(YARD.x - 13, -(YARD.x + 13) / 2, -YARD.z, Math.PI);
-  add(YARD.x - 13, (YARD.x + 13) / 2, -YARD.z, Math.PI);
+  const houseGap = HOUSE.half + 0.7;
+  add(YARD.x - houseGap, -(YARD.x + houseGap) / 2, -YARD.z, Math.PI);
+  add(YARD.x - houseGap, (YARD.x + houseGap) / 2, -YARD.z, Math.PI);
   const gap = 1.25;
   const seg = YARD.z - gap;
   add(seg, YARD.x, -(YARD.z + gap) / 2, Math.PI / 2);
@@ -287,15 +288,16 @@ function buildHouse() {
   const m = new VoxelModel();
   const facade = new VoxelModel();
   const roof = new VoxelModel();
-  const X0 = -104;
-  const X1 = 104;
+  const X0 = -Math.round(HOUSE.half * 8);
+  const X1 = Math.round(HOUSE.half * 8);
   const WZ = -112;
+  const BACK = Math.round(HOUSE.back * 8) - 8;
   const WALL_H = 64;
   const siding = 0xe6d8b0;
   facade.box(X0, 6, WZ - 2, X1, WALL_H, WZ, (x, y, z) => (y % 4 === 3 ? shade(siding, 0.86) : shade(siding, 1 + ((x >> 4) % 2) * 0.0)), 0.025);
   facade.box(X0, 0, WZ - 2, X1, 6, WZ, (x, y, z) => pick([0x8c8e90, 0x7c7e80, 0x9a9c9c], x >> 2, y >> 1, z, 91), 0.05);
   facade.box(X0 - 1, WALL_H - 2, WZ - 2, X1 + 1, WALL_H, WZ + 1, 0xf3ecdc, 0.02);
-  for (const wx of [-78, -42, 42, 78]) windowCut(facade, wx, 24, 18, 26, WZ, siding);
+  for (const wx of [-112, -78, -42, 42, 78, 112]) windowCut(facade, wx, 24, 18, 26, WZ, siding);
   facade.delBox(-9, 6, WZ - 2, 9, 42, WZ);
   facade.box(-8, 32, WZ - 1, 8, 40, WZ, (x, y) => (((x + y) % 7) < 2 ? 0xd5ecf7 : 0x6fa6c8), 0.02);
   facade.box(-9, 30, WZ - 1, 9, 32, WZ + 1, 0xf3ecdc, 0.02);
@@ -304,8 +306,13 @@ function buildHouse() {
   facade.box(9, 6, WZ - 1, 11, 44, WZ + 1, df, 0.02);
   facade.box(-11, 42, WZ - 1, 11, 44, WZ + 1, df, 0.02);
 
-  const yt = (z) => WALL_H + 3 + Math.round((WZ - z) * 0.62);
-  for (let z = -153; z <= -100; z++) {
+  const OLD_BACK = -153;
+  const yt = (z) => {
+    const steep = WALL_H + 3 + Math.round((WZ - Math.max(z, OLD_BACK)) * 0.62);
+    if (z >= OLD_BACK) return steep;
+    return steep + Math.round((OLD_BACK - z) * 0.28);
+  };
+  for (let z = BACK; z <= -100; z++) {
     const top = yt(z);
     const row = Math.floor((-100 - z) / 3);
     for (let x = X0 - 6; x <= X1 + 6; x++) {
@@ -316,9 +323,9 @@ function buildHouse() {
       if ((-100 - z) % 3 === 0) col = shade(col, 0.86);
       for (let y = top - 3; y <= top; y++) roof.set(x, y, z, y === top ? col : shade(col, 0.7), 0.02);
     }
-    if (z >= -153 && z < -150) for (let x = X0 - 6; x <= X1 + 6; x++) roof.set(x, top + 1, z, 0xb15a46, 0.03);
+    if (z >= BACK && z < BACK + 3) for (let x = X0 - 6; x <= X1 + 6; x++) roof.set(x, top + 1, z, 0xb15a46, 0.03);
   }
-  for (let z = -152; z < WZ; z++) {
+  for (let z = BACK + 1; z < WZ; z++) {
     const top = yt(z) - 4;
     for (const x of [X0 - 3, X1 + 2]) for (let y = WALL_H; y <= top; y++) roof.set(x, y, z, siding, 0.03);
   }
@@ -915,7 +922,7 @@ export function buildWorld() {
 
   function groundHeight(x, z) {
     if (estate.warehouse.contains(x, z)) return 2 / 12;
-    if (Math.abs(x) < 11.9 && z <= -14.15 && z > -18.35) return 6 / 8;
+    if (Math.abs(x) < HOUSE.half - 0.25 && z <= -14.15 && z > HOUSE.back - 0.15) return 6 / 8;
     if (Math.abs(x) < 5 && z < -11 && z > -14.2) return 6 / 8;
     if (Math.abs(x) < 4) {
       if (z >= -11 && z < -10.375) return 4 / 8;

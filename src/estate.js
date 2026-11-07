@@ -6,6 +6,13 @@ export const WAREHOUSE_PRICE = 520;
 export const SEED_PACK = { n: 4, cost: 16 };
 export const MOTA_PER_G = { A: 4, AA: 6, AAA: 9, AAAA: 14 };
 export const WH = { x: 30, z: 0, hx: 7, hz: 5.5 };
+export const HOUSE = {
+  half: 16.45,
+  back: -23.2,
+  front: -14.4,
+  walkX: 15.6,
+  walkZ: -22.45,
+};
 
 const GLYPH = {
   M: ['10001', '11011', '10101', '10001', '10001', '10001', '10001'],
@@ -127,40 +134,50 @@ function buildHouseInterior(group, colliders, cutaway) {
   const vx = (n) => Math.round(n * S);
   const plaster = 0xe7dcc4;
   const trim = 0x2f4420;
+  const zBack = HOUSE.back - 0.05;
+  const zFront = -14.2;
+  const xWest = -HOUSE.half + 0.1;
+  const xEast = HOUSE.half - 0.1;
+  const splitL = -5.48;
+  const splitR = 5.32;
   const floor = (x0, x1, col) => {
-    m.box(vx(x0), 8, vx(-18.2), vx(x1), 12, vx(-14.2), (x, y, z) => (Math.floor(z / 4) % 2 === 0 ? col : shade(col, 0.9)), 0.04);
+    m.box(vx(x0), 8, vx(zBack + 0.15), vx(x1), 12, vx(zFront), (x, y, z) => (Math.floor(z / 4) % 2 === 0 ? col : shade(col, 0.9)), 0.04);
   };
-  floor(-12.05, -4.05, 0x3f5c34);
-  floor(-4.05, 4.05, 0xd5ddd4);
-  floor(4.05, 12.05, 0xc49a62);
+  floor(xWest, splitL, 0x3f5c34);
+  floor(splitL, splitR, 0xd5ddd4);
+  floor(splitR, xEast, 0xc49a62);
   const wall = (x0, z0, x1, z1) => m.box(vx(x0), 12, vx(z0), vx(x1), vx(3.15), vx(z1), plaster, 0.03);
-  wall(-12.2, -18.4, 12.2, -18.05);
-  wall(-12.35, -18.4, -11.95, -14.25);
-  wall(11.95, -18.4, 12.35, -14.25);
+  wall(xWest, HOUSE.back - 0.2, xEast, zBack);
+  wall(-HOUSE.half - 0.05, HOUSE.back - 0.2, xWest, -14.25);
+  wall(xEast, HOUSE.back - 0.2, HOUSE.half + 0.05, -14.25);
   const divider = (x) => {
-    wall(x, -18.05, x + 0.32, -16.3);
-    wall(x, -14.95, x + 0.32, -14.4);
-    m.box(vx(x), vx(2.7), vx(-18.05), vx(x + 0.32), vx(2.95), vx(-14.4), trim, 0.02);
+    wall(x, zBack, x + 0.28, -19.7);
+    wall(x, -17.3, x + 0.28, -14.4);
+    m.box(vx(x), vx(2.7), vx(zBack), vx(x + 0.28), vx(2.95), vx(-14.4), trim, 0.02);
   };
-  divider(-4.22);
-  divider(3.9);
-  m.box(vx(-12), vx(2.85), vx(-17.6), vx(-4.2), vx(3.05), vx(-17.35), 0x93c85a, 0.02);
-  m.box(vx(-3.6), vx(2.85), vx(-17.6), vx(3.6), vx(3.05), vx(-17.35), 0xc5e9f6, 0.02);
-  m.box(vx(4.3), vx(2.85), vx(-17.6), vx(11.8), vx(3.05), vx(-17.35), 0xffe08a, 0.02);
-  paintFlat(m, 'MOTHER', vx(-8.1), vx(-15.55), 12, 2, 0xf3e7b0);
-  paintFlat(m, 'CLONE', vx(0), vx(-15.95), 12, 2, 0x234026);
-  paintFlat(m, 'VEG', vx(8.1), vx(-15.55), 12, 2, 0xf3e7b0);
+  divider(splitL);
+  divider(splitR);
+  const band = (x0, x1, z, col) => m.box(vx(x0), vx(2.85), vx(z), vx(x1), vx(3.05), vx(z + 0.25), col, 0.02);
+  band(xWest + 0.15, splitL - 0.15, -22.35, 0x93c85a);
+  band(splitL + 0.4, splitR - 0.4, -22.35, 0xc5e9f6);
+  band(splitR + 0.4, xEast - 0.15, -22.35, 0xffe08a);
+  band(xWest + 0.15, splitL - 0.15, -18.15, 0x93c85a);
+  band(splitL + 0.4, splitR - 0.4, -18.15, 0xc5e9f6);
+  band(splitR + 0.4, xEast - 0.15, -18.15, 0xffe08a);
+  paintFlat(m, 'MOTHER', vx(-10.85), vx(-16.05), 12, 2, 0xf3e7b0);
+  paintFlat(m, 'CLONE', vx(0), vx(-16.35), 12, 2, 0x234026);
+  paintFlat(m, 'VEG', vx(10.85), vx(-16.05), 12, 2, 0xf3e7b0);
   place(group, m, 1 / S, 0, 0, 0);
 
   const push = (r) => colliders.push(r);
-  push({ x0: -12.2, x1: 12.2, z0: -18.5, z1: -18.02 });
-  push({ x0: -12.45, x1: -11.9, z0: -18.4, z1: -14.3 });
-  push({ x0: 11.9, x1: 12.45, z0: -18.4, z1: -14.3 });
-  push({ x0: -12.2, x1: -1.2, z0: -14.48, z1: -13.92 });
-  push({ x0: 1.2, x1: 12.2, z0: -14.48, z1: -13.92 });
-  for (const x0 of [-4.22, 3.9]) {
-    push({ x0, x1: x0 + 0.32, z0: -18.05, z1: -16.3 });
-    push({ x0, x1: x0 + 0.32, z0: -14.95, z1: -14.4 });
+  push({ x0: xWest, x1: xEast, z0: HOUSE.back - 0.25, z1: zBack });
+  push({ x0: -HOUSE.half - 0.1, x1: xWest, z0: HOUSE.back - 0.2, z1: -14.3 });
+  push({ x0: xEast, x1: HOUSE.half + 0.1, z0: HOUSE.back - 0.2, z1: -14.3 });
+  push({ x0: xWest, x1: -1.2, z0: -14.48, z1: -13.92 });
+  push({ x0: 1.2, x1: xEast, z0: -14.48, z1: -13.92 });
+  for (const x0 of [splitL, splitR]) {
+    push({ x0, x1: x0 + 0.28, z0: zBack, z1: -19.7 });
+    push({ x0, x1: x0 + 0.28, z0: -17.3, z1: -14.4 });
   }
 
   const door = new THREE.Group();
@@ -175,8 +192,8 @@ function buildHouseInterior(group, colliders, cutaway) {
   const potSm = buildPot(false);
 
   const mothers = [
-    { x: -9.5, z: -17.15 },
-    { x: -6.5, z: -17.15 },
+    { x: -13.7, z: -21.55 },
+    { x: -8.15, z: -21.55 },
   ].map((mom) => {
     place(group, potBig, 1 / 14, mom.x, 0.75, mom.z);
     const plant = toMesh(buildPlant(0, 'bd'), PVS);
@@ -188,9 +205,8 @@ function buildHouseInterior(group, colliders, cutaway) {
     return { ...mom, state: 'empty', strain: null, stage: 0, prog: 0, water: 1, cool: 0, plant };
   });
 
-  const trayX = [-2.85, -1.7, -0.55, 0.6, 1.75, 2.9];
-  const trays = trayX.map((x) => {
-    const z = -16.85;
+  const trayX = [-3.15, 0, 3.15];
+  const trays = trayX.flatMap((x) => [-21.35, -18.85].map((z) => ({ x, z }))).map(({ x, z }) => {
     const base = new THREE.Mesh(trayGeo, voxelMaterial);
     base.position.set(x, 0.75, z);
     base.castShadow = true;
@@ -209,10 +225,10 @@ function buildHouseInterior(group, colliders, cutaway) {
   });
 
   const vegSpots = [
-    [6.5, -17.15],
-    [9.3, -17.15],
-    [6.5, -16.15],
-    [9.3, -16.15],
+    [8.15, -21.55],
+    [13.7, -21.55],
+    [8.15, -18.85],
+    [13.7, -18.85],
   ].map(([x, z]) => {
     place(group, potSm, 1 / 15, x, 0.75, z);
     const plant = toMesh(buildPlant(2, 'bd'), PVS);
@@ -234,7 +250,7 @@ function buildHouseInterior(group, colliders, cutaway) {
     trays,
     veg: vegSpots,
     contains(x, z) {
-      return x > -11.85 && x < 11.85 && z < -14.25 && z > -18.15;
+      return x > -HOUSE.half + 0.4 && x < HOUSE.half - 0.4 && z < -14.25 && z > HOUSE.back + 0.32;
     },
   };
 }
