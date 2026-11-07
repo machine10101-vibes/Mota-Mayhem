@@ -829,10 +829,10 @@ export function buildWorld() {
   const budGeo = buildHangBud().build(SHED_S);
   const jarGeo = buildCureJar().build(SHED_S);
   const hooks = [
-    [14.7, -10.55],
-    [15.7, -10.55],
-    [16.5, -10.55],
-    [17.5, -10.55],
+    [14.66, -10.56],
+    [15.53, -10.56],
+    [16.53, -10.56],
+    [17.41, -10.56],
   ].map(([x, z]) => {
     const mesh = new THREE.Mesh(budGeo, voxelMaterial);
     mesh.position.set(x, 1.05, z);
@@ -843,10 +843,10 @@ export function buildWorld() {
     return { x, z, y: 0, mesh, item: null };
   });
   const cureJars = [
-    [13.85, -10.7],
-    [13.85, -9.9],
-    [13.85, -9.1],
-    [13.85, -8.3],
+    [13.94, -10.45],
+    [13.94, -9.95],
+    [13.94, -9.45],
+    [13.94, -8.95],
   ].map(([x, z]) => {
     const mesh = new THREE.Mesh(jarGeo, voxelMaterial);
     mesh.position.set(x, 0.62, z);
