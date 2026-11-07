@@ -16,7 +16,8 @@ const C = {
   cuff: 0x6b8f45,
   hat: [0x4f6d30, 0x5a7a37, 0x445f29],
   hatBand: 0x2f4420,
-  hatBrim: [0x587a34, 0x4a6a2b],
+  hatBrim: [0x6a8a3a, 0x628236, 0x73943f],
+  pocket: 0x34491f,
   leaf: 0x93c85a,
   leafD: 0x6fa23f,
   boot: [0x7c4b27, 0x6e411f, 0x8a5730],
@@ -32,13 +33,120 @@ const C = {
 const pick = (arr, x, y, z, s = 0) => arr[Math.floor(hash3(x, y, z, s) * arr.length)];
 const greenFn = (x, y, z) => pick(C.green, x, y, z, 3);
 
+export const LOOK_KEYS = [
+  { key: 'skin', label: 'SKIN' },
+  { key: 'hair', label: 'HAIR' },
+  { key: 'hat', label: 'HAT' },
+  { key: 'shirt', label: 'SHIRT' },
+  { key: 'overalls', label: 'OVERALLS' },
+  { key: 'boots', label: 'BOOTS' },
+];
+
+export const DEFAULT_LOOK = { skin: 'tan', hair: 'brown', hat: 'green', shirt: 'red', overalls: 'green', boots: 'brown' };
+
+export const LOOK_OPTIONS = {
+  skin: [
+    { id: 'fair', name: 'FAIR', skin: 0xf3c7a0, skinD: 0xe0b08a, skinL: 0xffd8b8, blush: 0xf0a090 },
+    { id: 'tan', name: 'TAN', skin: 0xe8a76b, skinD: 0xd08b55, skinL: 0xf2b87c, blush: 0xea9a70 },
+    { id: 'olive', name: 'OLIVE', skin: 0xc49262, skinD: 0xa87648, skinL: 0xd4a574, blush: 0xc47a68 },
+    { id: 'brown', name: 'BROWN', skin: 0x8d5a3c, skinD: 0x734830, skinL: 0xa06a4a, blush: 0xa06050 },
+    { id: 'deep', name: 'DEEP', skin: 0x5c3a2a, skinD: 0x4a2e22, skinL: 0x6e4834, blush: 0x7a4038 },
+  ],
+  hair: [
+    { id: 'brown', name: 'BROWN', hair: 0x4b2b18, hair2: 0x623b21, brow: 0x3a1f10 },
+    { id: 'black', name: 'BLACK', hair: 0x1c140f, hair2: 0x2a1d16, brow: 0x120e0c },
+    { id: 'blonde', name: 'BLONDE', hair: 0xe6c56a, hair2: 0xf0d48a, brow: 0x8a6a30 },
+    { id: 'auburn', name: 'AUBURN', hair: 0x8a3a22, hair2: 0xa84830, brow: 0x5c2414 },
+    { id: 'purple', name: 'PURPLE', hair: 0x5a3a78, hair2: 0x6e4c90, brow: 0x3a2458 },
+  ],
+  hat: [
+    { id: 'green', name: 'GREEN', hat: [0x4f6d30, 0x5a7a37, 0x445f29], band: 0x2f4420, brim: [0x6a8a3a, 0x628236, 0x73943f] },
+    { id: 'black', name: 'BLACK', hat: [0x2a2e28, 0x343832, 0x22261f], band: 0x1a1c18, brim: [0x3a3e38, 0x2e322c, 0x484c46] },
+    { id: 'tan', name: 'TAN', hat: [0xc4a36a, 0xb08c52, 0xd4b47a], band: 0x6e5030, brim: [0xd4b47a, 0xc4a36a, 0xe0c48a] },
+    { id: 'purple', name: 'PURPLE', hat: [0x5a3d78, 0x6a4c8a, 0x4a3068], band: 0x2e1e40, brim: [0x7a5c9a, 0x6a4c8a, 0x8a6caa] },
+    { id: 'red', name: 'RED', hat: [0x8e2e2e, 0xa33a38, 0x742424], band: 0x3a1414, brim: [0xb24a44, 0x8e2e2e, 0xc45a52] },
+  ],
+  shirt: [
+    { id: 'red', name: 'RED', a: 0xb22e2e, b: 0x7f1f22, c: 0x36482b, cuff: 0x9a2428, cuffD: 0x6a1a1c },
+    { id: 'blue', name: 'BLUE', a: 0x2e4e8a, b: 0x1e345f, c: 0x2a3a28, cuff: 0x3a62a4, cuffD: 0x1e345f },
+    { id: 'gold', name: 'GOLD', a: 0xc4922e, b: 0x8a6818, c: 0x3a3a24, cuff: 0xd4a84a, cuffD: 0x8a6818 },
+    { id: 'purple', name: 'PURPLE', a: 0x6a3a8a, b: 0x4a2864, c: 0x2a2438, cuff: 0x7a4a9a, cuffD: 0x4a2864 },
+    { id: 'forest', name: 'FOREST', a: 0x2f6a3a, b: 0x1e4a28, c: 0x24301c, cuff: 0x3a7a48, cuffD: 0x1e4a28 },
+  ],
+  overalls: [
+    { id: 'green', name: 'GREEN', green: [0x4a6b30, 0x56783a, 0x425f2b], greenD: 0x37501f, cuff: 0x6b8f45, pocket: 0x34491f },
+    { id: 'denim', name: 'DENIM', green: [0x3a5278, 0x466088, 0x2e4468], greenD: 0x243450, cuff: 0x5a7090, pocket: 0x243450 },
+    { id: 'brown', name: 'BROWN', green: [0x6e4a30, 0x7c5838, 0x5c3e28], greenD: 0x3e2a1c, cuff: 0x8a6848, pocket: 0x4a3424 },
+    { id: 'black', name: 'BLACK', green: [0x2c3030, 0x383c3c, 0x222626], greenD: 0x161818, cuff: 0x4a5050, pocket: 0x1c2020 },
+  ],
+  boots: [
+    { id: 'brown', name: 'BROWN', boot: [0x7c4b27, 0x6e411f, 0x8a5730], bootD: 0x4d2e17, sole: 0x362213, lace: 0xc9a46a },
+    { id: 'black', name: 'BLACK', boot: [0x2a2a2a, 0x222222, 0x343434], bootD: 0x141414, sole: 0x101010, lace: 0xc9c2b0 },
+    { id: 'red', name: 'RED', boot: [0x8a2e2e, 0x742424, 0x9a3a38], bootD: 0x4a1616, sole: 0x2a1010, lace: 0xf0e0c0 },
+  ],
+};
+
+let shirtA = 0xb22e2e;
+let shirtB = 0x7f1f22;
+let shirtC = 0x36482b;
+let cuffA = 0x9a2428;
+let cuffD = 0x6a1a1c;
+let currentLook = { ...DEFAULT_LOOK };
+
 function plaid(x, y, z) {
   const h = x + z;
   const a = (((Math.floor(h / 2) % 3) + 3) % 3);
   const b = (((Math.floor(y / 2) % 3) + 3) % 3);
-  if (a === 0 && b === 0) return 0x36482b;
-  if (a === 0 || b === 0) return 0x7f1f22;
-  return 0xb22e2e;
+  if (a === 0 && b === 0) return shirtC;
+  if (a === 0 || b === 0) return shirtB;
+  return shirtA;
+}
+
+function lookOption(key, id) {
+  return LOOK_OPTIONS[key].find((o) => o.id === id) || LOOK_OPTIONS[key][0];
+}
+
+export function normalizeLook(look) {
+  const out = { ...DEFAULT_LOOK };
+  if (!look) return out;
+  for (const { key } of LOOK_KEYS) {
+    if (LOOK_OPTIONS[key].some((o) => o.id === look[key])) out[key] = look[key];
+  }
+  return out;
+}
+
+function paintLook(look) {
+  currentLook = normalizeLook(look);
+  const skin = lookOption('skin', currentLook.skin);
+  const hair = lookOption('hair', currentLook.hair);
+  const hat = lookOption('hat', currentLook.hat);
+  const shirt = lookOption('shirt', currentLook.shirt);
+  const overalls = lookOption('overalls', currentLook.overalls);
+  const boots = lookOption('boots', currentLook.boots);
+  C.skin = skin.skin;
+  C.skinD = skin.skinD;
+  C.skinL = skin.skinL;
+  C.blush = skin.blush;
+  C.hair = hair.hair;
+  C.hair2 = hair.hair2;
+  C.brow = hair.brow;
+  C.greenD = overalls.greenD;
+  C.cuff = overalls.cuff;
+  C.pocket = overalls.pocket;
+  C.hatBand = hat.band;
+  C.bootD = boots.bootD;
+  C.sole = boots.sole;
+  C.lace = boots.lace;
+  C.green.splice(0, C.green.length, ...overalls.green);
+  C.hat.splice(0, C.hat.length, ...hat.hat);
+  C.hatBrim.splice(0, C.hatBrim.length, ...hat.brim);
+  C.boot.splice(0, C.boot.length, ...boots.boot);
+  shirtA = shirt.a;
+  shirtB = shirt.b;
+  shirtC = shirt.c;
+  cuffA = shirt.cuff;
+  cuffD = shirt.cuffD;
+  return { ...currentLook };
 }
 
 const LEAF_BIG = ['...XX...', 'X..XX..X', 'XX.XX.XX', '.XXXXXX.', 'X.XXXX.X', '..XXXX..', '...XX...'];
@@ -75,7 +183,7 @@ function buildTorso() {
     m.box(sx, 20, -3, sx + 2, 24, -2, C.green[1], 0.03);
     m.box(sx, 24, 3, sx + 2, 25, 4, C.green[1], 0.03);
   }
-  m.box(-3, 17, 4, 3, 22, 5, 0x34491f, 0.03);
+  m.box(-3, 17, 4, 3, 22, 5, C.pocket, 0.03);
   for (let r = 0; r < LEAF_POCKET.length; r++)
     for (let c = 0; c < 6; c++)
       if (LEAF_POCKET[r][c] === 'X') m.set(c - 3, 21 - r, 4, r === 0 || c === 0 || c === 5 ? 0x86bf4e : 0xa8dc6a, 0.03);
@@ -156,7 +264,7 @@ function buildHead() {
 }
 
 function buildHat(m) {
-  const brimTop = (x, z) => pick([0x6a8a3a, 0x628236, 0x73943f], x, 0, z, 21);
+  const brimTop = (x, z) => pick(C.hatBrim, x, 0, z, 21);
   for (let x = -12; x <= 11; x++)
     for (let z = -12; z <= 11; z++) {
       const r = Math.hypot(x + 0.5, z + 0.5);
@@ -206,7 +314,7 @@ function buildArm(side) {
   const ox0 = side < 0 ? x0 - 1 : x0;
   const ox1 = side < 0 ? x1 : x1 + 1;
   m.box(x0, 20, -2, x1, 25, 2, plaid, 0);
-  m.box(ox0, 17, -3, ox1, 20, 3, (x, y, z) => (y === 17 ? 0x6a1a1c : 0x9a2428), 0.05);
+  m.box(ox0, 17, -3, ox1, 20, 3, (x, y, z) => (y === 17 ? cuffD : cuffA), 0.05);
   m.box(x0, 13, -2, x1, 17, 2, C.skin, 0.025);
   m.box(ox0, 9, -2, ox1, 13, 3, C.skin, 0.025);
   m.box(ox0, 9, 2, ox1, 13, 3, (x, y) => (y % 2 === 0 ? C.skinD : C.skin), 0.02);
@@ -227,7 +335,8 @@ function buildCan() {
   return m;
 }
 
-export function createPlayer() {
+export function createPlayer(look) {
+  paintLook(look);
   const root = new THREE.Group();
   const rig = new THREE.Group();
   root.add(rig);
@@ -236,10 +345,24 @@ export function createPlayer() {
   const mk = (model, pivot, parent, parentPivot = [0, 0, 0], shadows = true) => {
     const g = new THREE.Group();
     g.position.set((pivot[0] - parentPivot[0]) * S, (pivot[1] - parentPivot[1]) * S, (pivot[2] - parentPivot[2]) * S);
-    g.add(toMesh(model, S, pivot, undefined, shadows));
+    const mesh = toMesh(model, S, pivot, undefined, shadows);
+    g.add(mesh);
+    g.userData.mesh = mesh;
+    g.userData.pivot = pivot;
     parent.add(g);
     return g;
   };
+
+  function refill(group, model) {
+    const mesh = group.userData.mesh;
+    if (mesh) {
+      group.remove(mesh);
+      mesh.geometry.dispose();
+    }
+    const next = toMesh(model, S, group.userData.pivot);
+    group.add(next);
+    group.userData.mesh = next;
+  }
 
   const hipP = [0, 13, 0];
   const legL = mk(buildLeg(-1), [-3.5, 13, 0], rig);
@@ -258,6 +381,17 @@ export function createPlayer() {
     state.action = 1;
     state.actionKind = kind;
     canMesh.visible = kind === 'water';
+  }
+
+  function setLook(next) {
+    paintLook(next);
+    refill(legL, buildLeg(-1));
+    refill(legR, buildLeg(1));
+    refill(torso, buildTorso());
+    refill(head, buildHead());
+    refill(armL, buildArm(-1));
+    refill(armR, buildArm(1));
+    return { ...currentLook };
   }
 
   function update(dt, speed01) {
@@ -306,5 +440,5 @@ export function createPlayer() {
     }
   }
 
-  return { root, rig, update, playAction, head, torso };
+  return { root, rig, update, playAction, head, torso, setLook, getLook: () => ({ ...currentLook }) };
 }

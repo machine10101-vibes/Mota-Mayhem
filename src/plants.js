@@ -1,13 +1,7 @@
 import { VoxelModel, hash3, mulberry, mix, shade } from './voxel.js';
+import { strainOf } from './strains.js';
 
 export const PVS = 0.05;
-
-const BUD = [
-  [0x8cc34b, 0x5d9a2f, 0xb7e070],
-  [0x62a346, 0x3e7a2c, 0x88c45c],
-  [0x9d7cc6, 0x6c4f9a, 0xc6a9e8],
-  [0xb3b64c, 0x868c31, 0xd6d870],
-];
 const LEAF_FINGERS = [-1.25, -0.8, -0.4, 0, 0.4, 0.8, 1.25];
 const LEAF_LENS = [0.45, 0.72, 0.92, 1, 0.92, 0.72, 0.45];
 
@@ -86,22 +80,23 @@ function cola(m, cx, cy, cz, len, rad, pal, R, opt) {
   }
 }
 
-export function buildPlant(stage, variant) {
-  const R = mulberry(stage * 977 + variant * 131 + 7);
+export function buildPlant(stage, strain) {
+  const spec = strainOf(strain);
+  const R = mulberry(stage * 977 + spec.seed * 131 + 7);
   const m = new VoxelModel();
-  const pal = BUD[variant % 4];
-  const leafDark = variant === 2 ? 0x2a5a30 : 0x2b6a2a;
-  const leafLight = variant === 3 ? 0x6bb040 : 0x5fae3e;
-  const stem = 0x3f7a2e;
-  const stemD = 0x35682a;
+  const pal = spec.bud;
+  const leafDark = spec.leafDark;
+  const leafLight = spec.leafLight;
+  const stem = spec.stem;
+  const stemD = spec.stemD;
 
   if (stage === 0) {
-    line(m, 0, 0, 0, 0, 3, 0, 0x7ec24f);
-    m.box(-2, 3, 0, 0, 4, 1, 0x9bd66a, 0.05);
-    m.box(1, 3, 0, 3, 4, 1, 0x9bd66a, 0.05);
-    m.set(0, 4, 0, 0xa9e078, 0.04);
-    m.set(-3, 3, 0, 0x86c458, 0.04);
-    m.set(3, 3, 0, 0x86c458, 0.04);
+    line(m, 0, 0, 0, 0, 3, 0, leafLight);
+    m.box(-2, 3, 0, 0, 4, 1, shade(leafLight, 1.12), 0.05);
+    m.box(1, 3, 0, 3, 4, 1, shade(leafLight, 1.12), 0.05);
+    m.set(0, 4, 0, shade(leafLight, 1.22), 0.04);
+    m.set(-3, 3, 0, leafDark, 0.04);
+    m.set(3, 3, 0, leafDark, 0.04);
     return m;
   }
 
@@ -169,11 +164,10 @@ export function buildPlant(stage, variant) {
   return m;
 }
 
-export function buildMiniCola(variant) {
+export function buildMiniCola(strain) {
+  const spec = strainOf(strain);
   const m = new VoxelModel();
-  const R = mulberry(variant * 31 + 3);
-  cola(m, 0, 0, 0, 8, 2.8, BUD[variant % 4], R, { pistil: 0.1, frost: 0.18 });
+  const R = mulberry(spec.seed * 31 + 3);
+  cola(m, 0, 0, 0, 8, 2.8, spec.bud, R, { pistil: 0.1, frost: 0.18 });
   return m;
 }
-
-export { BUD, shade };

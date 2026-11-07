@@ -14,10 +14,10 @@
     <div id="stage"></div>
 
     <div id="hud" class="hidden">
-      <div class="panel brand"><canvas id="leaf-icon" width="8" height="10"></canvas><span>MOTA MAYHEM</span></div>
+      <div class="panel brand"><canvas id="leaf-icon" width="8" height="10"></canvas><span>MOTA MAYHEM</span><button type="button" id="btn-you" class="you-btn">YOU</button></div>
       <div class="panel inv">
         <div class="row mota"><span class="lbl">MOTA</span><b id="mota">0</b></div>
-        <div class="row"><span class="lbl">SEEDS</span><b id="seeds">0</b></div>
+        <div class="row seeds"><span class="lbl">SEEDS</span><b id="seeds">BD 10  GDP 10</b></div>
         <div class="row"><span class="lbl">CLONES</span><b id="clones">0</b></div>
         <div class="row"><span class="lbl">WET</span><b id="wet">0</b></div>
         <div class="row"><span class="lbl">SHED</span><b id="shed-count">0</b></div>
@@ -38,17 +38,19 @@
     <div id="help" class="panel">
       <span class="help-desk">
         <b>MOVE</b> WASD / ARROWS &nbsp; <b>RUN</b> SHIFT<br />
-        <b>ACT</b> SPACE &nbsp; <b>HOUSE</b> CLONE / VEG &nbsp; <b>SHED</b> DRY / CURE<br />
+        <b>ACT</b> SPACE &nbsp; <b>1 / 2</b> SEED STRAIN &nbsp; <b>YOU</b> C<br />
+        <b>HOUSE</b> PLANT MOTHERS / CLONE / VEG &nbsp; <b>SHED</b> DRY / CURE<br />
         <b>MOTA</b> SELL JARS ON THE PORCH &nbsp; <b>BUY</b> THE EAST WAREHOUSE<br />
-        <b>CAMERA</b> Q / E / DRAG / WHEEL<br />
-        <b>PIXELS</b> [ ] &nbsp; <b>HELP</b> H
+        <b>CAMERA</b> Q / E / DRAG / WHEEL &nbsp; <b>PIXELS</b> [ ] &nbsp; <b>HELP</b> H<br />
+        SAVED ON THIS DEVICE
       </span>
       <span class="help-touch">
         <b>MOVE</b> STICK &nbsp; <b>RUN</b> HOLD RUN<br />
         <b>ACT</b> TAP PROMPT, SOIL, HOUSE, OR SHED<br />
+        <b>SEEDS</b> TAP BD OR GDP &nbsp; <b>YOU</b> CHARACTER<br />
         <b>MOTA</b> SELL JARS &nbsp; <b>BUY</b> WAREHOUSE<br />
-        <b>CAMERA</b> DRAG / PINCH<br />
-        <b>HELP</b> ?
+        <b>CAMERA</b> DRAG / PINCH &nbsp; <b>HELP</b> ?<br />
+        SAVED ON THIS DEVICE
       </span>
     </div>
 
@@ -70,7 +72,23 @@
         <div class="logo"><canvas id="leaf-logo" width="8" height="10"></canvas><h1>MOTA<br />MAYHEM</h1></div>
         <p class="sub">TRIPLE-A BACKYARD FARMING</p>
       </div>
-      <p class="press"><span class="press-desk">CLICK OR SPACE TO START</span><span class="press-touch">TAP TO START</span></p>
+      <div class="title-actions">
+        <button type="button" id="btn-character" class="tbtn">CHARACTER</button>
+        <button type="button" id="btn-new" class="tbtn hidden">NEW GROW</button>
+      </div>
+      <p class="press"><span id="press-desk" class="press-desk">CLICK OR SPACE TO START</span><span id="press-touch" class="press-touch">TAP TO START</span></p>
+    </div>
+    <div id="strains" class="hidden"></div>
+    <div id="dress" class="hidden">
+      <div class="panel dress-card">
+        <div class="dress-title">CHARACTER</div>
+        <div id="dress-rows"></div>
+        <div class="dress-actions">
+          <button type="button" id="btn-dress-new" class="tbtn">NEW GROW</button>
+          <button type="button" id="btn-dress-done" class="tbtn">DONE</button>
+        </div>
+        <p class="dress-note">SAVED ON THIS DEVICE</p>
+      </div>
     </div>
     <div id="loading"><span>GROWING THE YARD...</span></div>
     <script type="module" src="/src/main.js"></script>
