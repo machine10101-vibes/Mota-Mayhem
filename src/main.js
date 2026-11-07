@@ -6,7 +6,7 @@ import { createPlayer, LOOK_KEYS, LOOK_OPTIONS, normalizeLook } from './characte
 import { buildWorld, SLOT_OFFSETS } from './world.js';
 import { buildPlant, PVS } from './plants.js';
 import { VoxelModel, toMesh, voxelMaterial } from './voxel.js';
-import { HOUSE, MOTA_PER_G, SEED_PACK, WAREHOUSE_PRICE } from './estate.js';
+import { HOUSE, LOFT, MOTA_PER_G, SEED_PACK, SUPPLIES, WAREHOUSE_PRICE } from './estate.js';
 import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf } from './strains.js';
 import { loadSave, writeSave } from './save.js';
@@ -109,6 +109,8 @@ const state = {
   mode: 'loading',
   seeds: starterSeeds(),
   clones: [],
+  nutrients: 0,
+  cubes: 0,
   mota: 0,
   jars: { AAAA: 0, AAA: 0, AA: 0, A: 0 },
   grams: 0,
@@ -256,7 +258,7 @@ function forChanged(e, fn) {
 }
 
 function uiTarget(el) {
-  return !!el?.closest?.('#touch, #hud, #dress, #strains, .title-actions, button, .tbtn');
+  return !!el?.closest?.('#touch, #hud, #dress, #shop, #strains, .title-actions, button, .tbtn');
 }
 
 function onCamDown(e) {
@@ -513,8 +515,11 @@ function resolveCollisions() {
   if (!world.house.open) blocks.push(world.house.doorBlock);
   if (!world.warehouse.gateOpen) blocks.push(world.warehouse.gateBlock);
   if (world.warehouse.owned && !world.warehouse.open) blocks.push(world.warehouse.doorBlock);
+  const upstairs = P.y > 1.85;
   for (let it = 0; it < 3; it++)
     for (const r of blocks) {
+      if (r.floor === 1 && !upstairs) continue;
+      if (r.floor === 0 && upstairs) continue;
       const nx = THREE.MathUtils.clamp(P.x, r.x0, r.x1);
       const nz = THREE.MathUtils.clamp(P.z, r.z0, r.z1);
       let dx = P.x - nx;
@@ -583,8 +588,15 @@ function updatePlayer(dt) {
     P.speed += (0 - P.speed) * Math.min(1, dt * 10);
   }
   resolveCollisions();
-  const gy = world.groundHeight(P.x, P.z);
+  const gy = world.groundHeight(P.x, P.z, P.y);
+  const climbed = P.y > 2.2;
   P.y += (gy - P.y) * Math.min(1, dt * 18);
+  if (world.house) {
+    const up = P.y > 1.45 || world.house.onStair(P.x, P.z, P.y);
+    world.house.upper.visible = up;
+    if (up && !climbed && P.y > 2.2) cam.distT = Math.min(cam.distT, 18);
+    if (!up && climbed) cam.distT = Math.max(cam.distT, 24);
+  }
   P.cool = Math.max(0, P.cool - dt);
   player.root.position.set(P.x, P.y, P.z);
   player.root.rotation.y = P.facing;
@@ -828,7 +840,7 @@ function act(slotIndex = -1) {
     forced = plot;
   }
   if (!forced) {
-    if (world.house.contains(P.x, P.z)) return toast('WALK TO A MOTHER, TRAY, OR VEG POT');
+    if (world.house.contains(P.x, P.z)) return toast(P.y > 2.2 ? 'WALK TO THE COMPUTER' : 'WALK TO A MOTHER, HYDRO TUBE, OR VEG POT');
     if (world.warehouse.contains(P.x, P.z)) return toast('WALK TO A GROW POT');
     return toast('WALK TO A GARDEN BED');
   }
@@ -849,10 +861,10 @@ const MOTHER_DUR = [8, 10];
 function stationFocus() {
   if (!world?.shed) return null;
   let best = null;
-  const consider = (x, z, kind, ref, reach = 1.55) => {
+  const consider = (x, z, kind, ref, reach = 1.55, y = 0.08) => {
     const d2 = (x - P.x) ** 2 + (z - P.z) ** 2;
     if (d2 > reach * reach) return;
-    if (!best || d2 < best.d2) best = { kind, ref, x, z, d2 };
+    if (!best || d2 < best.d2) best = { kind, ref, x, z, d2, y };
   };
   const shed = world.shed;
   consider(16, -6.35, 'shed-door', null, 1.75);
@@ -863,9 +875,12 @@ function stationFocus() {
   const house = world.house;
   consider(0, -13.15, 'house-door', null, 1.7);
   if (house.open || house.contains(P.x, P.z)) {
-    for (const mom of house.mothers) consider(mom.x, mom.z + 0.85, 'mother', mom, 1.25);
-    for (const tray of house.trays) consider(tray.x, tray.z + 0.72, 'tray', tray, 0.95);
-    for (const veg of house.veg) consider(veg.x, veg.z + 0.75, 'veg', veg, 1.05);
+    if (P.y > 2.2) consider(house.computer.x, house.computer.z, 'computer', house.computer, 1.45, LOFT.y + 0.08);
+    else {
+      for (const mom of house.mothers) consider(mom.x, mom.z + 0.85, 'mother', mom, 1.25);
+      for (const tray of house.trays) consider(tray.x, tray.z + 0.55, 'tray', tray, 1.05);
+      for (const veg of house.veg) consider(veg.x, veg.z + 0.75, 'veg', veg, 1.05);
+    }
   }
   consider(world.stand.x, world.stand.z, 'stand', null, 1.55);
   if (!world.warehouse.owned) consider(world.lot.x, world.lot.z, 'lot', null, 1.7);
@@ -909,6 +924,7 @@ function actStation(f) {
   if (f.kind === 'mother') return actMother(f.ref);
   if (f.kind === 'tray') return actTray(f.ref);
   if (f.kind === 'veg') return actVeg(f.ref);
+  if (f.kind === 'computer') return openShop();
   if (f.kind === 'stand') return actStand();
   if (f.kind === 'lot') return actBuyWarehouse();
   if (f.kind === 'hook') {
@@ -988,6 +1004,7 @@ function actMother(mom) {
       markDirty();
       return true;
     }
+    if (state.nutrients > 0) return feedMother(mom);
     const pct = Math.round((((mom.stage || 0) + (mom.prog || 0)) / 2) * 100);
     return toast(`${strainOf(mom.strain).short} MOTHER ${pct}%`);
   }
@@ -999,9 +1016,12 @@ function actMother(mom) {
     markDirty();
     return true;
   }
-  if (mom.cool > 0) return toast('MOTHER IS RESTING');
+  if (mom.cool > 0) {
+    if (state.nutrients > 0) return feedMother(mom);
+    return toast('MOTHER IS RESTING');
+  }
   const tray = world.house.trays.find((t) => t.state === 'empty');
-  if (!tray) return toast('CLONE TRAYS ARE FULL');
+  if (!tray) return toast('HYDRO TUBES ARE FULL');
   mom.cool = 8;
   mom.water = Math.max(0, mom.water - 0.22);
   tray.state = 'rooting';
@@ -1009,16 +1029,51 @@ function actMother(mom) {
   tray.strain = mom.strain || 'bd';
   tray.plant.geometry = plantGeo(0, tray.strain);
   tray.plant.visible = true;
-  tray.plant.scale.setScalar(0.62);
+  tray.plant.scale.setScalar(0.48);
   P.cool = 0.45;
   player.playAction('harvest');
-  toast(`${strainOf(tray.strain).short} CUTTING IS ROOTING`);
+  toast(`${strainOf(tray.strain).short} CUTTING IS IN THE TUBE`);
+  markDirty();
+  return true;
+}
+
+function feedMother(mom) {
+  if (state.nutrients <= 0) return toast('BUY NUTRIENTS UPSTAIRS');
+  state.nutrients--;
+  mom.water = 1;
+  mom.cool = 0;
+  if (mom.state === 'growing') mom.prog = Math.min(0.92, (mom.prog || 0) + 0.4);
+  P.cool = 0.4;
+  player.playAction('water');
+  toast('MOTHER FED', 'good');
+  updateHud();
   markDirty();
   return true;
 }
 
 function actTray(tray) {
   if (tray.state === 'empty') return toast('TAKE A CUTTING FROM A MOTHER');
+  if (tray.state === 'rooting') {
+    if (state.cubes > 0) {
+      state.cubes--;
+      tray.t += ROOT_TIME * 0.65;
+      P.cool = 0.35;
+      toast('ROOT CUBE IN THE TUBE', 'good');
+      updateHud();
+      markDirty();
+      return true;
+    }
+    if (state.nutrients > 0) {
+      state.nutrients--;
+      tray.t += ROOT_TIME * 0.45;
+      P.cool = 0.35;
+      toast('TUBE FED', 'good');
+      updateHud();
+      markDirty();
+      return true;
+    }
+    return toast('STILL ROOTING');
+  }
   if (tray.state !== 'ready') return toast('STILL ROOTING');
   const pot = world.house.veg.find((v) => v.state === 'empty');
   if (!pot) return toast('VEG ROOM IS FULL');
@@ -1039,6 +1094,16 @@ function actTray(tray) {
 
 function actVeg(pot) {
   if (pot.state === 'empty') return toast('BRING A ROOTED CLONE');
+  if (pot.state === 'veg' && state.nutrients > 0) {
+    state.nutrients--;
+    pot.t += VEG_TIME * 0.5;
+    P.cool = 0.35;
+    player.playAction('water');
+    toast('VEG POT FED', 'good');
+    updateHud();
+    markDirty();
+    return true;
+  }
   if (pot.state !== 'ready') return toast('STILL VEGETATING');
   if (state.clones.length >= 8) return toast('HANDS ARE FULL OF CLONES');
   const strain = pot.strain || 'bd';
@@ -1206,6 +1271,8 @@ function updateShed(dt) {
 function updateHud() {
   $('seeds').textContent = `BD ${state.seeds.bd | 0}  GDP ${state.seeds.gdp | 0}`;
   $('clones').textContent = state.clones.length;
+  $('nuts').textContent = state.nutrients | 0;
+  $('cubes').textContent = state.cubes | 0;
   $('mota').textContent = state.mota;
   $('grams').textContent = state.grams;
   $('wet').textContent = state.wet.length;
@@ -1337,7 +1404,7 @@ function updateTarget() {
 
 function showStation(st) {
   marker.visible = true;
-  marker.position.set(st.x, 0.08 + Math.sin(cam.t * 5) * 0.02, st.z);
+  marker.position.set(st.x, (st.y || 0.08) + Math.sin(cam.t * 5) * 0.02, st.z);
   const scale = 1 + Math.sin(cam.t * 5) * 0.03;
   marker.scale.set(scale, 1, scale);
   const actLbl = touchUI ? 'TAP' : 'SPACE';
@@ -1349,7 +1416,7 @@ function showStation(st) {
     tip.style.display = 'none';
     return;
   }
-  v3.set(st.x, 1.7, st.z).project(camera);
+  v3.set(st.x, (st.y || 0.08) + 1.5, st.z).project(camera);
   tip.style.display = 'block';
   tip.style.left = ((v3.x * 0.5 + 0.5) * 100).toFixed(2) + '%';
   tip.style.top = ((-v3.y * 0.5 + 0.5) * 100).toFixed(2) + '%';
@@ -1394,32 +1461,44 @@ function stationUi(st, actLbl) {
       const thirsty = mom.water < 0.45;
       const pct = Math.round((((mom.stage || 0) + (mom.prog || 0)) / 2) * 100);
       const name = strainOf(mom.strain).short;
+      const feed = !thirsty && state.nutrients > 0;
       return {
-        text: thirsty ? `${actLbl}  WATER MOTHER` : `${name} MOTHER ${pct}%`,
-        btn: thirsty ? 'WATER' : 'ACT',
+        text: thirsty ? `${actLbl}  WATER MOTHER` : feed ? `${actLbl}  FEED MOTHER` : `${name} MOTHER ${pct}%`,
+        btn: thirsty ? 'WATER' : feed ? 'FEED' : 'ACT',
         tip: { name, water: Math.round(mom.water * 100) + '%', grow: pct + '%', wet: mom.water > 0.15, grade: 'GROWING' },
       };
     }
     const thirsty = mom.water < 0.4;
     const name = strainOf(mom.strain).name;
     return {
-      text: thirsty ? `${actLbl}  WATER MOTHER` : mom.cool > 0 ? 'MOTHER IS RESTING' : `${actLbl}  TAKE ${strainOf(mom.strain).short} CLONE`,
-      btn: thirsty ? 'WATER' : mom.cool > 0 ? 'ACT' : 'CLONE',
+      text: thirsty ? `${actLbl}  WATER MOTHER` : mom.cool > 0 ? (state.nutrients > 0 ? `${actLbl}  FEED MOTHER` : 'MOTHER IS RESTING') : `${actLbl}  TAKE ${strainOf(mom.strain).short} CLONE`,
+      btn: thirsty ? 'WATER' : mom.cool > 0 ? (state.nutrients > 0 ? 'FEED' : 'ACT') : 'CLONE',
       tip: { name, water: Math.round(mom.water * 100) + '%', grow: mom.cool > 0 ? Math.round((1 - mom.cool / 8) * 100) + '%' : '100%', wet: mom.water > 0.15, grade: thirsty ? 'THIRSTY' : 'MOTHER' },
     };
   }
   if (st.kind === 'tray') {
     const tray = st.ref;
     const name = strainOf(tray.strain).short;
-    if (tray.state === 'empty') return { text: 'EMPTY TRAY', btn: 'ACT' };
-    if (tray.state === 'rooting') return { text: `${name} ROOTING ${Math.round(Math.min(1, tray.t / ROOT_TIME) * 100)}%`, btn: 'ACT', tip: { name, water: '100%', grow: Math.round(Math.min(1, tray.t / ROOT_TIME) * 100) + '%', wet: true, grade: 'ROOTING' } };
+    if (tray.state === 'empty') return { text: 'EMPTY TUBE', btn: 'ACT' };
+    if (tray.state === 'rooting') {
+      const pct = Math.round(Math.min(1, tray.t / ROOT_TIME) * 100);
+      const boost = state.cubes > 0 ? `${actLbl}  ADD ROOT CUBE` : state.nutrients > 0 ? `${actLbl}  FEED TUBE` : `${name} ROOTING ${pct}%`;
+      return { text: boost, btn: state.cubes > 0 ? 'CUBE' : state.nutrients > 0 ? 'FEED' : 'ACT', tip: { name, water: '100%', grow: pct + '%', wet: true, grade: 'HYDRO' } };
+    }
     return { text: `${actLbl}  MOVE ${name} TO VEG`, btn: 'VEG', tip: { name, water: '100%', grow: '100%', wet: true, grade: 'READY' } };
   }
   if (st.kind === 'veg') {
     const pot = st.ref;
     const name = strainOf(pot.strain).short;
     if (pot.state === 'empty') return { text: 'EMPTY VEG POT', btn: 'ACT' };
-    if (pot.state === 'veg') return { text: `${name} VEG ${Math.round(Math.min(1, pot.t / VEG_TIME) * 100)}%`, btn: 'ACT', tip: { name, water: '100%', grow: Math.round(Math.min(1, pot.t / VEG_TIME) * 100) + '%', wet: true, grade: '' } };
+    if (pot.state === 'veg') {
+      const pct = Math.round(Math.min(1, pot.t / VEG_TIME) * 100);
+      return {
+        text: state.nutrients > 0 ? `${actLbl}  FEED VEG` : `${name} VEG ${pct}%`,
+        btn: state.nutrients > 0 ? 'FEED' : 'ACT',
+        tip: { name, water: '100%', grow: pct + '%', wet: true, grade: '' },
+      };
+    }
     return { text: `${actLbl}  TAKE ${name} CLONE`, btn: 'TAKE', tip: { name, water: '100%', grow: '100%', wet: true, grade: 'PLANT IT' } };
   }
   if (st.kind === 'stand') {
@@ -1428,6 +1507,7 @@ function stationUi(st, actLbl) {
     if (seedTotal(state.seeds) < 4) return { text: `${actLbl}  BUY ${SEED_PACK.n} SEEDS  ${SEED_PACK.cost} MOTA`, btn: 'BUY' };
     return { text: 'BRING CURED JARS', btn: 'ACT' };
   }
+  if (st.kind === 'computer') return { text: `${actLbl}  USE COMPUTER`, btn: 'SHOP' };
   const short = state.mota < WAREHOUSE_PRICE;
   return {
     text: short ? `WAREHOUSE  ${state.mota}/${WAREHOUSE_PRICE} MOTA` : `${actLbl}  BUY WAREHOUSE  ${WAREHOUSE_PRICE} MOTA`,
@@ -1495,7 +1575,8 @@ function frame(now) {
 
   if (state.mode === 'title' && (pressed.has('Space') || pressed.has('Enter'))) startGame();
   if (pressed.has('Escape') && state.mode === 'dress') closeDress();
-  if (pressed.has('KeyC') && state.mode !== 'dress' && state.mode !== 'loading') openDress();
+  if (pressed.has('Escape') && state.mode === 'shop') closeShop();
+  if (pressed.has('KeyC') && state.mode !== 'dress' && state.mode !== 'shop' && state.mode !== 'loading') openDress();
   if (state.mode === 'play' && (pressed.has('Digit1') || pressed.has('Numpad1'))) {
     state.strainPick = 'bd';
     markDirty();
@@ -1537,7 +1618,7 @@ function frame(now) {
   updateCamera(dt);
   updateTarget();
   saveClock += dt;
-  if ((state.mode === 'play' || state.mode === 'dress') && saveClock > 4) {
+  if ((state.mode === 'play' || state.mode === 'dress' || state.mode === 'shop') && saveClock > 4) {
     saveClock = 0;
     saveDirty = true;
   }
@@ -1626,8 +1707,11 @@ function snapshot() {
     wet: state.wet.slice(0, 12).map((w) => ({ grade: w.grade, grams: w.grams | 0, strain: w.strain || 'bd' })),
     seeds: { bd: state.seeds.bd | 0, gdp: state.seeds.gdp | 0 },
     clones: state.clones.slice(0, 8).map((c) => ({ strain: strainOf(c.strain).id })),
+    nutrients: state.nutrients | 0,
+    cubes: state.cubes | 0,
     strainPick: STRAINS[state.strainPick] ? state.strainPick : 'bd',
     px: P.x,
+    py: P.y,
     pz: P.z,
     facing: P.facing,
     warehouse: !!world.warehouse.owned,
@@ -1707,7 +1791,7 @@ function syncStationPlants() {
     tray.plant.visible = on;
     if (!on) continue;
     tray.plant.geometry = plantGeo(tray.state === 'ready' ? 1 : 0, tray.strain || 'bd');
-    tray.plant.scale.setScalar(0.62);
+    tray.plant.scale.setScalar(0.48);
   }
   for (const pot of world.house.veg) {
     const on = pot.state === 'veg' || pot.state === 'ready';
@@ -1737,6 +1821,8 @@ function blankPlots(list, meshes) {
 function resetWorld() {
   state.seeds = starterSeeds();
   state.clones = [];
+  state.nutrients = 0;
+  state.cubes = 0;
   state.mota = 0;
   state.jars = { AAAA: 0, AAA: 0, AA: 0, A: 0 };
   state.grams = 0;
@@ -1746,6 +1832,7 @@ function resetWorld() {
   P.x = 0;
   P.z = -6.3;
   P.y = 0;
+  world.house.upper.visible = false;
   P.facing = state.mode === 'dress' ? 0.62 : 0;
   blankPlots(slotsData, plantMeshes);
   blankPlots(whData, whMeshes);
@@ -1779,10 +1866,13 @@ function applySave(save) {
   state.wet = Array.isArray(save.wet) ? save.wet.slice(0, 12).map((w) => ({ grade: GRADES.includes(w.grade) ? w.grade : 'A', grams: w.grams | 0, strain: strainOf(w.strain).id })) : [];
   state.seeds = { bd: Math.max(0, save.seeds?.bd | 0), gdp: Math.max(0, save.seeds?.gdp | 0) };
   state.clones = Array.isArray(save.clones) ? save.clones.slice(0, 8).map((c) => ({ strain: strainOf(c.strain || c).id })) : [];
+  state.nutrients = Math.max(0, save.nutrients | 0);
+  state.cubes = Math.max(0, save.cubes | 0);
   state.strainPick = STRAINS[save.strainPick] ? save.strainPick : 'bd';
   state.look = normalizeLook(save.look);
   player.setLook(state.look);
   if (Number.isFinite(save.px)) P.x = save.px;
+  if (Number.isFinite(save.py)) P.y = save.py;
   if (Number.isFinite(save.pz)) P.z = save.pz;
   if (Number.isFinite(save.facing)) P.facing = save.facing;
   if (Array.isArray(save.plots)) save.plots.forEach((snap, i) => slotsData[i] && snap && applyPlot(slotsData[i], plantMeshes[i], snap));
@@ -1826,6 +1916,7 @@ function applySave(save) {
   world.shed.open = false;
   if (world.shed.contains(P.x, P.z)) world.shed.open = true;
   if (world.house.contains(P.x, P.z)) world.house.open = true;
+  world.house.upper.visible = P.y > 1.45 || world.house.onStair(P.x, P.z, P.y);
   if (owned && world.warehouse.contains(P.x, P.z)) world.warehouse.open = true;
   syncStationPlants();
 }
@@ -1978,6 +2069,78 @@ function setStrainBar(on) {
   }
 }
 
+function renderShop() {
+  $('shop-mota').textContent = String(state.mota | 0);
+  const root = $('shop-rows');
+  root.replaceChildren();
+  for (const item of SUPPLIES) {
+    const row = document.createElement('div');
+    row.className = 'shop-row';
+    const name = document.createElement('div');
+    name.className = 'shop-name';
+    const title = document.createElement('b');
+    title.textContent = item.name;
+    const detail = document.createElement('span');
+    detail.textContent = item.detail;
+    name.append(title, detail);
+    const cost = document.createElement('b');
+    cost.className = 'shop-cost';
+    cost.textContent = `${item.cost}`;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tbtn';
+    btn.dataset.buy = item.id;
+    btn.textContent = state.mota >= item.cost ? 'BUY' : 'NEED';
+    row.append(name, cost, btn);
+    root.append(row);
+  }
+}
+
+function openShop() {
+  if (state.mode !== 'play') return true;
+  state.mode = 'shop';
+  P.cool = 0.25;
+  $('shop').classList.remove('hidden');
+  $('touch').classList.add('hidden');
+  prompt.style.display = 'none';
+  renderShop();
+  return true;
+}
+
+function closeShop() {
+  if (state.mode !== 'shop') return;
+  $('shop').classList.add('hidden');
+  state.mode = 'play';
+  if (touchUI) $('touch').classList.remove('hidden');
+}
+
+function buySupply(id) {
+  const item = SUPPLIES.find((s) => s.id === id);
+  if (!item) return;
+  if (state.mota < item.cost) return toast(`NEED ${item.cost} MOTA`);
+  state.mota -= item.cost;
+  if (item.kind === 'seed') state.seeds[item.strain] = (state.seeds[item.strain] | 0) + item.n;
+  else if (item.kind === 'nutrient') state.nutrients += item.n;
+  else state.cubes += item.n;
+  toast(`${item.name} BOUGHT`, 'good');
+  updateHud();
+  renderShop();
+  markDirty();
+}
+
+function bindShop() {
+  $('btn-shop-close').addEventListener('pointerdown', (e) => {
+    swallow(e);
+    closeShop();
+  });
+  $('shop-rows').addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest('button[data-buy]');
+    if (!btn) return;
+    swallow(e);
+    buySupply(btn.dataset.buy);
+  });
+}
+
 function bindDress() {
   const open = (e) => {
     swallow(e);
@@ -2026,6 +2189,7 @@ function boot() {
   addEventListener('orientationchange', () => setTimeout(resize, 120));
   bindTouch();
   bindDress();
+  bindShop();
   setTouchUI(shouldTouch());
   matchMedia('(max-width: 820px)').addEventListener('change', () => setTouchUI(shouldTouch() || touchUI));
   state.mode = 'title';
@@ -2034,7 +2198,7 @@ function boot() {
   addEventListener('pagehide', flushSave);
   $('loading').classList.add('gone');
   if (params.has('autostart')) startGame();
-  window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick, openDress, closeDress, newGrow, flushSave, loadSave };
+  window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick, openDress, closeDress, openShop, closeShop, buySupply, newGrow, flushSave, loadSave };
 }
 
 requestAnimationFrame(() => setTimeout(boot, 30));

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { VoxelModel, hash3, mulberry, noise2, shade, mix, toMesh, toChunkedMeshes, voxelMaterial } from './voxel.js';
 import { buildPlant, PVS } from './plants.js';
-import { attachEstate, HOUSE } from './estate.js';
+import { attachEstate, HOUSE, LOFT } from './estate.js';
 
 export const YARD = { x: 20, z: 14 };
 export const BED_SIZE = { w: 5.6, d: 4.9 };
@@ -292,12 +292,14 @@ function buildHouse() {
   const X1 = Math.round(HOUSE.half * 8);
   const WZ = -112;
   const BACK = Math.round(HOUSE.back * 8) - 8;
-  const WALL_H = 64;
+  const WALL_H = 96;
   const siding = 0xe6d8b0;
   facade.box(X0, 6, WZ - 2, X1, WALL_H, WZ, (x, y, z) => (y % 4 === 3 ? shade(siding, 0.86) : shade(siding, 1 + ((x >> 4) % 2) * 0.0)), 0.025);
   facade.box(X0, 0, WZ - 2, X1, 6, WZ, (x, y, z) => pick([0x8c8e90, 0x7c7e80, 0x9a9c9c], x >> 2, y >> 1, z, 91), 0.05);
   facade.box(X0 - 1, WALL_H - 2, WZ - 2, X1 + 1, WALL_H, WZ + 1, 0xf3ecdc, 0.02);
   for (const wx of [-112, -78, -42, 42, 78, 112]) windowCut(facade, wx, 24, 18, 26, WZ, siding);
+  facade.box(X0 - 1, 58, WZ - 2, X1 + 1, 62, WZ + 1, 0xf3ecdc, 0.02);
+  for (const wx of [-112, -70, 70, 112]) windowCut(facade, wx, 68, 16, 18, WZ, siding);
   facade.delBox(-9, 6, WZ - 2, 9, 42, WZ);
   facade.box(-8, 32, WZ - 1, 8, 40, WZ, (x, y) => (((x + y) % 7) < 2 ? 0xd5ecf7 : 0x6fa6c8), 0.02);
   facade.box(-9, 30, WZ - 1, 9, 32, WZ + 1, 0xf3ecdc, 0.02);
@@ -329,10 +331,10 @@ function buildHouse() {
     const top = yt(z) - 4;
     for (const x of [X0 - 3, X1 + 2]) for (let y = WALL_H; y <= top; y++) roof.set(x, y, z, siding, 0.03);
   }
-  roof.box(56, 60, -146, 72, 104, -130, (x, y, z) => (y % 4 === 0 || (x + (Math.floor(y / 4) % 2) * 3) % 6 === 0 ? 0xcbbfa8 : pick([0xa04d3c, 0x934332, 0xb05a45], x, y, z, 97)), 0.03);
-  roof.box(54, 104, -148, 74, 108, -128, 0x8a8a8a, 0.04);
-  roof.delBox(58, 105, -146, 70, 108, -132);
-  roof.box(58, 105, -146, 70, 106, -132, 0x2e2e2e, 0.02);
+  roof.box(56, 92, -146, 72, 136, -130, (x, y, z) => (y % 4 === 0 || (x + (Math.floor(y / 4) % 2) * 3) % 6 === 0 ? 0xcbbfa8 : pick([0xa04d3c, 0x934332, 0xb05a45], x, y, z, 97)), 0.03);
+  roof.box(54, 136, -148, 74, 140, -128, 0x8a8a8a, 0.04);
+  roof.delBox(58, 137, -146, 70, 140, -132);
+  roof.box(58, 137, -146, 70, 138, -132, 0x2e2e2e, 0.02);
 
   m.box(-40, 0, WZ, 40, 6, -88, (x, y, z) => {
     if (y < 5) return 0x8d6a42;
@@ -918,9 +920,12 @@ export function buildWorld() {
   colliders.push({ x0: -9.2, x1: -3.8, z0: 11.4, z1: 11.8 });
 
   const estate = attachEstate(group, colliders, { roof: houseRoof, facade: houseFacade });
-  const smokeAt = new THREE.Vector3(66 / 8, 108 / 8, -139 / 8);
+  const smokeAt = new THREE.Vector3(66 / 8, 140 / 8, -139 / 8);
 
-  function groundHeight(x, z) {
+  function groundHeight(x, z, y = 0) {
+    const house = estate.house;
+    if (house.onStair(x, z, y)) return house.stairHeight(z);
+    if (y > 2.2 && house.onLoft(x, z)) return LOFT.y;
     if (estate.warehouse.contains(x, z)) return 2 / 12;
     if (Math.abs(x) < HOUSE.half - 0.25 && z <= -14.15 && z > HOUSE.back - 0.15) return 6 / 8;
     if (Math.abs(x) < 5 && z < -11 && z > -14.2) return 6 / 8;
