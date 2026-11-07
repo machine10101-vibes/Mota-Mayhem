@@ -175,20 +175,21 @@ function buildHouseInterior(group, colliders, cutaway) {
   const potSm = buildPot(false);
 
   const mothers = [
-    { x: -9.5, z: -17.15, variant: 0 },
-    { x: -6.5, z: -17.15, variant: 2 },
+    { x: -9.5, z: -17.15 },
+    { x: -6.5, z: -17.15 },
   ].map((mom) => {
     place(group, potBig, 1 / 14, mom.x, 0.75, mom.z);
-    const plant = toMesh(buildPlant(2, mom.variant), PVS);
+    const plant = toMesh(buildPlant(0, 'bd'), PVS);
     plant.position.set(mom.x, 0.75 + 0.78, mom.z);
-    plant.scale.setScalar(1.2);
+    plant.scale.setScalar(0.55);
+    plant.visible = false;
     plant.castShadow = true;
     group.add(plant);
-    return { ...mom, water: 1, cool: 0, plant };
+    return { ...mom, state: 'empty', strain: null, stage: 0, prog: 0, water: 1, cool: 0, plant };
   });
 
   const trayX = [-2.85, -1.7, -0.55, 0.6, 1.75, 2.9];
-  const trays = trayX.map((x, i) => {
+  const trays = trayX.map((x) => {
     const z = -16.85;
     const base = new THREE.Mesh(trayGeo, voxelMaterial);
     base.position.set(x, 0.75, z);
@@ -198,13 +199,13 @@ function buildHouseInterior(group, colliders, cutaway) {
     dome.position.set(x, 0.75, z);
     dome.renderOrder = 2;
     group.add(dome);
-    const plant = toMesh(buildPlant(0, i % 4), PVS);
+    const plant = toMesh(buildPlant(0, 'bd'), PVS);
     plant.position.set(x, 0.75 + 0.28, z);
     plant.scale.setScalar(0.62);
     plant.visible = false;
     plant.castShadow = true;
     group.add(plant);
-    return { x, z, state: 'empty', t: 0, variant: i % 4, plant, dome };
+    return { x, z, state: 'empty', t: 0, strain: null, plant, dome };
   });
 
   const vegSpots = [
@@ -212,15 +213,15 @@ function buildHouseInterior(group, colliders, cutaway) {
     [9.3, -17.15],
     [6.5, -16.15],
     [9.3, -16.15],
-  ].map(([x, z], i) => {
+  ].map(([x, z]) => {
     place(group, potSm, 1 / 15, x, 0.75, z);
-    const plant = toMesh(buildPlant(2, i % 4), PVS);
+    const plant = toMesh(buildPlant(2, 'bd'), PVS);
     plant.position.set(x, 0.75 + 0.62, z);
     plant.scale.setScalar(0.78);
     plant.visible = false;
     plant.castShadow = true;
     group.add(plant);
-    return { x, z, state: 'empty', t: 0, variant: i % 4, plant };
+    return { x, z, state: 'empty', t: 0, strain: null, plant };
   });
 
   return {

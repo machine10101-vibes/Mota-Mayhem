@@ -26,29 +26,38 @@ Desktop
 | Pixel size | `[` and `]` |
 | Toggle help | H |
 
-Phone and tablet: tap to start. Left stick moves, **RUN** sprints, **ACT** (or the on-screen prompt) plants, waters, harvests, opens doors, clones, sells, and buys, drag the yard to look around, pinch to zoom, **?** toggles help.
+Phone and tablet: tap to start. Left stick moves, **RUN** sprints, **ACT** (or the on-screen prompt) plants, waters, harvests, opens doors, clones, sells, and buys, drag the yard to look around, pinch to zoom, **?** toggles help. **CHARACTER** / **YOU** opens the look menu. **1** and **2** (or the strain chips) pick which seed you plant.
 
 ## Gameplay
 
-Plant seeds in the 24 bed plots, or plant a vegged clone if you have one. Each plant grows through sprout,
-seedling, vegetative, flowering and ready. Clones skip ahead to vegetative. Keep soil watered: dry plants slow
-down and accumulate stress. Harvest grade (A, AA, AAA, AAAA) starts from how consistently you watered, then you
-finish it in the shed. Open the shed door, walk in, hang wet flower to dry, jar it, and burp the jar while it
-cures. Skipping the burp or leaving a hang too long drops the grade. Cured flower lands in the jars.
+A new grow starts with 10 Blue Dream seeds and 10 Granddaddy Purple seeds. Plant either strain in the 24 bed
+plots, or plant a vegged clone if you have one. Each plant grows through sprout, seedling, vegetative, flowering
+and ready, and a harvest returns one seed of that strain. Clones skip ahead to vegetative and keep the mother's
+strain. Keep soil watered: dry plants slow down and accumulate stress. Harvest grade (A, AA, AAA, AAAA) starts
+from how consistently you watered, then you finish it in the shed. Open the shed door, walk in, hang wet flower
+to dry, jar it, and burp the jar while it cures. Skipping the burp or leaving a hang too long drops the grade.
+Cured flower lands in the jars.
 
-Open the house from the porch. Mothers live on the left, the clone room is straight ahead, and the veg room is
-on the right. Water a mother, take a cutting, wait for it to root, move it into veg, then carry the finished
-clone out to a bed or the warehouse. The porch stand sells cured jars for MOTA, the in-game token. A seed pack
-is there too when you are low. The east lot sells a warehouse for 520 MOTA. Buying it opens the gate. Inside
-are nine indoor pots under lights that flower a little faster than the yard. Post-harvest is sped up from the
-10–14 day dry and multi-week cure.
+Open the house from the porch. The mother room on the left starts with two empty pots. Plant a seed you are
+holding and that plant grows into a mother, then stays there for cuttings. The clone room is straight ahead,
+and the veg room is on the right. Water a mother, take a cutting, wait for it to root, move it into veg, then
+carry the finished clone out to a bed or the warehouse. The porch stand sells cured jars for MOTA, the in-game
+token. A mixed seed pack (2 Blue Dream and 2 Granddaddy Purple) is there too when you are low. The east lot
+sells a warehouse for 520 MOTA. Buying it opens the gate. Inside are nine indoor pots under lights that flower
+a little faster than the yard. Post-harvest is sped up from the 10–14 day dry and multi-week cure.
+
+**CHARACTER** on the title screen, **YOU** while you play, and the C key open the same menu: skin, hair, hat,
+shirt, overalls, and boots, with a live preview. **NEW GROW** resets the farm to the starter seeds and keeps
+the look. The character, MOTA, seeds, clones, beds, mothers, trays, veg pots, shed, and warehouse are saved in
+this browser.
 
 ## How the look is built
 
 - `src/voxel.js` - voxel mesher with face culling, baked per-vertex ambient occlusion, per-voxel colour jitter,
   and spatial chunking for frustum culling.
 - `src/character.js` - the hero (bucket hat with leaf, plaid shirt, leaf-pocket overalls, boots), animated rig.
-- `src/plants.js` - procedural cannabis plants for 5 growth stages and 4 strain colourways.
+- `src/plants.js` - procedural cannabis plants for 5 growth stages. Blue Dream stays green; Granddaddy Purple flowers purple.
+- `src/strains.js` - the two starter strains. `src/save.js` writes the grow to local storage.
 - `src/world.js` - backyard: ground, fence, house, porch, beds, shed, greenhouse, props, trees.
 - `src/main.js` - low-res render target upscaled with nearest filtering, depth-based outline pass,
   shadows, camera, input, game loop and HUD.

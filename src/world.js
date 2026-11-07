@@ -882,7 +882,7 @@ export function buildWorld() {
   potModel.box(-4, 8, -4, 4, 9, 4, 0x4b3424, 0.05);
   [-1.7, -0.55, 0.6, 1.75].forEach((px, i) => {
     place(group, potModel, 1 / 16, -16 + px, 17 / 16, -9 - 1.9 + 0.1);
-    const pl = toMesh(buildPlant(1 + (i % 2), i), PVS);
+    const pl = toMesh(buildPlant(1 + (i % 2), i % 2 === 0 ? 'bd' : 'gdp'), PVS);
     pl.position.set(-16 + px, 17 / 16 + 9 / 16, -9 - 1.8);
     pl.scale.setScalar(0.9);
     group.add(pl);
