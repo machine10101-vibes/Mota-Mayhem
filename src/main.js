@@ -108,6 +108,7 @@ const state = {
   jars: { AAAA: 0, AAA: 0, AA: 0, A: 0 },
   grams: 0,
   harvested: 0,
+  wet: [],
 };
 
 let world;
@@ -457,7 +458,7 @@ function resolveCollisions() {
   P.x = THREE.MathUtils.clamp(P.x, -19.1, 19.1);
   P.z = THREE.MathUtils.clamp(P.z, -13.4, 13.3);
   for (let it = 0; it < 3; it++)
-    for (const r of world.colliders) {
+    for (const r of world.colliders.concat(world.shed.open ? [] : world.shed.doorBlocks)) {
       const nx = THREE.MathUtils.clamp(P.x, r.x0, r.x1);
       const nz = THREE.MathUtils.clamp(P.z, r.z0, r.z1);
       let dx = P.x - nx;
@@ -634,6 +635,7 @@ function toast(msg, cls = '') {
 
 function act(slotIndex = -1) {
   if (state.mode !== 'play' || P.cool > 0) return;
+  if (slotIndex < 0 && actShed()) return;
   const i = slotIndex >= 0 ? slotIndex : nearestSlot();
   if (i < 0) return toast('WALK TO A GARDEN BED');
   const d = slotsData[i];
@@ -666,8 +668,8 @@ function act(slotIndex = -1) {
   } else if (d.state === 'ready') {
     const grade = gradeOf(d);
     const grams = grade === 'AAAA' ? 9 : grade === 'AAA' ? 7 : grade === 'AA' ? 5 : 3;
-    state.jars[grade]++;
-    state.grams += grams;
+    if (state.wet.length >= 12) return toast('HANDS ARE FULL — DRY THE SHED');
+    state.wet.push({ grade, grams, variant: d.variant });
     state.harvested++;
     state.seeds += 1;
     P.cool = 0.7;
@@ -677,9 +679,145 @@ function act(slotIndex = -1) {
     plantMeshes[i].visible = false;
     later(0.3, () => {
       for (let k = 0; k < 34; k++) particles.emit({ x: s.x, y: s.y + 0.7, z: s.z, vx: (Math.random() - 0.5) * 3, vy: 2 + Math.random() * 3, vz: (Math.random() - 0.5) * 3, life: 1, size: 0.08, color: k % 3 === 0 ? 0xf08a2e : 0xf4fbe6, g: -5 });
-      toast(`+${grams}G  ${grade} FLOWER  +1 SEED`, 'good');
+      toast(`${grade} WET FLOWER — DRY IT IN THE SHED`, 'good');
     });
     updateHud();
+  }
+}
+
+const GRADES = ['A', 'AA', 'AAA', 'AAAA'];
+const DRY_TIME = 14;
+const CURE_TIME = 16;
+function dropGrade(g) {
+  return GRADES[Math.max(0, GRADES.indexOf(g) - 1)];
+}
+
+function shedFocus() {
+  if (!world?.shed) return null;
+  const shed = world.shed;
+  let best = null;
+  let bd = 1.7 * 1.7;
+  const consider = (x, z, kind, ref) => {
+    const d2 = (x - P.x) ** 2 + (z - P.z) ** 2;
+    if (d2 < bd) {
+      bd = d2;
+      best = { kind, ref, x, z, d2 };
+    }
+  };
+  consider(16, -6.35, 'door', null);
+  if (shed.open || shed.contains(P.x, P.z)) {
+    for (const h of shed.hooks) consider(h.x, h.z + 0.7, 'hook', h);
+    for (const j of shed.cureJars) if (j.item) consider(j.x + 0.7, j.z, 'jar', j);
+  }
+  return best;
+}
+
+function actShed() {
+  const f = shedFocus();
+  if (!f) return false;
+  const shed = world.shed;
+  P.facing = Math.atan2(f.x - P.x, f.z - P.z);
+  if (f.kind === 'door') {
+    shed.open = !shed.open;
+    P.cool = 0.3;
+    toast(shed.open ? 'SHED DOOR OPEN' : 'SHED DOOR CLOSED');
+    return true;
+  }
+  if (f.kind === 'hook') {
+    const h = f.ref;
+    if (!h.item) {
+      if (!state.wet.length) {
+        toast('HARVEST A PLANT FIRST');
+        return true;
+      }
+      const bud = state.wet.shift();
+      h.item = { ...bud, t: 0, dry: 0, hold: 0, dropped: false };
+      h.mesh.visible = true;
+      h.mesh.scale.setScalar(1);
+      P.cool = 0.4;
+      player.playAction('harvest');
+      toast(`${bud.grade} HUNG TO DRY`);
+      updateHud();
+      return true;
+    }
+    if (h.item.dry < 1) {
+      toast('STILL DRYING');
+      return true;
+    }
+    const slot = shed.cureJars.find((j) => !j.item);
+    if (!slot) {
+      toast('CURE JARS ARE FULL');
+      return true;
+    }
+    slot.item = { grade: h.item.grade, grams: h.item.grams, t: 0, cure: 0, burped: false, missed: false, needsBurp: false, sealed: false };
+    slot.mesh.visible = true;
+    h.item = null;
+    h.mesh.visible = false;
+    P.cool = 0.4;
+    toast('JARRED — BURP IT WHILE IT CURES', 'good');
+    updateHud();
+    return true;
+  }
+  const it = f.ref.item;
+  if (it?.needsBurp && !it.burped && !it.missed) {
+    it.burped = true;
+    it.needsBurp = false;
+    P.cool = 0.3;
+    toast('BURPED — CURE STAYS ON TRACK', 'good');
+    return true;
+  }
+  toast(it?.cure >= 1 ? 'CURED' : it?.burped ? 'CURING' : 'WAIT TO BURP');
+  return true;
+}
+
+function updateShed(dt) {
+  const shed = world?.shed;
+  if (!shed) return;
+  const swing = shed.open ? 1.35 : 0;
+  const k = 1 - Math.exp(-dt * 14);
+  shed.doorL.rotation.y += (swing - shed.doorL.rotation.y) * k;
+  shed.doorR.rotation.y += (-swing - shed.doorR.rotation.y) * k;
+  const nearDoor = (16 - P.x) ** 2 + (-6.35 - P.z) ** 2 < 2.4 * 2.4;
+  shed.roof.visible = !(shed.open && (shed.contains(P.x, P.z) || nearDoor));
+  for (const h of shed.hooks) {
+    const it = h.item;
+    if (!it) continue;
+    if (it.dry < 1) {
+      it.t += dt;
+      it.dry = Math.min(1, it.t / DRY_TIME);
+    } else {
+      it.hold += dt;
+      if (it.hold > 10 && !it.dropped) {
+        it.dropped = true;
+        it.grade = dropGrade(it.grade);
+        toast('OVERDRIED — GRADE DROPPED');
+      }
+    }
+    const sway = Math.sin(cam.t * 1.6 + h.x) * 0.04;
+    h.mesh.rotation.z = sway;
+    h.mesh.scale.setScalar(1.2 + 0.35 * (1 - it.dry));
+  }
+  for (const j of shed.cureJars) {
+    const it = j.item;
+    if (!it || it.sealed) continue;
+    it.t += dt;
+    it.cure = Math.min(1, it.t / CURE_TIME);
+    if (it.cure >= 0.4 && it.cure < 0.62 && !it.burped && !it.missed) it.needsBurp = true;
+    if (it.cure >= 0.62 && it.needsBurp && !it.burped) {
+      it.missed = true;
+      it.needsBurp = false;
+      it.grade = dropGrade(it.grade);
+      toast('MISSED THE BURP — GRADE DROPPED');
+    }
+    if (it.cure >= 1) {
+      it.sealed = true;
+      state.jars[it.grade]++;
+      state.grams += it.grams;
+      toast(`+${it.grams}G  ${it.grade} CURED`, 'good');
+      j.mesh.visible = false;
+      j.item = null;
+      updateHud();
+    }
   }
 }
 
@@ -687,6 +825,10 @@ function act(slotIndex = -1) {
 function updateHud() {
   $('seeds').textContent = state.seeds;
   $('grams').textContent = state.grams;
+  $('wet').textContent = state.wet.length;
+  const shed = world?.shed;
+  const busy = shed ? shed.hooks.filter((h) => h.item).length + shed.cureJars.filter((j) => j.item).length : 0;
+  $('shed-count').textContent = busy;
   for (const g of ['AAAA', 'AAA', 'AA', 'A']) $('jar-' + g).textContent = state.jars[g];
 }
 
@@ -738,7 +880,48 @@ function updateTarget() {
     prompt.style.display = 'none';
     return -1;
   }
+  const shedF = shedFocus();
   const i = nearestSlot();
+  const gardenD = i < 0 ? Infinity : (world.slots[i].x - P.x) ** 2 + (world.slots[i].z - P.z) ** 2;
+  if (shedF && shedF.d2 + 0.15 < gardenD) {
+    marker.visible = true;
+    marker.position.set(shedF.x, 0.08 + Math.sin(cam.t * 5) * 0.02, shedF.z);
+    const scale = 1 + Math.sin(cam.t * 5) * 0.03;
+    marker.scale.set(scale, 1, scale);
+    tip.style.display = 'none';
+    const actLbl = touchUI ? 'TAP' : 'SPACE';
+    let text = `${actLbl}  OPEN SHED`;
+    let btn = 'OPEN';
+    if (shedF.kind === 'door' && world.shed.open) {
+      text = `${actLbl}  CLOSE SHED`;
+      btn = 'CLOSE';
+    } else if (shedF.kind === 'hook') {
+      const it = shedF.ref.item;
+      if (!it) {
+        text = state.wet.length ? `${actLbl}  HANG TO DRY` : 'HARVEST FIRST';
+        btn = state.wet.length ? 'HANG' : 'ACT';
+      } else if (it.dry < 1) {
+        text = `DRYING ${Math.round(it.dry * 100)}%`;
+        btn = 'ACT';
+      } else {
+        text = `${actLbl}  JAR ${it.grade}`;
+        btn = 'JAR';
+      }
+    } else if (shedF.kind === 'jar') {
+      const it = shedF.ref.item;
+      if (it?.needsBurp && !it.burped) {
+        text = `${actLbl}  BURP JAR`;
+        btn = 'BURP';
+      } else {
+        text = `CURING ${Math.round((it?.cure || 0) * 100)}%`;
+        btn = 'ACT';
+      }
+    }
+    setActLabel(btn);
+    prompt.textContent = text;
+    prompt.style.display = 'block';
+    return -1;
+  }
   if (i < 0) {
     marker.visible = false;
     tip.style.display = 'none';
@@ -797,8 +980,10 @@ function updateCamera(dt) {
     cam.target.lerp(v3.set(0, 1.2, -4.2), k);
   } else if (state.mode === 'play') {
     cam.pitch += (0.85 - cam.pitch) * k;
-    const tx = THREE.MathUtils.clamp(P.x, -11, 11);
-    const tz = THREE.MathUtils.clamp(P.z, -9, 7);
+    const xLim = P.x > 10 ? 18 : 11;
+    const zLim = P.z < -8 ? -12 : -9;
+    const tx = THREE.MathUtils.clamp(P.x, -11, xLim);
+    const tz = THREE.MathUtils.clamp(P.z, zLim, 7);
     const tgt = v3.set(tx * 0.85 + P.x * 0.15, 0.9 + P.y, tz * 0.85 + P.z * 0.15);
     if (!cam.free) cam.target.lerp(tgt, 1 - Math.exp(-dt * 4));
     if (keys.has('KeyQ') || stick.cam < 0) cam.yawT += dt * 1.6;
@@ -844,6 +1029,7 @@ function frame(now) {
 
   updatePlayer(dt);
   updatePlants(dt, time);
+  updateShed(dt);
   butterflies.update(time);
   smokeT -= dt;
   if (smokeT <= 0) {

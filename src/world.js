@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { VoxelModel, hash3, mulberry, noise2, shade, mix, toMesh, toChunkedMeshes } from './voxel.js';
+import { VoxelModel, hash3, mulberry, noise2, shade, mix, toMesh, toChunkedMeshes, voxelMaterial } from './voxel.js';
 import { buildPlant, PVS } from './plants.js';
 
 export const YARD = { x: 20, z: 14 };
@@ -410,17 +410,11 @@ function buildShed() {
   m.box(-hx, 3, -hz, -hx + 2, WH, hz, (x, y, z) => ((z + 100) % 8 === 0 ? 0x6e8c5e : 0x86a574), 0.03);
   m.box(hx - 2, 3, -hz, hx, WH, hz, (x, y, z) => ((z + 100) % 8 === 0 ? 0x6e8c5e : 0x86a574), 0.03);
   m.box(-hx - 1, 0, -hz - 1, hx + 1, 3, hz + 1, (x, y, z) => pick([0x8c8e90, 0x7c7e80], x >> 2, 0, z >> 2, 122), 0.05);
-  m.delBox(-16, 3, hz - 2, 16, 44, hz);
-  m.box(-16, 3, hz - 1, 16, 44, hz, (x, y) => (x % 6 === 0 ? 0x5a3d25 : pick([0x7a5636, 0x6d4c30], x >> 1, 0, 0, 123)), 0.03);
+  m.delBox(-16, 3, hz - 3, 16, 44, hz + 1);
   const fr = 0x4d3320;
   m.box(-17, 3, hz - 1, -15, 46, hz + 1, fr, 0.02);
   m.box(15, 3, hz - 1, 17, 46, hz + 1, fr, 0.02);
   m.box(-17, 44, hz - 1, 17, 46, hz + 1, fr, 0.02);
-  m.box(-1, 3, hz, 1, 44, hz + 1, fr, 0.02);
-  line3(m, -15, 5, hz, -2, 42, hz, 0x4d3320, 2);
-  line3(m, 2, 5, hz, 15, 42, hz, 0x4d3320, 2);
-  m.box(-5, 22, hz + 1, -3, 28, hz + 2, 0xe9ba3e, 0.02);
-  m.box(3, 22, hz + 1, 5, 28, hz + 2, 0xe9ba3e, 0.02);
   m.delBox(26, 20, hz - 2, 42, 38, hz);
   m.box(26, 20, hz - 1, 42, 38, hz, (x, y) => ((x + y) % 9 < 2 ? 0xd5ecf7 : 0x74a8c6), 0.02);
   const f = 0xf3ecdc;
@@ -438,6 +432,7 @@ function buildShed() {
     m.set(x, 20, hz + 2, pick(fc, x, 0, 0, 124), 0.03);
     m.set(x, 19, hz + 3, 0x4a9a30, 0.05);
   }
+  const roof = new VoxelModel();
   const yt = (z) => WH + Math.round((44 - Math.abs(z)) * 0.7);
   for (let z = -44; z <= 44; z++) {
     const top = yt(z);
@@ -447,12 +442,65 @@ function buildShed() {
       let col = hash3(tile, row, z < 0 ? 1 : 0, 125) < 0.5 ? 0x9b4a3a : 0x8a3e31;
       if ((x + (row % 2) * 4) % 8 === 0) col = shade(col, 0.82);
       if ((44 - Math.abs(z)) % 3 === 0) col = shade(col, 0.88);
-      for (let y = top - 2; y <= top; y++) m.set(x, y, z, y === top ? col : shade(col, 0.7), 0.02);
+      for (let y = top - 2; y <= top; y++) roof.set(x, y, z, y === top ? col : shade(col, 0.7), 0.02);
     }
-    if (Math.abs(z) <= 1) for (let x = -52; x <= 52; x++) m.set(x, top + 1, z, 0xb85a48, 0.03);
+    if (Math.abs(z) <= 1) for (let x = -52; x <= 52; x++) roof.set(x, top + 1, z, 0xb85a48, 0.03);
   }
   for (let z = -hz; z < hz; z++) for (const x of [-hx - 3, hx + 1]) for (let y = WH; y <= yt(z) - 3; y++) m.set(x, y, z, 0x86a574, 0.03);
   m.box(-hx + 2, 0, -hz + 2, hx - 2, 1, hz - 2, 0x3a2a1c, 0.05);
+  return { shell: m, roof };
+}
+
+function buildDoorLeaf(dir) {
+  const m = new VoxelModel();
+  const x0 = dir > 0 ? 1 : -16;
+  const x1 = dir > 0 ? 16 : -1;
+  m.box(x0, 3, -1, x1, 44, 1, (x, y) => (Math.abs(x) % 6 === 0 ? 0x5a3d25 : pick([0x7a5636, 0x6d4c30], x, y, 0, 123)), 0.03);
+  line3(m, dir > 0 ? 2 : -2, 8, 0, dir > 0 ? 13 : -13, 40, 0, 0x4d3320, 2);
+  const hx = dir > 0 ? 12 : -14;
+  m.box(hx, 20, 1, hx + 2, 27, 2, 0xe9ba3e, 0.02);
+  return m;
+}
+
+function buildHangBud() {
+  const m = new VoxelModel();
+  m.box(0, 8, 0, 1, 12, 1, 0xc9b98a, 0.02);
+  const pal = [0x8cc34b, 0x5d9a2f, 0xf4fbe6];
+  for (let y = 0; y < 8; y++) {
+    const r = 1.2 + Math.sin((y / 8) * Math.PI) * 2.4;
+    for (let x = -3; x <= 3; x++)
+      for (let z = -3; z <= 3; z++) {
+        if (Math.hypot(x, z) > r) continue;
+        m.set(x, y, z, pal[(x + y + z + 6) % 3], 0.05);
+      }
+  }
+  return m;
+}
+
+function buildCureJar() {
+  const m = new VoxelModel();
+  m.box(-2, 0, -2, 3, 1, 3, 0x6e5034, 0.02);
+  m.box(-2, 1, -2, 3, 7, 3, (x, y) => (y % 3 === 0 ? 0xd7f3ee : 0x9fd8cf), 0.01);
+  m.box(-1, 7, -1, 2, 8, 2, 0xe7c56a, 0.02);
+  m.box(-2, 8, -2, 3, 9, 3, 0xc9a24a, 0.02);
+  return m;
+}
+
+function buildShedInterior() {
+  const m = new VoxelModel();
+  const wood = 0x8a5e36;
+  m.box(-28, 22, -18, 28, 24, -16, wood, 0.03);
+  m.box(-28, 22, 2, 28, 24, 4, wood, 0.03);
+  for (const x of [-22, -8, 8, 22]) {
+    m.box(x, 14, -18, x + 1, 24, -16, 0xc9b98a, 0.02);
+    m.box(x, 14, 2, x + 1, 24, 4, 0xc9b98a, 0.02);
+  }
+  m.box(-36, 8, -22, -30, 10, 16, wood, 0.03);
+  m.box(-38, 0, -22, -36, 10, -19, wood, 0.03);
+  m.box(-38, 0, 14, -36, 10, 17, wood, 0.03);
+  m.box(24, 0, -6, 34, 10, 6, 0x5c6770, 0.03);
+  m.box(26, 10, -4, 32, 16, 4, 0x8aa0aa, 0.02);
+  m.box(28, 16, -1, 30, 20, 2, 0xd7dee4, 0.02);
   return m;
 }
 
@@ -740,9 +788,71 @@ export function buildWorld() {
     });
   });
 
-  const shed = place(group, buildShed(), 1 / 16, 16, 0, -9.5);
-  void shed;
-  colliders.push({ x0: 12.9, x1: 19.1, z0: -12.2, z1: -6.8 });
+  const shedParts = buildShed();
+  const SHED_S = 1 / 16;
+  place(group, shedParts.shell, SHED_S, 16, 0, -9.5);
+  const shedRoof = place(group, shedParts.roof, SHED_S, 16, 0, -9.5);
+  const doorL = new THREE.Group();
+  doorL.add(toMesh(buildDoorLeaf(1), SHED_S));
+  doorL.position.set(16 - 16 * SHED_S, 0, -9.5 + 40 * SHED_S + 0.06);
+  group.add(doorL);
+  const doorR = new THREE.Group();
+  doorR.add(toMesh(buildDoorLeaf(-1), SHED_S));
+  doorR.position.set(16 + 16 * SHED_S, 0, -9.5 + 40 * SHED_S + 0.06);
+  group.add(doorR);
+  place(group, buildShedInterior(), SHED_S, 16, 0, -9.5);
+  const budGeo = buildHangBud().build(SHED_S);
+  const jarGeo = buildCureJar().build(SHED_S);
+  const hooks = [
+    [14.7, -10.55],
+    [15.7, -10.55],
+    [16.5, -10.55],
+    [17.5, -10.55],
+  ].map(([x, z]) => {
+    const mesh = new THREE.Mesh(budGeo, voxelMaterial);
+    mesh.position.set(x, 1.05, z);
+    mesh.scale.setScalar(1.45);
+    mesh.castShadow = true;
+    mesh.visible = false;
+    group.add(mesh);
+    return { x, z, y: 0, mesh, item: null };
+  });
+  const cureJars = [
+    [13.85, -10.7],
+    [13.85, -9.9],
+    [13.85, -9.1],
+    [13.85, -8.3],
+  ].map(([x, z]) => {
+    const mesh = new THREE.Mesh(jarGeo, voxelMaterial);
+    mesh.position.set(x, 0.62, z);
+    mesh.scale.setScalar(1.4);
+    mesh.castShadow = true;
+    mesh.visible = false;
+    group.add(mesh);
+    return { x, z, y: 0.62, mesh, item: null };
+  });
+  colliders.push(
+    { x0: 12.85, x1: 19.15, z0: -12.25, z1: -11.5 },
+    { x0: 12.85, x1: 13.5, z0: -12.2, z1: -6.75 },
+    { x0: 18.5, x1: 19.15, z0: -12.2, z1: -6.75 },
+    { x0: 12.85, x1: 14.85, z0: -7.4, z1: -6.7 },
+    { x0: 17.15, x1: 19.15, z0: -7.4, z1: -6.7 },
+  );
+  const shed = {
+    roof: shedRoof,
+    doorL,
+    doorR,
+    open: false,
+    doorBlocks: [
+      { x0: 14.9, x1: 16.02, z0: -7.4, z1: -6.72 },
+      { x0: 15.98, x1: 17.12, z0: -7.4, z1: -6.72 },
+    ],
+    hooks,
+    cureJars,
+    contains(x, z) {
+      return x > 13.55 && x < 18.45 && z < -7.5 && z > -11.45;
+    },
+  };
 
   const gh = buildGreenhouse();
   place(group, gh.frame, 1 / 16, -16, 0, -9);
@@ -795,5 +905,5 @@ export function buildWorld() {
     return 0;
   }
 
-  return { group, colliders, slots, groundHeight, smokeAt };
+  return { group, colliders, slots, groundHeight, smokeAt, shed };
 }

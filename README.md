@@ -31,8 +31,10 @@ Phone and tablet: tap to start. Left stick moves, **RUN** sprints, **ACT** plant
 ## Gameplay
 
 Plant seeds in the 24 bed plots. Each plant grows through sprout, seedling, vegetative, flowering and ready.
-Keep soil watered: dry plants slow down and accumulate stress. The harvest grade (A, AA, AAA, AAAA) reflects how
-consistently you kept the plant watered, mirroring the craft-grade idea of consistency over volume.
+Keep soil watered: dry plants slow down and accumulate stress. Harvest grade (A, AA, AAA, AAAA) starts from how
+consistently you watered, then you finish it in the shed. Open the shed door, walk in, hang wet flower to dry,
+jar it, and burp the jar while it cures. Skipping the burp or leaving a hang too long drops the grade. Cured
+flower lands in the jars. Post-harvest is half the quality, sped up from the 10–14 day dry and multi-week cure.
 
 ## How the look is built
 
