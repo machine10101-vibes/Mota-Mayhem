@@ -276,8 +276,11 @@ function onCamMove(e) {
 
 function onCamUp(e) {
   forChanged(e, (p) => {
+    const drag = camDrag && camDrag.id === p.id ? camDrag : null;
     pointers.delete(p.id);
-    if (camDrag && camDrag.id === p.id) camDrag = null;
+    if (!drag) return;
+    camDrag = null;
+    if (!drag.moved) tryPlotTap(p.x, p.y);
   });
   if (pointers.size < 2) pinch0 = 0;
   ignoreCam = false;
@@ -429,6 +432,21 @@ function bindTouch() {
     if (state.mode === 'play') act();
   });
   bindTap($('btn-help'), () => $('help').classList.toggle('hidden'));
+  bindPrompt();
+}
+
+function bindPrompt() {
+  const el = $('prompt');
+  const go = (e) => {
+    if (state.mode !== 'play' || el.style.display === 'none') return;
+    swallow(e);
+    act();
+  };
+  el.addEventListener('touchstart', go, { passive: false });
+  el.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch' || isGhostMouse(e)) return;
+    go(e);
+  });
 }
 
 /* ------------------------------------------------------------------ player */
@@ -614,9 +632,9 @@ function toast(msg, cls = '') {
   setTimeout(() => el.remove(), 2600);
 }
 
-function act() {
-  if (P.cool > 0) return;
-  const i = nearestSlot();
+function act(slotIndex = -1) {
+  if (state.mode !== 'play' || P.cool > 0) return;
+  const i = slotIndex >= 0 ? slotIndex : nearestSlot();
   if (i < 0) return toast('WALK TO A GARDEN BED');
   const d = slotsData[i];
   const s = world.slots[i];
@@ -675,6 +693,44 @@ function updateHud() {
 const tip = $('tip');
 const prompt = $('prompt');
 const v3 = new THREE.Vector3();
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const soilPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(7 / 16));
+const soilHit = new THREE.Vector3();
+
+function setActLabel(text) {
+  const btn = $('btn-act');
+  if (btn && btn.textContent !== text) btn.textContent = text;
+}
+
+function slotAtScreen(x, y) {
+  if (!world) return -1;
+  const rect = renderer.domElement.getBoundingClientRect();
+  if (!rect.width || !rect.height) return -1;
+  ndc.set(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  if (!raycaster.ray.intersectPlane(soilPlane, soilHit)) return -1;
+  let best = -1;
+  let bd = 1.25 * 1.25;
+  world.slots.forEach((s, i) => {
+    const d2 = (s.x - soilHit.x) ** 2 + (s.z - soilHit.z) ** 2;
+    if (d2 < bd) {
+      bd = d2;
+      best = i;
+    }
+  });
+  return best;
+}
+
+function tryPlotTap(x, y) {
+  if (state.mode !== 'play') return;
+  const i = slotAtScreen(x, y);
+  const s = i >= 0 ? world.slots[i] : null;
+  if (i < 0) return;
+  if (Math.hypot(s.x - P.x, s.z - P.z) > 3.1) return toast('WALK CLOSER');
+  act(i);
+}
+
 function updateTarget() {
   if (state.mode !== 'play') {
     marker.visible = false;
@@ -687,6 +743,7 @@ function updateTarget() {
     marker.visible = false;
     tip.style.display = 'none';
     prompt.style.display = 'none';
+    setActLabel('ACT');
     return -1;
   }
   const s = world.slots[i];
@@ -697,9 +754,20 @@ function updateTarget() {
   marker.scale.set(scale, 1, scale);
   const actLbl = touchUI ? 'TAP' : 'SPACE';
   let text;
-  if (d.state === 'empty') text = state.seeds > 0 ? `${actLbl}  PLANT SEED` : 'NO SEEDS';
-  else if (d.state === 'ready') text = `${actLbl}  HARVEST`;
-  else text = d.water > 0.7 ? 'WELL WATERED' : `${actLbl}  WATER`;
+  let btn = 'ACT';
+  if (d.state === 'empty') {
+    text = state.seeds > 0 ? `${actLbl}  PLANT SEED` : 'NO SEEDS';
+    btn = state.seeds > 0 ? 'PLANT' : 'ACT';
+  } else if (d.state === 'ready') {
+    text = `${actLbl}  HARVEST`;
+    btn = 'PICK';
+  } else if (d.water > 0.7) {
+    text = 'WELL WATERED';
+  } else {
+    text = `${actLbl}  WATER`;
+    btn = 'WATER';
+  }
+  setActLabel(btn);
   prompt.textContent = text;
   prompt.style.display = 'block';
   if (d.state === 'empty') {
