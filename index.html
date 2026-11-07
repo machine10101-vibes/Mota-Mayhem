@@ -9,8 +9,8 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <title>Mota Mayhem</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><rect width='8' height='8' fill='%232f4420'/><path d='M3 0h2v3h-2zM0 2h2v2h-2zM6 2h2v2h-2zM2 3h4v3h-4zM3 6h2v2h-2z' fill='%2393c85a'/></svg>" />
-    <script type="module" crossorigin src="/Mota-Mayhem/assets/index-DLpdRAAx.js"></script>
-    <link rel="stylesheet" crossorigin href="/Mota-Mayhem/assets/index-BRvn7zcC.css">
+    <script type="module" crossorigin src="/Mota-Mayhem/assets/index-D3Q2w07U.js"></script>
+    <link rel="stylesheet" crossorigin href="/Mota-Mayhem/assets/index-DU6mTcru.css">
   </head>
   <body>
     <div id="stage"></div>
@@ -21,6 +21,8 @@
         <div class="row mota"><span class="lbl">MOTA</span><b id="mota">0</b></div>
         <div class="row seeds"><span class="lbl">SEEDS</span><b id="seeds">BD 10  GDP 10</b></div>
         <div class="row"><span class="lbl">CLONES</span><b id="clones">0</b></div>
+        <div class="row"><span class="lbl">FEED</span><b id="nuts">0</b></div>
+        <div class="row"><span class="lbl">CUBES</span><b id="cubes">0</b></div>
         <div class="row"><span class="lbl">WET</span><b id="wet">0</b></div>
         <div class="row"><span class="lbl">SHED</span><b id="shed-count">0</b></div>
         <div class="row"><span class="lbl">GRAMS</span><b id="grams">0</b></div>
@@ -41,7 +43,8 @@
       <span class="help-desk">
         <b>MOVE</b> WASD / ARROWS &nbsp; <b>RUN</b> SHIFT<br />
         <b>ACT</b> SPACE &nbsp; <b>1 / 2</b> SEED STRAIN &nbsp; <b>YOU</b> C<br />
-        <b>HOUSE</b> PLANT MOTHERS / CLONE / VEG &nbsp; <b>SHED</b> DRY / CURE<br />
+        <b>HOUSE</b> MOTHERS / HYDRO TUBES / VEG &nbsp; <b>STAIRS</b> BEDROOMS<br />
+        <b>COMPUTER</b> BUY SEEDS AND SUPPLIES &nbsp; <b>SHED</b> DRY / CURE<br />
         <b>MOTA</b> SELL JARS ON THE PORCH &nbsp; <b>BUY</b> THE EAST WAREHOUSE<br />
         <b>CAMERA</b> Q / E / DRAG / WHEEL &nbsp; <b>PIXELS</b> [ ] &nbsp; <b>HELP</b> H<br />
         SAVED ON THIS DEVICE
@@ -50,6 +53,7 @@
         <b>MOVE</b> STICK &nbsp; <b>RUN</b> HOLD RUN<br />
         <b>ACT</b> TAP PROMPT, SOIL, HOUSE, OR SHED<br />
         <b>SEEDS</b> TAP BD OR GDP &nbsp; <b>YOU</b> CHARACTER<br />
+        <b>STAIRS</b> BEDROOMS AND COMPUTER SHOP<br />
         <b>MOTA</b> SELL JARS &nbsp; <b>BUY</b> WAREHOUSE<br />
         <b>CAMERA</b> DRAG / PINCH &nbsp; <b>HELP</b> ?<br />
         SAVED ON THIS DEVICE
@@ -81,6 +85,17 @@
       <p class="press"><span id="press-desk" class="press-desk">CLICK OR SPACE TO START</span><span id="press-touch" class="press-touch">TAP TO START</span></p>
     </div>
     <div id="strains" class="hidden"></div>
+    <div id="shop" class="hidden">
+      <div class="panel shop-card">
+        <div class="dress-title">SUPPLY COMPUTER</div>
+        <p class="shop-mota">MOTA <b id="shop-mota">0</b></p>
+        <div id="shop-rows"></div>
+        <div class="dress-actions">
+          <button type="button" id="btn-shop-close" class="tbtn">CLOSE</button>
+        </div>
+        <p class="dress-note">SEEDS, NUTRIENTS, AND ROOT CUBES</p>
+      </div>
+    </div>
     <div id="dress" class="hidden">
       <div class="panel dress-card">
         <div class="dress-title">CHARACTER</div>
