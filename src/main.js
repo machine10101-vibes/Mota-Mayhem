@@ -880,7 +880,7 @@ function stationFocus() {
     if (!best || priority > best.priority || (priority === best.priority && d2 < best.d2)) best = { kind, ref, x, z, d2, y, priority };
   };
   const shed = world.shed;
-  consider(16, -6.35, 'shed-door', null, 1.75);
+  consider(shed.door.x, shed.door.z, 'shed-door', null, 1.9);
   if (shed.open || shed.contains(P.x, P.z)) {
     for (const h of shed.hooks) consider(h.x, h.z + 0.4, 'hook', h, 1.35);
     for (const j of shed.cureJars) {
@@ -1191,7 +1191,7 @@ function updateShed(dt) {
   const k = 1 - Math.exp(-dt * 14);
   shed.doorL.rotation.y += (swing - shed.doorL.rotation.y) * k;
   shed.doorR.rotation.y += (-swing - shed.doorR.rotation.y) * k;
-  const nearDoor = (16 - P.x) ** 2 + (-6.35 - P.z) ** 2 < 2.4 * 2.4;
+  const nearDoor = (shed.door.x - P.x) ** 2 + (shed.door.z - P.z) ** 2 < 2.8 * 2.8;
   shed.roof.visible = !(shed.open && (shed.contains(P.x, P.z) || nearDoor));
   for (const h of shed.hooks) {
     const it = h.item;
