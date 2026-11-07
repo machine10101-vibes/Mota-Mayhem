@@ -594,7 +594,7 @@ function updatePlayer(dt) {
   if (world.house) {
     const up = P.y > 1.45 || world.house.onStair(P.x, P.z, P.y);
     world.house.upper.visible = up;
-    if (up && !climbed && P.y > 2.2) cam.distT = Math.min(cam.distT, 18);
+    if (up && !climbed && P.y > 2.2) cam.distT = Math.min(Math.max(cam.distT, 16), 22);
     if (!up && climbed) cam.distT = Math.max(cam.distT, 24);
   }
   P.cool = Math.max(0, P.cool - dt);
@@ -840,7 +840,7 @@ function act(slotIndex = -1) {
     forced = plot;
   }
   if (!forced) {
-    if (world.house.contains(P.x, P.z)) return toast(P.y > 2.2 ? 'WALK TO THE COMPUTER' : 'WALK TO A MOTHER, HYDRO TUBE, OR VEG POT');
+    if (world.house.contains(P.x, P.z)) return toast(P.y > 2.2 ? 'WALK TO A VEG POT OR THE COMPUTER' : 'WALK TO A MOTHER, HYDRO TUBE, OR VEG POT');
     if (world.warehouse.contains(P.x, P.z)) return toast('WALK TO A GROW POT');
     return toast('WALK TO A GARDEN BED');
   }
@@ -875,11 +875,13 @@ function stationFocus() {
   const house = world.house;
   consider(0, -13.15, 'house-door', null, 1.7);
   if (house.open || house.contains(P.x, P.z)) {
-    if (P.y > 2.2) consider(house.computer.x, house.computer.z, 'computer', house.computer, 1.45, LOFT.y + 0.08);
-    else {
+    if (P.y > 2.2) {
+      consider(house.computer.x, house.computer.z, 'computer', house.computer, 1.45, LOFT.y + 0.08);
+      for (const veg of house.veg) if (veg.up) consider(veg.x, veg.z + 0.75, 'veg', veg, 1.05, LOFT.y + 0.08);
+    } else {
       for (const mom of house.mothers) consider(mom.x, mom.z + 0.85, 'mother', mom, 1.25);
       for (const tray of house.trays) consider(tray.x, tray.z + 0.55, 'tray', tray, 1.05);
-      for (const veg of house.veg) consider(veg.x, veg.z + 0.75, 'veg', veg, 1.05);
+      for (const veg of house.veg) if (!veg.up) consider(veg.x, veg.z + 0.75, 'veg', veg, 1.05);
     }
   }
   consider(world.stand.x, world.stand.z, 'stand', null, 1.55);
@@ -1076,7 +1078,7 @@ function actTray(tray) {
   }
   if (tray.state !== 'ready') return toast('STILL ROOTING');
   const pot = world.house.veg.find((v) => v.state === 'empty');
-  if (!pot) return toast('VEG ROOM IS FULL');
+  if (!pot) return toast('VEG POTS ARE FULL');
   pot.state = 'veg';
   pot.t = 0;
   pot.strain = tray.strain || 'bd';
@@ -1087,7 +1089,7 @@ function actTray(tray) {
   tray.strain = null;
   tray.plant.visible = false;
   P.cool = 0.4;
-  toast(`${strainOf(pot.strain).short} MOVED INTO THE VEG ROOM`);
+  toast(`${strainOf(pot.strain).short} MOVED INTO A VEG ROOM`);
   markDirty();
   return true;
 }

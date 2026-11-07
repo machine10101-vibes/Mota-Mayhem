@@ -18,7 +18,7 @@ export const LOFT = {
   x0: -16.15,
   x1: 16.15,
   zFront: -14.5,
-  zBack: -18.2,
+  zBack: -23.05,
 };
 export const STAIR = {
   x0: -16.02,
@@ -48,8 +48,8 @@ export function footOnStair(x, z, y = null) {
 }
 
 export function footOnLoft(x, z) {
-  if (x <= LOFT.x0 + 0.4 || x >= LOFT.x1 - 0.4) return false;
-  if (z >= LOFT.zFront - 0.08 || z <= LOFT.zBack + 0.16) return false;
+  if (x <= LOFT.x0 + 0.12 || x >= LOFT.x1 - 0.12) return false;
+  if (z >= LOFT.zFront - 0.05 || z <= LOFT.zBack + 0.08) return false;
   return !footOnStair(x, z);
 }
 
@@ -144,9 +144,61 @@ function buildPot(big) {
   const m = new VoxelModel();
   const r = big ? 7 : 5;
   const h = big ? 9 : 7;
-  m.box(-r, 0, -r, r, h, r, 0xc2653a, 0.05);
+  m.box(-r - 3, 0, -r - 3, r + 3, 2, r + 3, 0x6e3b2c, 0.03);
+  m.box(-r - 2, 2, -r - 2, r + 2, 3, r + 2, 0x8a4e38, 0.03);
+  m.box(-r, 2, -r, r, h, r, (x, y) => (y % 3 === 0 ? 0xb85c34 : 0xc2653a), 0.05);
   m.box(-r - 1, h, -r - 1, r + 1, h + 2, r + 1, 0xd2754a, 0.04);
   m.box(-r + 1, h + 2, -r + 1, r - 1, h + 3, r - 1, 0x4b3424, 0.05);
+  return m;
+}
+
+function buildSconce() {
+  const m = new VoxelModel();
+  m.box(-1, 0, 0, 2, 10, 2, 0x5c4030, 0.03);
+  m.box(-6, 8, 1, 7, 12, 4, 0x2c2418, 0.02);
+  m.box(-5, 9, 3, 6, 11, 6, 0xfff3c4, 0.01);
+  return m;
+}
+
+function buildLightStand() {
+  const m = new VoxelModel();
+  m.box(-2, 0, -2, 2, 4, 2, 0x3a4046, 0.03);
+  m.box(-1, 4, -1, 1, 30, 1, 0x4a5450, 0.03);
+  m.box(-12, 28, -3, 12, 32, 3, 0x241c14, 0.02);
+  m.box(-10, 29, 2, 10, 31, 5, 0xfff6d0, 0.01);
+  return m;
+}
+
+function buildWateringCan() {
+  const m = new VoxelModel();
+  m.box(-4, 0, -3, 4, 6, 4, 0x3d8f6a, 0.03);
+  m.box(-2, 6, -2, 2, 8, 2, 0x2f7f4a, 0.02);
+  m.box(3, 3, 0, 9, 5, 2, 0x2f7f4a, 0.02);
+  m.box(-6, 4, -1, -3, 8, 1, 0x245c36, 0.02);
+  return m;
+}
+
+function buildChair() {
+  const m = new VoxelModel();
+  m.box(-3, 0, -3, -1, 6, -1, 0x5c4030, 0.03);
+  m.box(1, 0, -3, 3, 6, -1, 0x5c4030, 0.03);
+  m.box(-3, 0, 1, -1, 6, 3, 0x5c4030, 0.03);
+  m.box(1, 0, 1, 3, 6, 3, 0x5c4030, 0.03);
+  m.box(-4, 6, -4, 4, 8, 4, 0x6e5030, 0.02);
+  m.box(-4, 8, -4, 4, 16, -2, 0x6e5030, 0.02);
+  return m;
+}
+
+function buildShelf() {
+  const m = new VoxelModel();
+  m.box(-12, 0, -3, 12, 2, 3, 0x6b4428, 0.03);
+  m.box(-12, 10, -3, 12, 12, 3, 0x6b4428, 0.03);
+  m.box(-12, 20, -3, 12, 22, 3, 0x6b4428, 0.03);
+  m.box(-10, 2, -2, -4, 8, 2, 0x3d8f6a, 0.02);
+  m.box(-3, 2, -2, 3, 7, 2, 0xe9ba3e, 0.02);
+  m.box(4, 2, -2, 10, 8, 2, 0x3a6ea8, 0.02);
+  m.box(-8, 12, -2, -1, 18, 2, 0xc6f56a, 0.02);
+  m.box(1, 12, -2, 8, 17, 2, 0xb33a32, 0.02);
   return m;
 }
 
@@ -199,16 +251,6 @@ function buildNftTube() {
   return { model: m, centers };
 }
 
-function buildBedFrame(blanket) {
-  const m = new VoxelModel();
-  m.box(-14, 0, -4, 14, 5, 16, 0x6b4428, 0.03);
-  m.box(-12, 5, -2, 12, 8, 15, 0xf4f0e4, 0.02);
-  m.box(-12, 8, -2, 12, 10, 8, blanket, 0.02);
-  m.box(-10, 8, 9, 10, 12, 15, 0xfffaf0, 0.02);
-  m.box(-14, 5, -6, 14, 16, -3, 0x8d6844, 0.03);
-  return m;
-}
-
 function buildComputer() {
   const m = new VoxelModel();
   m.box(-12, 0, -6, 12, 8, 7, 0x5c4030, 0.03);
@@ -252,6 +294,11 @@ function buildHouseInterior(group, colliders, cutaway) {
   const vx = (n) => Math.round(n * S);
   const plaster = 0xe7dcc4;
   const trim = 0x2f4420;
+  const plasterAt = (x, y, z) => {
+    if (y < 16) return 0x6e5438;
+    if (y > 46 && y < 50) return 0xcbb892;
+    return hash3(x, y, z, 2) > 0.9 ? shade(plaster, 0.93) : plaster;
+  };
   const zBack = HOUSE.back - 0.05;
   const zFront = -14.2;
   const xWest = -HOUSE.half + 0.1;
@@ -264,7 +311,7 @@ function buildHouseInterior(group, colliders, cutaway) {
   floor(xWest, splitL, 0x3f5c34);
   floor(splitL, splitR, 0xd5ddd4);
   floor(splitR, xEast, 0xc49a62);
-  const wall = (x0, z0, x1, z1) => m.box(vx(x0), 12, vx(z0), vx(x1), vx(3.34), vx(z1), plaster, 0.03);
+  const wall = (x0, z0, x1, z1) => m.box(vx(x0), 12, vx(z0), vx(x1), vx(3.34), vx(z1), plasterAt, 0.03);
   wall(xWest, HOUSE.back - 0.2, xEast, zBack);
   wall(-HOUSE.half - 0.05, HOUSE.back - 0.2, xWest, -14.25);
   wall(xEast, HOUSE.back - 0.2, HOUSE.half + 0.05, -14.25);
@@ -272,20 +319,19 @@ function buildHouseInterior(group, colliders, cutaway) {
     wall(x, zBack, x + 0.28, -19.7);
     wall(x, -17.3, x + 0.28, -14.4);
     m.box(vx(x), vx(2.7), vx(zBack), vx(x + 0.28), vx(2.95), vx(-14.4), trim, 0.02);
+    m.box(vx(x) - 2, 12, vx(-19.78), vx(x + 0.28) + 2, vx(2.5), vx(-19.52), 0x8d6844, 0.02);
+    m.box(vx(x) - 2, 12, vx(-17.48), vx(x + 0.28) + 2, vx(2.5), vx(-17.22), 0x8d6844, 0.02);
   };
   divider(splitL);
   divider(splitR);
-  const band = (x0, x1, z, col) => m.box(vx(x0), vx(2.85), vx(z), vx(x1), vx(3.05), vx(z + 0.25), col, 0.02);
-  band(xWest + 0.15, splitL - 0.15, -22.35, 0x93c85a);
-  band(splitL + 0.4, splitR - 0.4, -22.35, 0xc5e9f6);
-  band(splitR + 0.4, xEast - 0.15, -22.35, 0xffe08a);
-  band(xWest + 0.15, splitL - 0.15, -18.15, 0x93c85a);
-  band(splitL + 0.4, splitR - 0.4, -18.15, 0xc5e9f6);
-  band(splitR + 0.4, xEast - 0.15, -18.15, 0xffe08a);
   paintWall(m, 'MOTHER', vx(-11), 36, vx(zBack) - 1, 2, 0xf3e7b0);
   paintWall(m, 'CLONE', vx(0), 36, vx(zBack) - 1, 2, 0x145e6a);
   paintWall(m, 'VEG', vx(11), 36, vx(zBack) - 1, 2, 0xf3e7b0);
+  m.box(vx(9.6), 12, vx(-20.3), vx(12.4), 13, vx(-19.6), 0x3a4038, 0.02);
   place(group, m, 1 / S, 0, 0, 0);
+  for (const x of [-14.6, 0.1, 14.4]) place(group, buildSconce(), 1 / S, x, 1.55, -22.55);
+  place(group, buildLightStand(), 1 / S, 6.35, 0.75, -16.35);
+  place(group, buildWateringCan(), 1 / S, -6.4, 0.75, -16.55);
 
   const push = (r) => colliders.push(r);
   push({ x0: xWest, x1: xEast, z0: HOUSE.back - 0.25, z1: zBack });
@@ -347,22 +393,14 @@ function buildHouseInterior(group, colliders, cutaway) {
     [13.7, -21.55],
     [8.15, -18.85],
     [13.7, -18.85],
-  ].map(([x, z]) => {
-    place(group, potSm, 1 / 15, x, 0.75, z);
-    const plant = toMesh(buildPlant(2, 'bd'), PVS);
-    plant.position.set(x, 0.75 + 0.62, z);
-    plant.scale.setScalar(0.78);
-    plant.visible = false;
-    plant.castShadow = true;
-    group.add(plant);
-    return { x, z, state: 'empty', t: 0, strain: null, plant };
-  });
+  ].map(([x, z]) => addVegPot(group, potSm, x, z, 0.75));
 
   place(group, buildStairs(), 1 / S, 0, 0, 0);
   push({ x0: STAIR.x0 - 0.02, x1: STAIR.x0 + 0.18, z0: STAIR.z0, z1: STAIR.z1 });
   push({ x0: STAIR.x1 - 0.18, x1: STAIR.x1 + 0.02, z0: STAIR.z0, z1: -16.25 });
   push({ x0: STAIR.x0 + 0.18, x1: STAIR.x1 - 0.18, z0: -16.9, z1: STAIR.z1, floor: 0 });
   const loft = buildLoft(group, push);
+  vegSpots.push(...loft.veg);
 
   return {
     roof: cutaway.roof,
@@ -385,6 +423,17 @@ function buildHouseInterior(group, colliders, cutaway) {
   };
 }
 
+function addVegPot(parent, pot, x, z, y) {
+  place(parent, pot, 1 / 15, x, y, z);
+  const plant = toMesh(buildPlant(2, 'bd'), PVS);
+  plant.position.set(x, y + 0.62, z);
+  plant.scale.setScalar(0.78);
+  plant.visible = false;
+  plant.castShadow = true;
+  parent.add(plant);
+  return { x, z, y, up: y > 2, state: 'empty', t: 0, strain: null, plant };
+}
+
 function buildLoft(group, push) {
   const upper = new THREE.Group();
   upper.visible = false;
@@ -392,62 +441,79 @@ function buildLoft(group, push) {
   const S = 16;
   const m = new VoxelModel();
   const vx = (n) => Math.round(n * S);
-  const y0 = vx(3.28);
+  const y0 = vx(3.36);
   const y1 = vx(LOFT.y);
   const x0 = vx(LOFT.x0);
   const x1 = vx(LOFT.x1);
   const z0 = vx(LOFT.zBack);
   const z1 = vx(LOFT.zFront);
+  const splitL = vx(-5.48);
+  const splitR = vx(5.32);
   m.box(x0, y0, z0, x1, y1, z1, (x, y, z) => {
+    if (y === y0) return 0xe4d8c0;
+    const tile = (Math.floor(x / 8) + Math.floor(z / 8)) % 2;
+    if (x < splitR) return tile ? 0xc49a62 : 0xb58850;
     const plank = Math.floor(x / 4);
-    if (x < vx(-5.4)) return (plank + Math.floor(z / 5)) % 2 ? 0x8d6a45 : 0xa88358;
-    if (x > vx(5.5)) return (plank + Math.floor(z / 5)) % 2 ? 0x6d5344 : 0x7c6150;
-    return plank % 2 ? 0xc49a62 : 0xb58850;
+    return plank % 2 ? 0x8d6a45 : 0xa88358;
   }, 0.04);
   m.delBox(vx(STAIR.x0 - 0.04), y0 - 2, vx(STAIR.z0), vx(STAIR.x1 + 0.04), y1 + 2, vx(STAIR.z1 + 0.05));
-  m.box(vx(-12.4), y1, vx(-17.55), vx(-8.3), y1 + 1, vx(-16.45), 0x3a6ea8, 0.02);
-  m.box(vx(-1.7), y1, vx(-17.55), vx(1.7), y1 + 1, vx(-16.45), 0x6d3d78, 0.02);
-  const railTop = y1 + 14;
-  const gap0 = vx(STAIR.x0 - 0.06);
-  const gap1 = vx(STAIR.x1 + 0.06);
-  const rail = (xa, xb) => {
-    if (xb - xa < 4) return;
-    m.box(xa, y1, z0, xb, y1 + 3, z0 + 3, 0xf3ecdc, 0.02);
-    m.box(xa, railTop - 3, z0, xb, railTop, z0 + 3, 0xfff6df, 0.02);
-    for (let x = xa; x < xb; x += 12) m.box(x, y1, z0, x + 2, railTop, z0 + 3, 0xf7f1e2, 0.02);
+  const wallTop = y1 + vx(2.2);
+  const plasterAt = (x, y, z) => {
+    if (y < y1 + 4) return 0x6e5438;
+    if (y > wallTop - 6) return 0xcbb892;
+    return hash3(x, y, z, 2) > 0.9 ? shade(0xe7dcc4, 0.93) : 0xe7dcc4;
   };
-  rail(x0, gap0);
-  rail(gap1, x1);
-  const wallTop = y1 + vx(2.05);
-  const door0 = vx(-17.05);
-  const door1 = vx(-14.95);
+  const door0 = vx(-19.7);
+  const door1 = vx(-17.3);
   const divider = (x) => {
-    m.box(x, y1, z0, x + 4, wallTop, door0, 0xe7dcc4, 0.03);
-    m.box(x, y1, door1, x + 4, wallTop, z1, 0xe7dcc4, 0.03);
-    m.box(x, y1 + 28, door0, x + 4, y1 + 32, door1, 0x2f4420, 0.02);
+    m.box(x, y1, z0, x + 4, wallTop, door0, plasterAt, 0.03);
+    m.box(x, y1, door1, x + 4, wallTop, z1, plasterAt, 0.03);
+    m.box(x, wallTop - 4, door0, x + 4, wallTop, door1, 0x2f4420, 0.02);
+    m.box(x - 2, y1, door0 - 3, x + 6, y1 + vx(1.7), door0, 0x8d6844, 0.02);
+    m.box(x - 2, y1, door1, x + 6, y1 + vx(1.7), door1 + 3, 0x8d6844, 0.02);
   };
-  divider(vx(-5.48));
-  divider(vx(5.32));
-  paintFlat(m, 'BED', vx(-10.2), vx(-15.2), y1, 2, 0xf3e7b0);
-  paintFlat(m, 'BED', vx(0.1), vx(-15.2), y1, 2, 0xf3e7b0);
-  paintFlat(m, 'SHOP', vx(13.5), vx(-15.05), y1, 2, 0xc6f56a);
+  divider(splitL);
+  divider(splitR);
+  const edge = (xa, za, xb, zb) => m.box(xa, y1, za, xb, wallTop, zb, plasterAt, 0.03);
+  edge(x0, z0, x1, z0 + 5);
+  edge(x0, z0, x0 + 5, z1);
+  edge(x1 - 5, z0, x1, z1);
+  edge(x0, z1 - 5, x1, z1);
+  paintFlat(m, 'VEG', vx(-10.4), vx(-16.15), y1, 2, 0xf3e7b0);
+  paintFlat(m, 'VEG', vx(0), vx(-16.15), y1, 2, 0xf3e7b0);
+  paintFlat(m, 'SHOP', vx(11.2), vx(-16.15), y1, 2, 0xc6f56a);
+  m.box(vx(9.2), y1, vx(-17.6), vx(14.2), y1 + 1, vx(-15.7), 0x3a6ea8, 0.02);
   place(upper, m, 1 / S, 0, 0, 0);
-  place(upper, buildBedFrame(0x3d8f6a), 1 / S, -10.3, LOFT.y, -17.15);
-  place(upper, buildBedFrame(0x7a4e9a), 1 / S, -0.1, LOFT.y, -17.15);
-  place(upper, buildBedFrame(0x3a6ea8), 1 / S, 8.15, LOFT.y, -17.15);
-  const computer = { x: 13.55, z: -16.05, floorY: LOFT.y };
-  place(upper, buildComputer(), 1 / S, computer.x, LOFT.y, -17.42);
+
+  const pot = buildPot(false);
+  const veg = [
+    [-13.2, -21.7],
+    [-8.5, -21.7],
+    [-13.2, -20.05],
+    [-8.5, -20.05],
+    [-2.6, -21.55],
+    [2.6, -21.55],
+    [-2.6, -18.85],
+    [2.6, -18.85],
+  ].map(([x, z]) => addVegPot(upper, pot, x, z, LOFT.y));
+  place(upper, buildLightStand(), 1 / S, -6.3, LOFT.y, -16.45);
+  place(upper, buildLightStand(), 1 / S, 4.4, LOFT.y, -16.45);
+  for (const x of [-14.8, -0.2, 14.2]) place(upper, buildSconce(), 1 / S, x, LOFT.y + 0.85, -22.4);
+
+  const computer = { x: 11.6, z: -20.15, floorY: LOFT.y };
+  place(upper, buildComputer(), 1 / S, computer.x, LOFT.y, -21.35);
+  place(upper, buildChair(), 1 / S, 13.5, LOFT.y, -19.85);
+  place(upper, buildShelf(), 1 / S, 14.55, LOFT.y, -18.15);
 
   const up = (r) => push({ ...r, floor: 1 });
-  up({ x0: LOFT.x0, x1: STAIR.x0 - 0.02, z0: -19.35, z1: LOFT.zBack + 0.22 });
-  up({ x0: STAIR.x1 + 0.02, x1: LOFT.x1, z0: -19.35, z1: LOFT.zBack + 0.22 });
+  up({ x0: STAIR.x0 - 0.05, x1: STAIR.x1 + 0.05, z0: STAIR.z0 - 0.45, z1: STAIR.z0 + 0.08 });
   for (const x of [-5.48, 5.32]) {
-    up({ x0: x, x1: x + 0.28, z0: LOFT.zBack, z1: -17.05 });
-    up({ x0: x, x1: x + 0.28, z0: -14.95, z1: LOFT.zFront });
+    up({ x0: x, x1: x + 0.28, z0: LOFT.zBack, z1: -19.7 });
+    up({ x0: x, x1: x + 0.28, z0: -17.3, z1: LOFT.zFront });
   }
-  for (const x of [-10.3, -0.1, 8.15]) up({ x0: x - 0.95, x1: x + 0.95, z0: -17.58, z1: -16.22 });
-  up({ x0: 12.65, x1: 14.5, z0: -17.9, z1: -16.9 });
-  return { upper, computer };
+  up({ x0: 10.5, x1: 13.4, z0: -22.6, z1: -20.75 });
+  up({ x0: 13.7, x1: 15.45, z0: -18.85, z1: -17.45 });
+  return { upper, computer, veg };
 }
 
 function buildStandModel() {

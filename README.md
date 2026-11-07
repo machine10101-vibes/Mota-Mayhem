@@ -44,10 +44,7 @@ Cuttings root in tube-style hydroponic lines: two NFT tubes, a reservoir, and a 
 site. The veg room is on the right. Water a mother, take a cutting, wait for it to root, move it into veg, then
 carry the finished clone out to a bed or the warehouse.
 
-Stairs in the mother room climb to the second story. Two bedrooms sit over the front of the house, and the
-east bedroom has a computer. Use it to spend MOTA on Blue Dream seeds, Granddaddy Purple seeds, nutrients,
-and root cubes. Nutrients feed a mother or a veg pot. Root cubes speed a tube that is still rooting. The
-upstairs floor stays out of the way until you are on the stairs, so the grow rooms stay visible from above.
+Stairs in the mother room climb to a second story the same depth and width as the rooms below. The west and center rooms upstairs are two more veg rooms, with the same pot layout as the ground-floor veg room. The east room is the supply office. Use the computer there to spend MOTA on Blue Dream seeds, Granddaddy Purple seeds, nutrients, and root cubes. Nutrients feed a mother or a veg pot. Root cubes speed a tube that is still rooting. The upstairs floor stays hidden until you are on the stairs, so the ground-floor grow rooms stay visible from above.
 
 The porch stand sells cured jars for MOTA, the in-game
 token. A mixed seed pack (2 Blue Dream and 2 Granddaddy Purple) is there too when you are low. The east lot
