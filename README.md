@@ -1,5 +1,7 @@
 # Mota Mayhem
 
+Play: [machine10101-vibes.github.io/Mota-Mayhem](https://machine10101-vibes.github.io/Mota-Mayhem/)
+
 A cannabis-farming game rendered as cartoon 3D pixel art (voxels), played from an overhead third-person camera.
 This first slice focuses on graphics: a fully fenced backyard with a house and porch, greenhouse, shed, raised beds,
 and props, a voxel hero based on the reference sprite, and a small plant / water / harvest loop.
@@ -8,8 +10,8 @@ and props, a voxel hero based on the reference sprite, and a small plant / water
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm run build    # production build in dist/
+npm run dev      # http://localhost:5173/Mota-Mayhem/
+npm run build    # production build in dist/ (GitHub Pages base /Mota-Mayhem/)
 ```
 
 ## Controls
