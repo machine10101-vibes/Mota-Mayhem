@@ -14,8 +14,44 @@
     <div id="stage"></div>
 
     <div id="hud" class="hidden">
-      <div class="panel brand"><canvas id="leaf-icon" width="8" height="10"></canvas><span>MOTA MAYHEM</span><button type="button" id="btn-you" class="you-btn">YOU</button></div>
-      <div class="panel inv">
+      <div class="hud-row">
+        <div class="panel brand" id="brand"><canvas id="leaf-icon" width="8" height="10"></canvas><span>MOTA MAYHEM</span></div>
+        <div class="icon-row">
+          <button type="button" id="btn-you" class="icon-btn" aria-label="Character" aria-pressed="false">
+            <svg class="pix" viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="5" y="0" width="6" height="2" fill="#2f6a28"/>
+              <rect x="3" y="2" width="10" height="2" fill="#93c85a"/>
+              <rect x="7" y="0" width="2" height="2" fill="#c6f56a"/>
+              <rect x="5" y="4" width="6" height="4" fill="#e8a76b"/>
+              <rect x="6" y="5" width="1" height="1" fill="#1b2412"/>
+              <rect x="9" y="5" width="1" height="1" fill="#1b2412"/>
+              <rect x="4" y="8" width="8" height="2" fill="#b33a32"/>
+              <rect x="7" y="8" width="2" height="2" fill="#7fb44a"/>
+              <rect x="5" y="10" width="6" height="3" fill="#2f7f4a"/>
+              <rect x="4" y="13" width="3" height="2" fill="#5c4030"/>
+              <rect x="9" y="13" width="3" height="2" fill="#5c4030"/>
+            </svg>
+          </button>
+          <button type="button" id="btn-inv" class="icon-btn" aria-label="Inventory" aria-pressed="false">
+            <svg class="pix" viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="4" y="1" width="8" height="2" fill="#6b4423"/>
+              <rect x="1" y="3" width="3" height="7" fill="#6b4423"/>
+              <rect x="12" y="3" width="3" height="7" fill="#6b4423"/>
+              <rect x="2" y="4" width="2" height="5" fill="#c4956a"/>
+              <rect x="12" y="4" width="2" height="5" fill="#c4956a"/>
+              <rect x="3" y="3" width="10" height="12" fill="#6b4423"/>
+              <rect x="4" y="4" width="8" height="10" fill="#f0d2a0"/>
+              <rect x="6" y="5" width="4" height="2" fill="#ffe66a"/>
+              <rect x="7" y="5" width="2" height="2" fill="#6b4423"/>
+              <rect x="5" y="8" width="6" height="5" fill="#ffe6b8"/>
+              <rect x="7" y="9" width="2" height="3" fill="#2f7f4a"/>
+              <rect x="6" y="9" width="1" height="2" fill="#93c85a"/>
+              <rect x="9" y="9" width="1" height="2" fill="#93c85a"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div id="inv" class="panel inv hidden">
         <div class="row mota"><span class="lbl">MOTA</span><b id="mota">0</b></div>
         <div class="row seeds"><span class="lbl">SEEDS</span><b id="seeds">BD 10  GDP 10</b></div>
         <div class="row"><span class="lbl">CLONES</span><b id="clones">0</b></div>
@@ -40,7 +76,8 @@
     <div id="help" class="panel">
       <span class="help-desk">
         <b>MOVE</b> WASD / ARROWS &nbsp; <b>RUN</b> SHIFT<br />
-        <b>ACT</b> SPACE &nbsp; <b>1 / 2</b> SEED STRAIN &nbsp; <b>YOU</b> C<br />
+        <b>ACT</b> SPACE &nbsp; <b>1 / 2</b> SEED STRAIN<br />
+        <b>FARMER</b> CHARACTER &nbsp; <b>PACK</b> INVENTORY &nbsp; <b>C</b> CHARACTER<br />
         <b>HOUSE</b> MOTHERS / HYDRO TUBES / VEG &nbsp; <b>STAIRS</b> BEDROOMS<br />
         <b>COMPUTER</b> BUY SEEDS AND SUPPLIES &nbsp; <b>SHED</b> DRY / CURE<br />
         <b>MOTA</b> SELL JARS ON THE PORCH &nbsp; <b>BUY</b> THE EAST WAREHOUSE<br />
@@ -50,7 +87,8 @@
       <span class="help-touch">
         <b>MOVE</b> STICK &nbsp; <b>RUN</b> HOLD RUN<br />
         <b>ACT</b> TAP PROMPT, SOIL, HOUSE, OR SHED<br />
-        <b>SEEDS</b> TAP BD OR GDP &nbsp; <b>YOU</b> CHARACTER<br />
+        <b>FARMER</b> CHARACTER &nbsp; <b>PACK</b> INVENTORY<br />
+        <b>SEEDS</b> TAP BD OR GDP<br />
         <b>STAIRS</b> BEDROOMS AND COMPUTER SHOP<br />
         <b>MOTA</b> SELL JARS &nbsp; <b>BUY</b> WAREHOUSE<br />
         <b>CAMERA</b> DRAG / PINCH &nbsp; <b>HELP</b> ?<br />
@@ -77,7 +115,21 @@
         <p class="sub">TRIPLE-A BACKYARD FARMING</p>
       </div>
       <div class="title-actions">
-        <button type="button" id="btn-character" class="tbtn">CHARACTER</button>
+        <button type="button" id="btn-character" class="icon-btn" aria-label="Character" aria-pressed="false">
+          <svg class="pix" viewBox="0 0 16 16" aria-hidden="true">
+            <rect x="5" y="0" width="6" height="2" fill="#2f6a28"/>
+            <rect x="3" y="2" width="10" height="2" fill="#93c85a"/>
+            <rect x="7" y="0" width="2" height="2" fill="#c6f56a"/>
+            <rect x="5" y="4" width="6" height="4" fill="#e8a76b"/>
+            <rect x="6" y="5" width="1" height="1" fill="#1b2412"/>
+            <rect x="9" y="5" width="1" height="1" fill="#1b2412"/>
+            <rect x="4" y="8" width="8" height="2" fill="#b33a32"/>
+            <rect x="7" y="8" width="2" height="2" fill="#7fb44a"/>
+            <rect x="5" y="10" width="6" height="3" fill="#2f7f4a"/>
+            <rect x="4" y="13" width="3" height="2" fill="#5c4030"/>
+            <rect x="9" y="13" width="3" height="2" fill="#5c4030"/>
+          </svg>
+        </button>
         <button type="button" id="btn-new" class="tbtn hidden">NEW GROW</button>
       </div>
       <p class="press"><span id="press-desk" class="press-desk">CLICK OR SPACE TO START</span><span id="press-touch" class="press-touch">TAP TO START</span></p>

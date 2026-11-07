@@ -1642,6 +1642,8 @@ function startGame() {
   $('title').classList.remove('dressing');
   $('dress').classList.add('hidden');
   $('hud').classList.remove('hidden');
+  setInv(false);
+  setIcon($('btn-you'), false);
   if (touchUI) {
     $('touch').classList.remove('hidden');
     $('help').classList.add('hidden');
@@ -1962,8 +1964,19 @@ function renderDress() {
   }
 }
 
+function setIcon(btn, on) {
+  if (!btn) return;
+  btn.classList.toggle('on', on);
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+
+function setInv(open) {
+  $('inv').classList.toggle('hidden', !open);
+  setIcon($('btn-inv'), open);
+}
+
 function openDress() {
-  if (!player || state.mode === 'loading' || state.mode === 'dress') return;
+  if (!player || state.mode === 'loading' || state.mode === 'dress' || state.mode === 'shop') return;
   state.returnMode = state.mode === 'play' ? 'play' : 'title';
   state.mode = 'dress';
   dressFacing = P.facing;
@@ -1971,9 +1984,13 @@ function openDress() {
   $('dress').classList.remove('hidden');
   $('title').classList.add('dressing');
   $('help').classList.add('hidden');
+  setInv(false);
+  setIcon($('btn-character'), true);
   if (state.returnMode === 'play') {
-    $('hud').classList.add('hidden');
+    $('brand').classList.add('hidden');
+    $('btn-inv').classList.add('hidden');
     $('touch').classList.add('hidden');
+    setIcon($('btn-you'), true);
   }
   renderDress();
 }
@@ -1985,6 +2002,10 @@ function closeDress() {
   P.facing = dressFacing;
   const back = state.returnMode === 'play' ? 'play' : 'title';
   state.mode = back;
+  setIcon($('btn-character'), false);
+  setIcon($('btn-you'), false);
+  $('brand').classList.remove('hidden');
+  $('btn-inv').classList.remove('hidden');
   if (back === 'play') {
     $('hud').classList.remove('hidden');
     if (touchUI) $('touch').classList.remove('hidden');
@@ -2144,10 +2165,16 @@ function bindShop() {
 function bindDress() {
   const open = (e) => {
     swallow(e);
-    openDress();
+    if (state.mode === 'dress') closeDress();
+    else openDress();
   };
   $('btn-character').addEventListener('pointerdown', open);
   $('btn-you').addEventListener('pointerdown', open);
+  $('btn-inv').addEventListener('pointerdown', (e) => {
+    swallow(e);
+    if (state.mode !== 'play') return;
+    setInv($('inv').classList.contains('hidden'));
+  });
   $('btn-dress-done').addEventListener('pointerdown', (e) => {
     swallow(e);
     closeDress();

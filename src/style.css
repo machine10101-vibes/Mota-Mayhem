@@ -7,10 +7,15 @@ canvas#leaf-icon, canvas#leaf-logo { image-rendering:pixelated; }
 .gone { opacity:0; pointer-events:none !important; }
 #title.gone { z-index:-1; visibility:hidden; transition: opacity .6s ease, visibility 0s linear .6s; }
 .panel { background:var(--panel); padding:10px 12px; font-size:9px; line-height:1.8; box-shadow: 0 -3px 0 0 var(--ink), 0 3px 0 0 var(--ink), -3px 0 0 0 var(--ink), 3px 0 0 0 var(--ink), 0 0 0 3px var(--edge) inset; }
-#hud { position:fixed; left:var(--safe-l); top:var(--safe-t); display:flex; flex-direction:column; gap:14px; pointer-events:none; max-width:min(280px, calc(100vw - var(--safe-l) - var(--safe-r) - 8px)); z-index:3; }
+#hud { position:fixed; left:var(--safe-l); top:var(--safe-t); display:flex; flex-direction:column; gap:10px; pointer-events:none; max-width:min(280px, calc(100vw - var(--safe-l) - var(--safe-r) - 8px)); z-index:3; }
+.hud-row { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+.icon-row { display:flex; gap:8px; pointer-events:auto; }
+.icon-btn { pointer-events:auto; appearance:none; -webkit-appearance:none; border:0; width:48px; height:48px; padding:6px; background:var(--panel); box-shadow: 0 -3px 0 0 var(--ink), 0 3px 0 0 var(--ink), -3px 0 0 0 var(--ink), 3px 0 0 0 var(--ink), 0 0 0 3px var(--edge) inset; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+.icon-btn.on { box-shadow: 0 -3px 0 0 var(--ink), 0 3px 0 0 var(--ink), -3px 0 0 0 var(--ink), 3px 0 0 0 var(--ink), 0 0 0 3px var(--gold) inset; }
+.icon-btn .pix { width:100%; height:100%; display:block; shape-rendering:crispEdges; }
 .brand { display:flex; align-items:center; gap:10px; font-size:11px; color:var(--edge); letter-spacing:1px; }
 .brand canvas { width:16px; height:20px; flex-shrink:0; }
-.inv { min-width:min(190px, 100%); }
+.inv { min-width:min(190px, 100%); max-height:min(52vh, 420px); overflow:auto; pointer-events:auto; }
 .inv .row { display:flex; justify-content:space-between; gap:20px; }
 .inv .lbl { color:#c9d6b5; }
 .inv b { color:var(--gold); font-weight:normal; }
@@ -56,11 +61,12 @@ body.touch-ui .press-desk { display:none; }
 .title-actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; pointer-events:auto; }
 #title.dressing { opacity:0; pointer-events:none; }
 body:has(#title:not(.gone)) #help { display:none; }
-.you-btn { pointer-events:auto; appearance:none; -webkit-appearance:none; border:0; font-family:inherit; font-size:8px; color:#1b2412; background:var(--edge); padding:8px 8px; min-height:32px; cursor:pointer; touch-action:manipulation; }
+.title-actions .icon-btn { width:56px; height:56px; padding:8px; }
 #strains { position:fixed; left:50%; bottom:112px; transform:translateX(-50%); display:flex; gap:8px; z-index:8; pointer-events:auto; }
 .chip { appearance:none; -webkit-appearance:none; border:0; font-family:inherit; font-size:8px; color:#f3f1df; background:var(--panel); min-height:44px; min-width:108px; padding:10px 12px; cursor:pointer; touch-action:manipulation; box-shadow: 0 -3px 0 0 var(--ink), 0 3px 0 0 var(--ink), -3px 0 0 0 var(--ink), 3px 0 0 0 var(--ink), 0 0 0 3px var(--edge) inset; }
 .chip.on { color:var(--gold); box-shadow: 0 -3px 0 0 var(--ink), 0 3px 0 0 var(--ink), -3px 0 0 0 var(--ink), 3px 0 0 0 var(--ink), 0 0 0 3px var(--gold) inset; }
 #dress { position:fixed; inset:0; z-index:9; display:flex; align-items:flex-end; justify-content:flex-end; padding:var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l); pointer-events:none; }
+body:has(#dress:not(.hidden)) #hud { z-index:12; }
 .dress-card { pointer-events:auto; width:min(440px, 100%); max-height:min(72vh, 560px); overflow:auto; display:flex; flex-direction:column; gap:8px; touch-action:manipulation; }
 .dress-title { color:var(--edge); font-size:12px; }
 .dress-row { display:grid; grid-template-columns:92px 44px 1fr 44px; align-items:center; gap:6px; }

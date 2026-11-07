@@ -26,7 +26,7 @@ Desktop
 | Pixel size | `[` and `]` |
 | Toggle help | H |
 
-Phone and tablet: tap to start. Left stick moves, **RUN** sprints, **ACT** (or the on-screen prompt) plants, waters, harvests, opens doors, clones, sells, and buys, drag the yard to look around, pinch to zoom, **?** toggles help. **CHARACTER** / **YOU** opens the look menu. **1** and **2** (or the strain chips) pick which seed you plant.
+Phone and tablet: tap to start. Left stick moves, **RUN** sprints, **ACT** (or the on-screen prompt) plants, waters, harvests, opens doors, clones, sells, and buys, drag the yard to look around, pinch to zoom, **?** toggles help. The farmer icon opens the character menu. The backpack icon opens the inventory. **1** and **2** (or the strain chips) pick which seed you plant.
 
 ## Gameplay
 
@@ -54,8 +54,8 @@ token. A mixed seed pack (2 Blue Dream and 2 Granddaddy Purple) is there too whe
 sells a warehouse for 520 MOTA. Buying it opens the gate. Inside are nine indoor pots under lights that flower
 a little faster than the yard. Post-harvest is sped up from the 10–14 day dry and multi-week cure.
 
-**CHARACTER** on the title screen, **YOU** while you play, and the C key open the same menu: skin, hair, hat,
-shirt, overalls, and boots, with a live preview. **NEW GROW** resets the farm to the starter seeds and keeps
+The farmer icon on the title screen and while you play, and the C key, open the character menu: skin, hair, hat,
+shirt, overalls, and boots, with a live preview. The backpack icon opens the inventory of MOTA, seeds, clones, feed, and jars. Both panels stay closed until that icon is clicked. **NEW GROW** resets the farm to the starter seeds and keeps
 the look. The character, MOTA, seeds, nutrients, root cubes, clones, beds, mothers, hydro tubes, veg pots, shed, and warehouse are saved in
 this browser.
 
