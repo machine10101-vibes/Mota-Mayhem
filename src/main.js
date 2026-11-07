@@ -6,6 +6,7 @@ import { createPlayer } from './character.js';
 import { buildWorld, SLOT_OFFSETS } from './world.js';
 import { buildPlant, PVS } from './plants.js';
 import { VoxelModel, toMesh, voxelMaterial } from './voxel.js';
+import { MOTA_PER_G, SEED_PACK, WAREHOUSE_PRICE } from './estate.js';
 import { Particles, Butterflies } from './fx.js';
 
 const $ = (id) => document.getElementById(id);
@@ -91,12 +92,12 @@ sun.target.position.set(0, 0, -3);
 sun.castShadow = true;
 sun.shadow.mapSize.set(coarse ? 2048 : 4096, coarse ? 2048 : 4096);
 const sc = sun.shadow.camera;
-sc.left = -30;
-sc.right = 30;
-sc.top = 30;
-sc.bottom = -30;
+sc.left = -28;
+sc.right = 46;
+sc.top = 26;
+sc.bottom = -24;
 sc.near = 5;
-sc.far = 90;
+sc.far = 110;
 sun.shadow.bias = -0.0004;
 sun.shadow.normalBias = 0.035;
 scene.add(sun, sun.target);
@@ -105,6 +106,8 @@ scene.add(sun, sun.target);
 const state = {
   mode: 'loading',
   seeds: 8,
+  clones: 0,
+  mota: 0,
   jars: { AAAA: 0, AAA: 0, AA: 0, A: 0 },
   grams: 0,
   harvested: 0,
@@ -117,6 +120,8 @@ let particles;
 let butterflies;
 const slotsData = [];
 const plantMeshes = [];
+const whData = [];
+const whMeshes = [];
 const geoCache = new Map();
 const marker = new THREE.Group();
 
@@ -454,11 +459,39 @@ function bindPrompt() {
 const P = { x: 0, z: -6.3, y: 0, facing: 0, speed: 0, cool: 0, dust: 0 };
 const PR = 0.42;
 
+function playLimits() {
+  const H = world.house;
+  const W = world.warehouse;
+  const insideH = H.contains(P.x, P.z);
+  const crossH = H.open && Math.abs(P.x) < 1.65 && P.z < -12.4 && P.z > -15.2;
+  if (insideH || crossH) {
+    const lim = { x0: -19.1, x1: 19.1, z0: -18.12, z1: 13.3 };
+    if (P.z < -14.05) {
+      lim.x0 = -11.75;
+      lim.x1 = 11.75;
+    }
+    return lim;
+  }
+  const insideW = W.contains(P.x, P.z);
+  if (insideW) return { x0: 23.72, x1: 36.32, z0: -4.82, z1: 4.82 };
+  const crossW = W.owned && W.open && Math.abs(P.z) < 1.45 && P.x > 21.1 && P.x < 25.5;
+  if (crossW) return { x0: 20.2, x1: 36.32, z0: -1.35, z1: 1.35 };
+  const lane = W.gateOpen && Math.abs(P.z) < 1.05 && P.x > 16.4;
+  if (lane) return { x0: -19.1, x1: 22.85, z0: -1.02, z1: 1.02 };
+  return { x0: -19.1, x1: 19.1, z0: -13.4, z1: 13.3 };
+}
+
 function resolveCollisions() {
-  P.x = THREE.MathUtils.clamp(P.x, -19.1, 19.1);
-  P.z = THREE.MathUtils.clamp(P.z, -13.4, 13.3);
+  const lim = playLimits();
+  P.x = THREE.MathUtils.clamp(P.x, lim.x0, lim.x1);
+  P.z = THREE.MathUtils.clamp(P.z, lim.z0, lim.z1);
+  const blocks = world.colliders.slice();
+  if (!world.shed.open) blocks.push(...world.shed.doorBlocks);
+  if (!world.house.open) blocks.push(world.house.doorBlock);
+  if (!world.warehouse.gateOpen) blocks.push(world.warehouse.gateBlock);
+  if (world.warehouse.owned && !world.warehouse.open) blocks.push(world.warehouse.doorBlock);
   for (let it = 0; it < 3; it++)
-    for (const r of world.colliders.concat(world.shed.open ? [] : world.shed.doorBlocks)) {
+    for (const r of blocks) {
       const nx = THREE.MathUtils.clamp(P.x, r.x0, r.x1);
       const nz = THREE.MathUtils.clamp(P.z, r.z0, r.z1);
       let dx = P.x - nx;
@@ -551,6 +584,20 @@ function initSlots() {
   });
 }
 
+function initWarehouse() {
+  world.warehouse.slots.forEach((s, i) => {
+    const d = { state: 'empty', stage: 0, prog: 0, water: 0, stress: 0, age: 0, variant: i % 4, pop: 1, fromClone: false };
+    whData.push(d);
+    const mesh = new THREE.Mesh(plantGeo(0, d.variant), voxelMaterial);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.position.set(s.x, s.y, s.z);
+    mesh.visible = false;
+    scene.add(mesh);
+    whMeshes.push(mesh);
+  });
+}
+
 function setStage(i, stage) {
   const d = slotsData[i];
   d.stage = stage;
@@ -568,55 +615,88 @@ function gradeOf(d) {
   return 'A';
 }
 
+function gramsFor(grade) {
+  return grade === 'AAAA' ? 9 : grade === 'AAA' ? 7 : grade === 'AA' ? 5 : 3;
+}
+
+function presentPlant(mesh, d, i, time, dt) {
+  d.pop = Math.min(1, d.pop + dt * 2.4);
+  const back = 1 + 1.70158;
+  const e = 1 + back * Math.pow(d.pop - 1, 3) + 1.70158 * Math.pow(d.pop - 1, 2);
+  const sc2 = 0.2 + 0.8 * e;
+  mesh.scale.set(sc2, sc2, sc2);
+  mesh.rotation.z = Math.sin(time * 1.4 + i * 1.7) * 0.022 * (0.4 + d.stage * 0.3);
+  mesh.rotation.x = Math.cos(time * 1.1 + i) * 0.015 * (0.4 + d.stage * 0.3);
+}
+
+function growTick(d, dt, speed) {
+  d.water = Math.max(0, d.water - dt / 38);
+  const dry = d.water <= 0;
+  d.age += dt;
+  if (dry) d.stress += dt * (d.fromClone ? 0.7 : 1);
+  d.prog += (dt * (dry ? 0.35 : 1) * speed) / DUR[d.stage];
+  return d.prog >= 1;
+}
+
 function updatePlants(dt, time) {
   slotsData.forEach((d, i) => {
     const mesh = plantMeshes[i];
     const s = world.slots[i];
-    if (d.state === 'empty') {
-      mesh.visible = false;
-    } else {
+    if (d.state === 'empty') mesh.visible = false;
+    else {
       mesh.visible = true;
-      if (d.state === 'growing') {
-        d.water = Math.max(0, d.water - dt / 38);
-        const dry = d.water <= 0;
-        d.age += dt;
-        if (dry) d.stress += dt;
-        d.prog += (dt * (dry ? 0.35 : 1)) / DUR[d.stage];
-        if (d.prog >= 1) {
-          const next = d.stage + 1;
-          setStage(i, next);
-          const col = next >= 4 ? 0xfff3a0 : 0xbfe88a;
-          for (let k = 0; k < 14; k++) particles.emit({ x: s.x, y: s.y + 0.4, z: s.z, vx: (Math.random() - 0.5) * 2.4, vy: 1.5 + Math.random() * 2, vz: (Math.random() - 0.5) * 2.4, life: 0.8, size: 0.07, color: col, g: -6 });
-        }
+      if (d.state === 'growing' && growTick(d, dt, 1)) {
+        const next = d.stage + 1;
+        setStage(i, next);
+        burst(s, next >= 4 ? 0xfff3a0 : 0xbfe88a);
       }
-      d.pop = Math.min(1, d.pop + dt * 2.4);
-      const back = 1 + 1.70158;
-      const e = 1 + back * Math.pow(d.pop - 1, 3) + 1.70158 * Math.pow(d.pop - 1, 2);
-      const sc2 = 0.2 + 0.8 * e;
-      mesh.scale.set(sc2, sc2, sc2);
-      mesh.rotation.z = Math.sin(time * 1.4 + i * 1.7) * 0.022 * (0.4 + d.stage * 0.3);
-      mesh.rotation.x = Math.cos(time * 1.1 + i) * 0.015 * (0.4 + d.stage * 0.3);
+      presentPlant(mesh, d, i, time, dt);
     }
     d.waterVis += (Math.min(1, d.water * 3) - d.waterVis) * Math.min(1, dt * 4);
     const v = 1.05 - 0.5 * d.waterVis;
     s.patchMat.color.setRGB(v, v * 0.98, v * 0.96);
   });
-}
-
-function nearestSlot() {
-  const fx = P.x + Math.sin(P.facing) * 0.95;
-  const fz = P.z + Math.cos(P.facing) * 0.95;
-  let best = -1;
-  let bd = 1.9 * 1.9;
-  world.slots.forEach((s, i) => {
-    const dx = s.x - fx;
-    const dz = s.z - fz;
-    const d2 = dx * dx + dz * dz;
-    if (d2 < bd) {
-      bd = d2;
-      best = i;
+  if (!world.warehouse.owned) return;
+  whData.forEach((d, i) => {
+    const mesh = whMeshes[i];
+    const s = world.warehouse.slots[i];
+    if (d.state === 'empty') mesh.visible = false;
+    else {
+      mesh.visible = true;
+      if (d.state === 'growing' && growTick(d, dt, 1.35)) {
+        d.stage += 1;
+        d.prog = 0;
+        d.pop = 0;
+        if (d.stage >= 4) d.state = 'ready';
+        mesh.geometry = plantGeo(d.stage, d.variant);
+        burst(s, d.stage >= 4 ? 0xfff3a0 : 0xd7b4ff);
+      }
+      presentPlant(mesh, d, i + 40, time, dt);
     }
   });
+}
+
+function burst(s, col) {
+  for (let k = 0; k < 14; k++) particles.emit({ x: s.x, y: s.y + 0.4, z: s.z, vx: (Math.random() - 0.5) * 2.4, vy: 1.5 + Math.random() * 2, vz: (Math.random() - 0.5) * 2.4, life: 0.8, size: 0.07, color: col, g: -6 });
+}
+
+function nearestPlot() {
+  const fx = P.x + Math.sin(P.facing) * 0.95;
+  const fz = P.z + Math.cos(P.facing) * 0.95;
+  let best = null;
+  let bd = 1.9 * 1.9;
+  const scan = (slots, data, where) => {
+    if (where === 'wh' && (!world.warehouse.owned || (!world.warehouse.open && !world.warehouse.contains(P.x, P.z)))) return;
+    slots.forEach((s, i) => {
+      const d2 = (s.x - fx) ** 2 + (s.z - fz) ** 2;
+      if (d2 < bd) {
+        bd = d2;
+        best = { where, i, s, d: data[i], d2: (s.x - P.x) ** 2 + (s.z - P.z) ** 2 };
+      }
+    });
+  };
+  scan(world.slots, slotsData, 'yard');
+  scan(world.warehouse.slots, whData, 'wh');
   return best;
 }
 
@@ -633,25 +713,42 @@ function toast(msg, cls = '') {
   setTimeout(() => el.remove(), 2600);
 }
 
-function act(slotIndex = -1) {
-  if (state.mode !== 'play' || P.cool > 0) return;
-  if (slotIndex < 0 && actShed()) return;
-  const i = slotIndex >= 0 ? slotIndex : nearestSlot();
-  if (i < 0) return toast('WALK TO A GARDEN BED');
-  const d = slotsData[i];
-  const s = world.slots[i];
-  const fdx = s.x - P.x;
-  const fdz = s.z - P.z;
-  if (Math.hypot(fdx, fdz) > 0.3) P.facing = Math.atan2(fdx, fdz);
+function plotMesh(plot) {
+  return plot.where === 'wh' ? whMeshes[plot.i] : plantMeshes[plot.i];
+}
+
+function beginGrow(plot, stage, fromClone) {
+  const { d, i, where } = plot;
+  d.state = 'growing';
+  d.fromClone = fromClone;
+  d.water = fromClone ? 0.9 : 0.6;
+  d.stress = 0;
+  d.age = 0;
+  d.variant = (d.variant + 1) % 4;
+  if (where === 'yard') setStage(i, stage);
+  else {
+    d.stage = stage;
+    d.prog = 0;
+    d.pop = 0;
+    const mesh = plotMesh(plot);
+    mesh.geometry = plantGeo(stage, d.variant);
+    mesh.visible = true;
+  }
+}
+
+function actPlot(plot) {
+  const { d, s } = plot;
+  const mesh = plotMesh(plot);
+  if (Math.hypot(s.x - P.x, s.z - P.z) > 0.3) P.facing = Math.atan2(s.x - P.x, s.z - P.z);
   if (d.state === 'empty') {
-    if (state.seeds <= 0) return toast('NO SEEDS LEFT');
-    state.seeds--;
-    d.state = 'growing';
-    d.water = 0.6;
-    d.stress = 0;
-    d.age = 0;
-    d.variant = (d.variant + 1) % 4;
-    setStage(i, 0);
+    if (state.clones > 0) {
+      state.clones--;
+      beginGrow(plot, 2, true);
+      toast('CLONE PLANTED — STARTS IN VEG', 'good');
+    } else if (state.seeds > 0) {
+      state.seeds--;
+      beginGrow(plot, 0, false);
+    } else return toast('NO SEEDS OR CLONES');
     P.cool = 0.6;
     player.playAction('plant');
     later(0.25, () => {
@@ -667,7 +764,7 @@ function act(slotIndex = -1) {
       later(0.2 + k * 0.016, () => particles.emit({ x: P.x + Math.sin(P.facing) * 0.95 + (Math.random() - 0.5) * 0.15, y: 1.25, z: P.z + Math.cos(P.facing) * 0.95 + (Math.random() - 0.5) * 0.15, vx: Math.sin(P.facing) * 0.5, vy: -0.5, vz: Math.cos(P.facing) * 0.5, life: 0.5, size: 0.065, color: 0x7ec8f2, color2: 0x3f86c8, g: -9 }));
   } else if (d.state === 'ready') {
     const grade = gradeOf(d);
-    const grams = grade === 'AAAA' ? 9 : grade === 'AAA' ? 7 : grade === 'AA' ? 5 : 3;
+    const grams = gramsFor(grade);
     if (state.wet.length >= 12) return toast('HANDS ARE FULL — DRY THE SHED');
     state.wet.push({ grade, grams, variant: d.variant });
     state.harvested++;
@@ -676,13 +773,36 @@ function act(slotIndex = -1) {
     player.playAction('harvest');
     d.state = 'empty';
     d.water = 0;
-    plantMeshes[i].visible = false;
+    d.fromClone = false;
+    mesh.visible = false;
     later(0.3, () => {
       for (let k = 0; k < 34; k++) particles.emit({ x: s.x, y: s.y + 0.7, z: s.z, vx: (Math.random() - 0.5) * 3, vy: 2 + Math.random() * 3, vz: (Math.random() - 0.5) * 3, life: 1, size: 0.08, color: k % 3 === 0 ? 0xf08a2e : 0xf4fbe6, g: -5 });
       toast(`${grade} WET FLOWER — DRY IT IN THE SHED`, 'good');
     });
     updateHud();
   }
+}
+
+function act(slotIndex = -1) {
+  if (state.mode !== 'play' || P.cool > 0) return;
+  let forced = null;
+  if (slotIndex && typeof slotIndex === 'object') forced = slotIndex;
+  else if (slotIndex >= 0) {
+    const s = world.slots[slotIndex];
+    forced = { where: 'yard', i: slotIndex, s, d: slotsData[slotIndex], d2: 0 };
+  }
+  if (!forced) {
+    const st = stationFocus();
+    const plot = nearestPlot();
+    if (st && (!plot || st.d2 + 0.12 < plot.d2)) return actStation(st);
+    forced = plot;
+  }
+  if (!forced) {
+    if (world.house.contains(P.x, P.z)) return toast('WALK TO A MOTHER, TRAY, OR VEG POT');
+    if (world.warehouse.contains(P.x, P.z)) return toast('WALK TO A GROW POT');
+    return toast('WALK TO A GARDEN BED');
+  }
+  actPlot(forced);
 }
 
 const GRADES = ['A', 'AA', 'AAA', 'AAAA'];
@@ -692,37 +812,74 @@ function dropGrade(g) {
   return GRADES[Math.max(0, GRADES.indexOf(g) - 1)];
 }
 
-function shedFocus() {
+const ROOT_TIME = 12;
+const VEG_TIME = 16;
+
+function stationFocus() {
   if (!world?.shed) return null;
-  const shed = world.shed;
   let best = null;
-  let bd = 1.7 * 1.7;
-  const consider = (x, z, kind, ref) => {
+  const consider = (x, z, kind, ref, reach = 1.55) => {
     const d2 = (x - P.x) ** 2 + (z - P.z) ** 2;
-    if (d2 < bd) {
-      bd = d2;
-      best = { kind, ref, x, z, d2 };
-    }
+    if (d2 > reach * reach) return;
+    if (!best || d2 < best.d2) best = { kind, ref, x, z, d2 };
   };
-  consider(16, -6.35, 'door', null);
+  const shed = world.shed;
+  consider(16, -6.35, 'shed-door', null, 1.75);
   if (shed.open || shed.contains(P.x, P.z)) {
-    for (const h of shed.hooks) consider(h.x, h.z + 0.7, 'hook', h);
-    for (const j of shed.cureJars) if (j.item) consider(j.x + 0.7, j.z, 'jar', j);
+    for (const h of shed.hooks) consider(h.x, h.z + 0.7, 'hook', h, 1.45);
+    for (const j of shed.cureJars) if (j.item) consider(j.x + 0.7, j.z, 'jar', j, 1.35);
   }
+  const house = world.house;
+  consider(0, -13.15, 'house-door', null, 1.7);
+  if (house.open || house.contains(P.x, P.z)) {
+    for (const mom of house.mothers) consider(mom.x, mom.z + 0.85, 'mother', mom, 1.25);
+    for (const tray of house.trays) consider(tray.x, tray.z + 0.72, 'tray', tray, 0.95);
+    for (const veg of house.veg) consider(veg.x, veg.z + 0.75, 'veg', veg, 1.05);
+  }
+  consider(world.stand.x, world.stand.z, 'stand', null, 1.55);
+  if (!world.warehouse.owned) consider(world.lot.x, world.lot.z, 'lot', null, 1.7);
+  else consider(22.15, 0, 'wh-door', null, 1.65);
   return best;
 }
 
-function actShed() {
-  const f = shedFocus();
-  if (!f) return false;
-  const shed = world.shed;
+function motaInJars() {
+  let n = 0;
+  let mota = 0;
+  for (const g of GRADES) {
+    n += state.jars[g];
+    mota += state.jars[g] * gramsFor(g) * MOTA_PER_G[g];
+  }
+  return { n, mota };
+}
+
+function actStation(f) {
   P.facing = Math.atan2(f.x - P.x, f.z - P.z);
-  if (f.kind === 'door') {
+  const shed = world.shed;
+  const house = world.house;
+  if (f.kind === 'shed-door') {
     shed.open = !shed.open;
     P.cool = 0.3;
     toast(shed.open ? 'SHED DOOR OPEN' : 'SHED DOOR CLOSED');
     return true;
   }
+  if (f.kind === 'house-door') {
+    house.open = !house.open;
+    P.cool = 0.3;
+    toast(house.open ? 'HOUSE OPEN — MOTHERS, CLONES, VEG' : 'HOUSE DOOR CLOSED');
+    return true;
+  }
+  if (f.kind === 'wh-door') {
+    if (!world.warehouse.owned) return toast('BUY THE WAREHOUSE FIRST');
+    world.warehouse.open = !world.warehouse.open;
+    P.cool = 0.3;
+    toast(world.warehouse.open ? 'WAREHOUSE OPEN' : 'WAREHOUSE CLOSED');
+    return true;
+  }
+  if (f.kind === 'mother') return actMother(f.ref);
+  if (f.kind === 'tray') return actTray(f.ref);
+  if (f.kind === 'veg') return actVeg(f.ref);
+  if (f.kind === 'stand') return actStand();
+  if (f.kind === 'lot') return actBuyWarehouse();
   if (f.kind === 'hook') {
     const h = f.ref;
     if (!h.item) {
@@ -767,6 +924,98 @@ function actShed() {
     return true;
   }
   toast(it?.cure >= 1 ? 'CURED' : it?.burped ? 'CURING' : 'WAIT TO BURP');
+  return true;
+}
+
+function actMother(mom) {
+  if (mom.water < 0.4) {
+    mom.water = 1;
+    P.cool = 0.55;
+    player.playAction('water');
+    toast('MOTHER WATERED');
+    return true;
+  }
+  if (mom.cool > 0) return toast('MOTHER IS RESTING');
+  const tray = world.house.trays.find((t) => t.state === 'empty');
+  if (!tray) return toast('CLONE TRAYS ARE FULL');
+  mom.cool = 8;
+  mom.water = Math.max(0, mom.water - 0.22);
+  tray.state = 'rooting';
+  tray.t = 0;
+  tray.variant = mom.variant;
+  tray.plant.geometry = plantGeo(0, mom.variant);
+  tray.plant.visible = true;
+  tray.plant.scale.setScalar(0.62);
+  P.cool = 0.45;
+  player.playAction('harvest');
+  toast('CUTTING IS ROOTING');
+  return true;
+}
+
+function actTray(tray) {
+  if (tray.state === 'empty') return toast('TAKE A CUTTING FROM A MOTHER');
+  if (tray.state !== 'ready') return toast('STILL ROOTING');
+  const pot = world.house.veg.find((v) => v.state === 'empty');
+  if (!pot) return toast('VEG ROOM IS FULL');
+  pot.state = 'veg';
+  pot.t = 0;
+  pot.variant = tray.variant;
+  pot.plant.geometry = plantGeo(2, pot.variant);
+  pot.plant.visible = true;
+  tray.state = 'empty';
+  tray.t = 0;
+  tray.plant.visible = false;
+  P.cool = 0.4;
+  toast('MOVED INTO THE VEG ROOM');
+  return true;
+}
+
+function actVeg(pot) {
+  if (pot.state === 'empty') return toast('BRING A ROOTED CLONE');
+  if (pot.state !== 'ready') return toast('STILL VEGETATING');
+  if (state.clones >= 8) return toast('HANDS ARE FULL OF CLONES');
+  state.clones++;
+  pot.state = 'empty';
+  pot.plant.visible = false;
+  P.cool = 0.35;
+  toast('CLONE READY TO PLANT', 'good');
+  updateHud();
+  return true;
+}
+
+function actStand() {
+  const offer = motaInJars();
+  P.cool = 0.35;
+  if (offer.n > 0) {
+    for (const g of GRADES) state.jars[g] = 0;
+    state.mota += offer.mota;
+    toast(`+${offer.mota} MOTA`, 'good');
+    updateHud();
+    return true;
+  }
+  if (state.seeds < 4) {
+    if (state.mota < SEED_PACK.cost) return toast(`NEED ${SEED_PACK.cost} MOTA FOR SEEDS`);
+    state.mota -= SEED_PACK.cost;
+    state.seeds += SEED_PACK.n;
+    toast(`+${SEED_PACK.n} SEEDS`, 'good');
+    updateHud();
+    return true;
+  }
+  toast('CURE JARS, THEN SELL THEM FOR MOTA');
+  return true;
+}
+
+function actBuyWarehouse() {
+  if (world.warehouse.owned) return true;
+  if (state.mota < WAREHOUSE_PRICE) return toast(`NEED ${WAREHOUSE_PRICE} MOTA`);
+  state.mota -= WAREHOUSE_PRICE;
+  world.warehouse.owned = true;
+  world.warehouse.gateOpen = true;
+  world.lot.mesh.visible = false;
+  world.warehouse.forSale.visible = false;
+  P.cool = 0.4;
+  toast('WAREHOUSE IS YOURS — EAST GATE IS OPEN', 'good');
+  updateHud();
   return true;
 }
 
@@ -819,11 +1068,50 @@ function updateShed(dt) {
       updateHud();
     }
   }
+  const house = world.house;
+  const W = world.warehouse;
+  const swingK = 1 - Math.exp(-dt * 10);
+  house.door.rotation.y += ((house.open ? -1.15 : 0) - house.door.rotation.y) * swingK;
+  const nearHouse = house.open && Math.abs(P.x) < 4 && P.z < -11.4 && P.z > -15.4;
+  const showHouseShell = !(house.open && (house.contains(P.x, P.z) || nearHouse));
+  house.roof.visible = showHouseShell;
+  house.facade.visible = showHouseShell;
+  for (const mom of house.mothers) {
+    mom.water = Math.max(0, mom.water - dt / 52);
+    mom.cool = Math.max(0, mom.cool - dt);
+    mom.plant.rotation.z = Math.sin(cam.t * 1.3 + mom.x) * 0.03;
+  }
+  for (const tray of house.trays) {
+    if (tray.state !== 'rooting') continue;
+    tray.t += dt;
+    if (tray.t >= ROOT_TIME) {
+      tray.state = 'ready';
+      tray.plant.geometry = plantGeo(1, tray.variant);
+      toast('CLONE ROOTED — MOVE IT TO VEG', 'good');
+    }
+  }
+  for (const pot of house.veg) {
+    if (pot.state !== 'veg') continue;
+    pot.t += dt;
+    pot.plant.scale.setScalar(0.72 + 0.18 * Math.min(1, pot.t / VEG_TIME));
+    if (pot.t >= VEG_TIME) {
+      pot.state = 'ready';
+      toast('VEG DONE — POT IT UP', 'good');
+    }
+  }
+  W.gate.rotation.y += ((W.gateOpen ? 1.15 : 0) - W.gate.rotation.y) * swingK;
+  W.door.rotation.y += ((W.open ? 1.25 : 0) - W.door.rotation.y) * swingK;
+  const nearWh = W.owned && W.open && Math.abs(P.z) < 2.1 && P.x > 20.4 && P.x < 25.2;
+  W.roof.visible = !(W.owned && W.open && (W.contains(P.x, P.z) || nearWh));
+  W.forSale.visible = !W.owned;
+  world.lot.mesh.visible = !W.owned;
 }
 
 /* --------------------------------------------------------------------- HUD */
 function updateHud() {
   $('seeds').textContent = state.seeds;
+  $('clones').textContent = state.clones;
+  $('mota').textContent = state.mota;
   $('grams').textContent = state.grams;
   $('wet').textContent = state.wet.length;
   const shed = world?.shed;
@@ -846,31 +1134,36 @@ function setActLabel(text) {
 }
 
 function slotAtScreen(x, y) {
-  if (!world) return -1;
+  if (!world) return null;
   const rect = renderer.domElement.getBoundingClientRect();
-  if (!rect.width || !rect.height) return -1;
+  if (!rect.width || !rect.height) return null;
   ndc.set(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
-  if (!raycaster.ray.intersectPlane(soilPlane, soilHit)) return -1;
+  const useWh = world.warehouse.owned && (world.warehouse.contains(P.x, P.z) || P.x > 22);
+  soilPlane.constant = useWh ? -0.55 : -(7 / 16);
+  if (!raycaster.ray.intersectPlane(soilPlane, soilHit)) return null;
+  const slots = useWh ? world.warehouse.slots : world.slots;
+  const data = useWh ? whData : slotsData;
   let best = -1;
   let bd = 1.25 * 1.25;
-  world.slots.forEach((s, i) => {
+  slots.forEach((s, i) => {
     const d2 = (s.x - soilHit.x) ** 2 + (s.z - soilHit.z) ** 2;
     if (d2 < bd) {
       bd = d2;
       best = i;
     }
   });
-  return best;
+  if (best < 0) return null;
+  const s = slots[best];
+  return { where: useWh ? 'wh' : 'yard', i: best, s, d: data[best], d2: 0 };
 }
 
 function tryPlotTap(x, y) {
   if (state.mode !== 'play') return;
-  const i = slotAtScreen(x, y);
-  const s = i >= 0 ? world.slots[i] : null;
-  if (i < 0) return;
-  if (Math.hypot(s.x - P.x, s.z - P.z) > 3.1) return toast('WALK CLOSER');
-  act(i);
+  const plot = slotAtScreen(x, y);
+  if (!plot) return;
+  if (Math.hypot(plot.s.x - P.x, plot.s.z - P.z) > 3.1) return toast('WALK CLOSER');
+  act(plot);
 }
 
 function updateTarget() {
@@ -880,57 +1173,22 @@ function updateTarget() {
     prompt.style.display = 'none';
     return -1;
   }
-  const shedF = shedFocus();
-  const i = nearestSlot();
-  const gardenD = i < 0 ? Infinity : (world.slots[i].x - P.x) ** 2 + (world.slots[i].z - P.z) ** 2;
-  if (shedF && shedF.d2 + 0.15 < gardenD) {
-    marker.visible = true;
-    marker.position.set(shedF.x, 0.08 + Math.sin(cam.t * 5) * 0.02, shedF.z);
-    const scale = 1 + Math.sin(cam.t * 5) * 0.03;
-    marker.scale.set(scale, 1, scale);
-    tip.style.display = 'none';
-    const actLbl = touchUI ? 'TAP' : 'SPACE';
-    let text = `${actLbl}  OPEN SHED`;
-    let btn = 'OPEN';
-    if (shedF.kind === 'door' && world.shed.open) {
-      text = `${actLbl}  CLOSE SHED`;
-      btn = 'CLOSE';
-    } else if (shedF.kind === 'hook') {
-      const it = shedF.ref.item;
-      if (!it) {
-        text = state.wet.length ? `${actLbl}  HANG TO DRY` : 'HARVEST FIRST';
-        btn = state.wet.length ? 'HANG' : 'ACT';
-      } else if (it.dry < 1) {
-        text = `DRYING ${Math.round(it.dry * 100)}%`;
-        btn = 'ACT';
-      } else {
-        text = `${actLbl}  JAR ${it.grade}`;
-        btn = 'JAR';
-      }
-    } else if (shedF.kind === 'jar') {
-      const it = shedF.ref.item;
-      if (it?.needsBurp && !it.burped) {
-        text = `${actLbl}  BURP JAR`;
-        btn = 'BURP';
-      } else {
-        text = `CURING ${Math.round((it?.cure || 0) * 100)}%`;
-        btn = 'ACT';
-      }
-    }
-    setActLabel(btn);
-    prompt.textContent = text;
-    prompt.style.display = 'block';
+  const st = stationFocus();
+  const plot = nearestPlot();
+  const gardenD = plot ? plot.d2 : Infinity;
+  if (st && st.d2 + 0.12 < gardenD) {
+    showStation(st);
     return -1;
   }
-  if (i < 0) {
+  if (!plot) {
     marker.visible = false;
     tip.style.display = 'none';
     prompt.style.display = 'none';
     setActLabel('ACT');
     return -1;
   }
-  const s = world.slots[i];
-  const d = slotsData[i];
+  const s = plot.s;
+  const d = plot.d;
   marker.visible = true;
   marker.position.set(s.x, s.y + 0.06 + Math.sin(cam.t * 5) * 0.02, s.z);
   const scale = 1 + Math.sin(cam.t * 5) * 0.03;
@@ -939,8 +1197,13 @@ function updateTarget() {
   let text;
   let btn = 'ACT';
   if (d.state === 'empty') {
-    text = state.seeds > 0 ? `${actLbl}  PLANT SEED` : 'NO SEEDS';
-    btn = state.seeds > 0 ? 'PLANT' : 'ACT';
+    if (state.clones > 0) {
+      text = `${actLbl}  PLANT CLONE`;
+      btn = 'CLONE';
+    } else if (state.seeds > 0) {
+      text = `${actLbl}  PLANT SEED`;
+      btn = 'PLANT';
+    } else text = 'NO SEEDS';
   } else if (d.state === 'ready') {
     text = `${actLbl}  HARVEST`;
     btn = 'PICK';
@@ -966,7 +1229,90 @@ function updateTarget() {
     $('tip-grow').style.width = Math.round((d.state === 'ready' ? 1 : (d.stage + d.prog) / 4) * 100) + '%';
     $('tip-grade').textContent = d.state === 'ready' ? gradeOf(d) : '';
   }
-  return i;
+  return plot.i;
+}
+
+function showStation(st) {
+  marker.visible = true;
+  marker.position.set(st.x, 0.08 + Math.sin(cam.t * 5) * 0.02, st.z);
+  const scale = 1 + Math.sin(cam.t * 5) * 0.03;
+  marker.scale.set(scale, 1, scale);
+  const actLbl = touchUI ? 'TAP' : 'SPACE';
+  const ui = stationUi(st, actLbl);
+  setActLabel(ui.btn);
+  prompt.textContent = ui.text;
+  prompt.style.display = 'block';
+  if (!ui.tip) {
+    tip.style.display = 'none';
+    return;
+  }
+  v3.set(st.x, 1.7, st.z).project(camera);
+  tip.style.display = 'block';
+  tip.style.left = ((v3.x * 0.5 + 0.5) * 100).toFixed(2) + '%';
+  tip.style.top = ((-v3.y * 0.5 + 0.5) * 100).toFixed(2) + '%';
+  $('tip-name').textContent = ui.tip.name;
+  $('tip-water').style.width = ui.tip.water;
+  $('tip-water').style.background = ui.tip.wet ? '#58b4ee' : '#d9534f';
+  $('tip-grow').style.width = ui.tip.grow;
+  $('tip-grade').textContent = ui.tip.grade || '';
+}
+
+function stationUi(st, actLbl) {
+  if (st.kind === 'shed-door') {
+    const open = world.shed.open;
+    return { text: open ? `${actLbl}  CLOSE SHED` : `${actLbl}  OPEN SHED`, btn: open ? 'CLOSE' : 'OPEN' };
+  }
+  if (st.kind === 'house-door') {
+    const open = world.house.open;
+    return { text: open ? `${actLbl}  CLOSE HOUSE` : `${actLbl}  OPEN HOUSE`, btn: open ? 'CLOSE' : 'OPEN' };
+  }
+  if (st.kind === 'wh-door') {
+    const open = world.warehouse.open;
+    return { text: open ? `${actLbl}  CLOSE WAREHOUSE` : `${actLbl}  OPEN WAREHOUSE`, btn: open ? 'CLOSE' : 'OPEN' };
+  }
+  if (st.kind === 'hook') {
+    const it = st.ref.item;
+    if (!it) return { text: state.wet.length ? `${actLbl}  HANG TO DRY` : 'HARVEST FIRST', btn: state.wet.length ? 'HANG' : 'ACT' };
+    if (it.dry < 1) return { text: `DRYING ${Math.round(it.dry * 100)}%`, btn: 'ACT' };
+    return { text: `${actLbl}  JAR ${it.grade}`, btn: 'JAR' };
+  }
+  if (st.kind === 'jar') {
+    const it = st.ref.item;
+    if (it?.needsBurp && !it.burped) return { text: `${actLbl}  BURP JAR`, btn: 'BURP' };
+    return { text: `CURING ${Math.round((it?.cure || 0) * 100)}%`, btn: 'ACT' };
+  }
+  if (st.kind === 'mother') {
+    const mom = st.ref;
+    const thirsty = mom.water < 0.4;
+    return {
+      text: thirsty ? `${actLbl}  WATER MOTHER` : mom.cool > 0 ? 'MOTHER IS RESTING' : `${actLbl}  TAKE CLONE`,
+      btn: thirsty ? 'WATER' : mom.cool > 0 ? 'ACT' : 'CLONE',
+      tip: { name: 'MOTHER', water: Math.round(mom.water * 100) + '%', grow: mom.cool > 0 ? Math.round((1 - mom.cool / 8) * 100) + '%' : '100%', wet: mom.water > 0.15, grade: thirsty ? 'THIRSTY' : 'CUTTINGS' },
+    };
+  }
+  if (st.kind === 'tray') {
+    const tray = st.ref;
+    if (tray.state === 'empty') return { text: 'EMPTY TRAY', btn: 'ACT' };
+    if (tray.state === 'rooting') return { text: `ROOTING ${Math.round(Math.min(1, tray.t / ROOT_TIME) * 100)}%`, btn: 'ACT', tip: { name: 'CLONE', water: '100%', grow: Math.round(Math.min(1, tray.t / ROOT_TIME) * 100) + '%', wet: true, grade: 'ROOTING' } };
+    return { text: `${actLbl}  MOVE TO VEG`, btn: 'VEG', tip: { name: 'ROOTED', water: '100%', grow: '100%', wet: true, grade: 'READY' } };
+  }
+  if (st.kind === 'veg') {
+    const pot = st.ref;
+    if (pot.state === 'empty') return { text: 'EMPTY VEG POT', btn: 'ACT' };
+    if (pot.state === 'veg') return { text: `VEG ${Math.round(Math.min(1, pot.t / VEG_TIME) * 100)}%`, btn: 'ACT', tip: { name: 'VEG', water: '100%', grow: Math.round(Math.min(1, pot.t / VEG_TIME) * 100) + '%', wet: true, grade: '' } };
+    return { text: `${actLbl}  TAKE CLONE`, btn: 'TAKE', tip: { name: 'VEG DONE', water: '100%', grow: '100%', wet: true, grade: 'PLANT IT' } };
+  }
+  if (st.kind === 'stand') {
+    const offer = motaInJars();
+    if (offer.n > 0) return { text: `${actLbl}  SELL ${offer.n} JAR${offer.n > 1 ? 'S' : ''}  +${offer.mota} MOTA`, btn: 'SELL' };
+    if (state.seeds < 4) return { text: `${actLbl}  BUY ${SEED_PACK.n} SEEDS  ${SEED_PACK.cost} MOTA`, btn: 'BUY' };
+    return { text: 'BRING CURED JARS', btn: 'ACT' };
+  }
+  const short = state.mota < WAREHOUSE_PRICE;
+  return {
+    text: short ? `WAREHOUSE  ${state.mota}/${WAREHOUSE_PRICE} MOTA` : `${actLbl}  BUY WAREHOUSE  ${WAREHOUSE_PRICE} MOTA`,
+    btn: short ? 'ACT' : 'BUY',
+  };
 }
 
 /* ------------------------------------------------------------------ camera */
@@ -979,11 +1325,25 @@ function updateCamera(dt) {
     cam.pitch = 0.74;
     cam.target.lerp(v3.set(0, 1.2, -4.2), k);
   } else if (state.mode === 'play') {
-    cam.pitch += (0.85 - cam.pitch) * k;
-    const xLim = P.x > 10 ? 18 : 11;
-    const zLim = P.z < -8 ? -12 : -9;
-    const tx = THREE.MathUtils.clamp(P.x, -11, xLim);
-    const tz = THREE.MathUtils.clamp(P.z, zLim, 7);
+    const indoor = P.z < -13.8 || world.warehouse.contains(P.x, P.z);
+    cam.pitch += ((indoor ? 1.08 : 0.85) - cam.pitch) * k;
+    let xLo = -11;
+    let xHi = P.x > 10 ? 18 : 11;
+    let zLo = P.z < -8 ? -12 : -9;
+    let zHi = 7;
+    if (P.z < -13.6) {
+      xLo = -12;
+      xHi = 12;
+      zLo = -19.2;
+    }
+    if (P.x > 18) {
+      xLo = 16;
+      xHi = 36;
+      zLo = -7;
+      zHi = 7;
+    }
+    const tx = THREE.MathUtils.clamp(P.x, xLo, xHi);
+    const tz = THREE.MathUtils.clamp(P.z, zLo, zHi);
     const tgt = v3.set(tx * 0.85 + P.x * 0.15, 0.9 + P.y, tz * 0.85 + P.z * 0.15);
     if (!cam.free) cam.target.lerp(tgt, 1 - Math.exp(-dt * 4));
     if (keys.has('KeyQ') || stick.cam < 0) cam.yawT += dt * 1.6;
@@ -1032,7 +1392,7 @@ function frame(now) {
   updateShed(dt);
   butterflies.update(time);
   smokeT -= dt;
-  if (smokeT <= 0) {
+  if (smokeT <= 0 && world.house.roof.visible) {
     smokeT = 0.32;
     const a = world.smokeAt;
     particles.emit({ x: a.x + (Math.random() - 0.5) * 0.5, y: a.y, z: a.z + (Math.random() - 0.5) * 0.5, vx: 0.45 + Math.random() * 0.2, vy: 0.9 + Math.random() * 0.3, vz: 0.25, life: 4, size: 0.34, grow: 1.6, color: 0xe9eef2, color2: 0xb9d3e6, g: 0 });
@@ -1085,6 +1445,7 @@ function boot() {
   butterflies = new Butterflies(scene);
   buildMarker();
   initSlots();
+  initWarehouse();
   resize();
   addEventListener('resize', resize);
   visualViewport?.addEventListener('resize', resize);
@@ -1096,7 +1457,7 @@ function boot() {
   updateHud();
   $('loading').classList.add('gone');
   if (params.has('autostart')) startGame();
-  window.__mm = { scene, renderer, state, cam, P, slotsData, world, camera, player, startGame, act, setStage, plantMeshes, stick };
+  window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick };
 }
 
 requestAnimationFrame(() => setTimeout(boot, 30));

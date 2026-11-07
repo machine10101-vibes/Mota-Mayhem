@@ -26,15 +26,22 @@ Desktop
 | Pixel size | `[` and `]` |
 | Toggle help | H |
 
-Phone and tablet: tap to start. Left stick moves, **RUN** sprints, **ACT** plants / waters / harvests, **Q** / **E** rotate the camera, drag the yard to look around, pinch to zoom, **?** toggles help.
+Phone and tablet: tap to start. Left stick moves, **RUN** sprints, **ACT** (or the on-screen prompt) plants, waters, harvests, opens doors, clones, sells, and buys, drag the yard to look around, pinch to zoom, **?** toggles help.
 
 ## Gameplay
 
-Plant seeds in the 24 bed plots. Each plant grows through sprout, seedling, vegetative, flowering and ready.
-Keep soil watered: dry plants slow down and accumulate stress. Harvest grade (A, AA, AAA, AAAA) starts from how
-consistently you watered, then you finish it in the shed. Open the shed door, walk in, hang wet flower to dry,
-jar it, and burp the jar while it cures. Skipping the burp or leaving a hang too long drops the grade. Cured
-flower lands in the jars. Post-harvest is half the quality, sped up from the 10–14 day dry and multi-week cure.
+Plant seeds in the 24 bed plots, or plant a vegged clone if you have one. Each plant grows through sprout,
+seedling, vegetative, flowering and ready. Clones skip ahead to vegetative. Keep soil watered: dry plants slow
+down and accumulate stress. Harvest grade (A, AA, AAA, AAAA) starts from how consistently you watered, then you
+finish it in the shed. Open the shed door, walk in, hang wet flower to dry, jar it, and burp the jar while it
+cures. Skipping the burp or leaving a hang too long drops the grade. Cured flower lands in the jars.
+
+Open the house from the porch. Mothers live on the left, the clone room is straight ahead, and the veg room is
+on the right. Water a mother, take a cutting, wait for it to root, move it into veg, then carry the finished
+clone out to a bed or the warehouse. The porch stand sells cured jars for MOTA, the in-game token. A seed pack
+is there too when you are low. The east lot sells a warehouse for 520 MOTA. Buying it opens the gate. Inside
+are nine indoor pots under lights that flower a little faster than the yard. Post-harvest is sped up from the
+10–14 day dry and multi-week cure.
 
 ## How the look is built
 
