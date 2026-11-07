@@ -2,7 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#10160c" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>Mota Mayhem</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><rect width='8' height='8' fill='%232f4420'/><path d='M3 0h2v3h-2zM0 2h2v2h-2zM6 2h2v2h-2zM2 3h4v3h-4zM3 6h2v2h-2z' fill='%2393c85a'/></svg>" />
   </head>
@@ -28,9 +32,29 @@
     <div id="toasts"></div>
 
     <div id="help" class="panel">
-      <b>MOVE</b> WASD / ARROWS &nbsp; <b>RUN</b> SHIFT<br />
-      <b>ACT</b> SPACE &nbsp; <b>CAMERA</b> Q / E / DRAG / WHEEL<br />
-      <b>PIXELS</b> [ ] &nbsp; <b>HELP</b> H
+      <span class="help-desk">
+        <b>MOVE</b> WASD / ARROWS &nbsp; <b>RUN</b> SHIFT<br />
+        <b>ACT</b> SPACE &nbsp; <b>CAMERA</b> Q / E / DRAG / WHEEL<br />
+        <b>PIXELS</b> [ ] &nbsp; <b>HELP</b> H
+      </span>
+      <span class="help-touch">
+        <b>MOVE</b> STICK &nbsp; <b>RUN</b> HOLD RUN<br />
+        <b>ACT</b> TAP ACT &nbsp; <b>CAMERA</b> DRAG / PINCH<br />
+        <b>HELP</b> ?
+      </span>
+    </div>
+
+    <div id="touch" class="hidden">
+      <div id="stick" aria-label="Move">
+        <div id="stick-knob"></div>
+      </div>
+      <div id="btns">
+        <button type="button" id="btn-cam-l" class="tbtn tiny" aria-label="Camera left">Q</button>
+        <button type="button" id="btn-cam-r" class="tbtn tiny" aria-label="Camera right">E</button>
+        <button type="button" id="btn-run" class="tbtn" aria-label="Run">RUN</button>
+        <button type="button" id="btn-act" class="tbtn act" aria-label="Act">ACT</button>
+        <button type="button" id="btn-help" class="tbtn tiny" aria-label="Help">?</button>
+      </div>
     </div>
 
     <div id="title">
@@ -38,7 +62,7 @@
         <div class="logo"><canvas id="leaf-logo" width="8" height="10"></canvas><h1>MOTA<br />MAYHEM</h1></div>
         <p class="sub">TRIPLE-A BACKYARD FARMING</p>
       </div>
-      <p class="press">PRESS SPACE TO START</p>
+      <p class="press"><span class="press-desk">CLICK OR SPACE TO START</span><span class="press-touch">TAP TO START</span></p>
     </div>
     <div id="loading"><span>GROWING THE YARD...</span></div>
     <script type="module" src="/src/main.js"></script>

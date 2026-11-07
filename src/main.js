@@ -10,6 +10,7 @@ import { Particles, Butterflies } from './fx.js';
 
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
+const coarse = matchMedia('(pointer: coarse)').matches;
 
 /* ---------------------------------------------------------------- renderer */
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: params.has('shot') });
@@ -19,7 +20,7 @@ renderer.toneMapping = THREE.NoToneMapping;
 $('stage').appendChild(renderer.domElement);
 
 let pixelScale = Number(params.get('px')) || Number(localStorage.getItem('mm-pixel')) || 0;
-const autoScale = () => Math.max(1, Math.round(window.innerHeight / 440));
+const autoScale = () => Math.max(1, Math.round(viewSize().h / 440));
 let rt = null;
 const post = new THREE.ShaderMaterial({
   uniforms: {
@@ -55,10 +56,16 @@ const post = new THREE.ShaderMaterial({
 });
 const quad = new FullScreenQuad(post);
 
+function viewSize() {
+  const vv = window.visualViewport;
+  return { w: Math.max(1, Math.floor(vv?.width || window.innerWidth)), h: Math.max(1, Math.floor(vv?.height || window.innerHeight)) };
+}
+
 function resize() {
+  const vs = viewSize();
   const ps = pixelScale || autoScale();
-  const w = Math.max(64, Math.floor(window.innerWidth / ps));
-  const h = Math.max(64, Math.floor(window.innerHeight / ps));
+  const w = Math.max(64, Math.floor(vs.w / ps));
+  const h = Math.max(64, Math.floor(vs.h / ps));
   renderer.setPixelRatio(1);
   renderer.setSize(w, h, false);
   renderer.domElement.style.width = '100%';
@@ -82,7 +89,7 @@ const sun = new THREE.DirectionalLight(0xfff0cf, 2.6);
 sun.position.set(-16, 30, 16);
 sun.target.position.set(0, 0, -3);
 sun.castShadow = true;
-sun.shadow.mapSize.set(4096, 4096);
+sun.shadow.mapSize.set(coarse ? 2048 : 4096, coarse ? 2048 : 4096);
 const sc = sun.shadow.camera;
 sc.left = -30;
 sc.right = 30;
@@ -147,13 +154,39 @@ function buildMarker() {
 /* ------------------------------------------------------------------- input */
 const keys = new Set();
 const pressed = new Set();
+const stick = { x: 0, y: 0, run: false, cam: 0 };
+let touchUI = coarse;
+let ignoreCam = false;
+const pointers = new Map();
+let camDrag = null;
+let pinch0 = 0;
+
+function shouldTouch() {
+  return matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 820px)').matches;
+}
+
+function setTouchUI(on) {
+  touchUI = on;
+  document.body.classList.toggle('touch-ui', on);
+  if (on && state.mode === 'play') $('touch').classList.remove('hidden');
+  else if (!on) $('touch').classList.add('hidden');
+}
+
 addEventListener('keydown', (e) => {
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   if (!keys.has(e.code)) pressed.add(e.code);
   keys.add(e.code);
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
-addEventListener('blur', () => keys.clear());
+addEventListener('blur', () => {
+  keys.clear();
+  stick.x = 0;
+  stick.y = 0;
+  stick.run = false;
+  stick.cam = 0;
+});
+addEventListener('contextmenu', (e) => e.preventDefault());
+addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
 const cam = { yaw: 0, yawT: 0, pitch: 0.85, dist: 30, distT: 28, target: new THREE.Vector3(0, 0.8, -3), t: 0 };
 addEventListener(
@@ -163,18 +196,144 @@ addEventListener(
   },
   { passive: true }
 );
-let dragging = false;
-let lastX = 0;
-renderer.domElement.addEventListener('pointerdown', (e) => {
-  dragging = true;
-  lastX = e.clientX;
+
+function pinchDist() {
+  const pts = [...pointers.values()];
+  if (pts.length < 2) return 0;
+  return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+}
+
+function onCamDown(e) {
+  if (e.button && e.button !== 0) return;
+  if (e.target.closest('#touch, #hud, #help, button')) return;
+  if (state.mode === 'title') {
+    startGame();
+    ignoreCam = true;
+    return;
+  }
+  if (ignoreCam || state.mode !== 'play') return;
+  if (e.pointerType === 'touch') setTouchUI(true);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1) camDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
+  if (pointers.size === 2) {
+    camDrag = null;
+    pinch0 = pinchDist();
+  }
+}
+
+function onCamMove(e) {
+  const p = pointers.get(e.pointerId);
+  if (p) {
+    p.x = e.clientX;
+    p.y = e.clientY;
+  }
+  if (pointers.size >= 2 && pinch0) {
+    const d = pinchDist();
+    cam.distT = THREE.MathUtils.clamp(cam.distT + (pinch0 - d) * 0.04, 12, 36);
+    pinch0 = d;
+    return;
+  }
+  if (!camDrag || camDrag.id !== e.pointerId) return;
+  const dx = e.clientX - camDrag.x;
+  if (!camDrag.moved && Math.abs(dx) < 8) return;
+  camDrag.moved = true;
+  cam.yawT -= dx * 0.006;
+  camDrag.x = e.clientX;
+  camDrag.y = e.clientY;
+}
+
+function onCamUp(e) {
+  pointers.delete(e.pointerId);
+  if (camDrag && camDrag.id === e.pointerId) camDrag = null;
+  if (pointers.size < 2) pinch0 = 0;
+  if (e.type === 'pointerup' || e.type === 'pointercancel') ignoreCam = false;
+}
+
+renderer.domElement.addEventListener('pointerdown', onCamDown);
+addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'touch') setTouchUI(true);
+  if (state.mode === 'title' && !e.target.closest('#help, #touch, button')) startGame();
 });
-addEventListener('pointerup', () => (dragging = false));
-addEventListener('pointermove', (e) => {
-  if (!dragging) return;
-  cam.yawT -= (e.clientX - lastX) * 0.006;
-  lastX = e.clientX;
-});
+addEventListener('pointermove', onCamMove);
+addEventListener('pointerup', onCamUp);
+addEventListener('pointercancel', onCamUp);
+
+function bindHold(el, on, off) {
+  const down = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    el.setPointerCapture?.(e.pointerId);
+    el.classList.add('held');
+    on(e);
+  };
+  const up = (e) => {
+    el.classList.remove('held');
+    off?.(e);
+  };
+  el.addEventListener('pointerdown', down);
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
+}
+
+function bindStick() {
+  const pad = $('stick');
+  const knob = $('stick-knob');
+  const R = () => pad.clientWidth * 0.5;
+  let active = -1;
+  const setFrom = (e) => {
+    const r = pad.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    let dx = e.clientX - cx;
+    let dy = e.clientY - cy;
+    const max = R() - 8;
+    const len = Math.hypot(dx, dy) || 1;
+    if (len > max) {
+      dx *= max / len;
+      dy *= max / len;
+    }
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+    stick.x = dx / max;
+    stick.y = dy / max;
+  };
+  const clear = () => {
+    active = -1;
+    stick.x = 0;
+    stick.y = 0;
+    knob.style.transform = 'translate(0,0)';
+  };
+  pad.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    active = e.pointerId;
+    pad.setPointerCapture(e.pointerId);
+    setFrom(e);
+  });
+  pad.addEventListener('pointermove', (e) => {
+    if (e.pointerId === active) setFrom(e);
+  });
+  pad.addEventListener('pointerup', (e) => {
+    if (e.pointerId === active) clear();
+  });
+  pad.addEventListener('pointercancel', clear);
+}
+
+function bindTouch() {
+  bindStick();
+  bindHold($('btn-run'), () => (stick.run = true), () => (stick.run = false));
+  bindHold($('btn-cam-l'), () => (stick.cam = -1), () => (stick.cam = 0));
+  bindHold($('btn-cam-r'), () => (stick.cam = 1), () => (stick.cam = 0));
+  $('btn-act').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (state.mode === 'play') act();
+  });
+  $('btn-help').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    $('help').classList.toggle('hidden');
+  });
+}
 
 /* ------------------------------------------------------------------ player */
 const P = { x: 0, z: -6.3, y: 0, facing: 0, speed: 0, cool: 0, dust: 0 };
@@ -219,6 +378,10 @@ function updatePlayer(dt) {
     if (keys.has('KeyS') || keys.has('ArrowDown')) iz += 1;
     if (keys.has('KeyA') || keys.has('ArrowLeft')) ix -= 1;
     if (keys.has('KeyD') || keys.has('ArrowRight')) ix += 1;
+    if (Math.abs(stick.x) > 0.12 || Math.abs(stick.y) > 0.12) {
+      ix += stick.x;
+      iz += stick.y;
+    }
   }
   const len = Math.hypot(ix, iz);
   let moving = false;
@@ -229,7 +392,7 @@ function updatePlayer(dt) {
     const cy = Math.cos(cam.yaw);
     const wx = ix * cy + iz * sy;
     const wz = -ix * sy + iz * cy;
-    const run = keys.has('ShiftLeft') || keys.has('ShiftRight');
+    const run = keys.has('ShiftLeft') || keys.has('ShiftRight') || stick.run;
     const sp = run ? 8 : 5;
     P.x += wx * sp * dt;
     P.z += wz * sp * dt;
@@ -436,10 +599,11 @@ function updateTarget() {
   marker.position.set(s.x, s.y + 0.06 + Math.sin(cam.t * 5) * 0.02, s.z);
   const scale = 1 + Math.sin(cam.t * 5) * 0.03;
   marker.scale.set(scale, 1, scale);
+  const actLbl = touchUI ? 'TAP' : 'SPACE';
   let text;
-  if (d.state === 'empty') text = state.seeds > 0 ? 'SPACE  PLANT SEED' : 'NO SEEDS';
-  else if (d.state === 'ready') text = 'SPACE  HARVEST';
-  else text = d.water > 0.7 ? 'WELL WATERED' : 'SPACE  WATER';
+  if (d.state === 'empty') text = state.seeds > 0 ? `${actLbl}  PLANT SEED` : 'NO SEEDS';
+  else if (d.state === 'ready') text = `${actLbl}  HARVEST`;
+  else text = d.water > 0.7 ? 'WELL WATERED' : `${actLbl}  WATER`;
   prompt.textContent = text;
   prompt.style.display = 'block';
   if (d.state === 'empty') {
@@ -473,8 +637,8 @@ function updateCamera(dt) {
     const tz = THREE.MathUtils.clamp(P.z, -9, 7);
     const tgt = v3.set(tx * 0.85 + P.x * 0.15, 0.9 + P.y, tz * 0.85 + P.z * 0.15);
     if (!cam.free) cam.target.lerp(tgt, 1 - Math.exp(-dt * 4));
-    if (keys.has('KeyQ')) cam.yawT += dt * 1.6;
-    if (keys.has('KeyE')) cam.yawT -= dt * 1.6;
+    if (keys.has('KeyQ') || stick.cam < 0) cam.yawT += dt * 1.6;
+    if (keys.has('KeyE') || stick.cam > 0) cam.yawT -= dt * 1.6;
     cam.yawT = THREE.MathUtils.clamp(cam.yawT, -1.3, 1.3);
   }
   cam.yaw += (cam.yawT - cam.yaw) * (1 - Math.exp(-dt * 8));
@@ -536,9 +700,14 @@ function frame(now) {
 }
 
 function startGame() {
+  if (state.mode === 'play') return;
   state.mode = 'play';
   $('title').classList.add('gone');
   $('hud').classList.remove('hidden');
+  if (touchUI) {
+    $('touch').classList.remove('hidden');
+    $('help').classList.add('hidden');
+  }
   cam.yawT = 0;
   cam.distT = 27;
 }
@@ -568,6 +737,11 @@ function boot() {
   initSlots();
   resize();
   addEventListener('resize', resize);
+  visualViewport?.addEventListener('resize', resize);
+  addEventListener('orientationchange', () => setTimeout(resize, 120));
+  bindTouch();
+  setTouchUI(shouldTouch());
+  matchMedia('(max-width: 820px)').addEventListener('change', () => setTouchUI(shouldTouch() || touchUI));
   state.mode = 'title';
   updateHud();
   $('loading').classList.add('gone');

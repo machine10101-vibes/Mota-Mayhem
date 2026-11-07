@@ -16,6 +16,8 @@ npm run build    # production build in dist/ (GitHub Pages base /Mota-Mayhem/)
 
 ## Controls
 
+Desktop
+
 | Action | Keys |
 | --- | --- |
 | Move / run | WASD or arrows / Shift |
@@ -23,6 +25,8 @@ npm run build    # production build in dist/ (GitHub Pages base /Mota-Mayhem/)
 | Rotate / zoom camera | Q, E or drag / mouse wheel |
 | Pixel size | `[` and `]` |
 | Toggle help | H |
+
+Phone and tablet: tap to start. Left stick moves, **RUN** sprints, **ACT** plants / waters / harvests, **Q** / **E** rotate the camera, drag the yard to look around, pinch to zoom, **?** toggles help.
 
 ## Gameplay
 
