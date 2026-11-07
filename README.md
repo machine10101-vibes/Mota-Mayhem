@@ -39,16 +39,24 @@ to dry, jar it, and burp the jar while it cures. Skipping the burp or leaving a 
 Cured flower lands in the jars.
 
 Open the house from the porch. The mother, clone, and veg rooms run deep enough to walk into and wide enough to move around the pots. The mother room on the left starts with two empty pots. Plant a seed you are
-holding and that plant grows into a mother, then stays there for cuttings. The clone room is straight ahead,
-and the veg room is on the right. Water a mother, take a cutting, wait for it to root, move it into veg, then
-carry the finished clone out to a bed or the warehouse. The porch stand sells cured jars for MOTA, the in-game
+holding and that plant grows into a mother, then stays there for cuttings. The clone room is straight ahead.
+Cuttings root in tube-style hydroponic lines: two NFT tubes, a reservoir, and a pump, with a net cup at each
+site. The veg room is on the right. Water a mother, take a cutting, wait for it to root, move it into veg, then
+carry the finished clone out to a bed or the warehouse.
+
+Stairs in the mother room climb to the second story. Two bedrooms sit over the front of the house, and the
+east bedroom has a computer. Use it to spend MOTA on Blue Dream seeds, Granddaddy Purple seeds, nutrients,
+and root cubes. Nutrients feed a mother or a veg pot. Root cubes speed a tube that is still rooting. The
+upstairs floor stays out of the way until you are on the stairs, so the grow rooms stay visible from above.
+
+The porch stand sells cured jars for MOTA, the in-game
 token. A mixed seed pack (2 Blue Dream and 2 Granddaddy Purple) is there too when you are low. The east lot
 sells a warehouse for 520 MOTA. Buying it opens the gate. Inside are nine indoor pots under lights that flower
 a little faster than the yard. Post-harvest is sped up from the 10–14 day dry and multi-week cure.
 
 **CHARACTER** on the title screen, **YOU** while you play, and the C key open the same menu: skin, hair, hat,
 shirt, overalls, and boots, with a live preview. **NEW GROW** resets the farm to the starter seeds and keeps
-the look. The character, MOTA, seeds, clones, beds, mothers, trays, veg pots, shed, and warehouse are saved in
+the look. The character, MOTA, seeds, nutrients, root cubes, clones, beds, mothers, hydro tubes, veg pots, shed, and warehouse are saved in
 this browser.
 
 ## How the look is built

@@ -13,12 +13,53 @@ export const HOUSE = {
   walkX: 15.6,
   walkZ: -22.45,
 };
+export const LOFT = {
+  y: 3.62,
+  x0: -16.15,
+  x1: 16.15,
+  zFront: -14.5,
+  zBack: -18.2,
+};
+export const STAIR = {
+  x0: -16.02,
+  x1: -14.22,
+  z0: -19.15,
+  z1: -15.05,
+  y0: 0.75,
+  y1: LOFT.y,
+};
+export const SUPPLIES = [
+  { id: 'bd', name: 'BLUE DREAM', detail: '4 SEEDS', cost: 12, kind: 'seed', strain: 'bd', n: 4 },
+  { id: 'gdp', name: 'GRANDDADDY PURPLE', detail: '4 SEEDS', cost: 12, kind: 'seed', strain: 'gdp', n: 4 },
+  { id: 'feed', name: 'NUTRIENTS', detail: 'FEEDS MOTHERS AND VEG', cost: 8, kind: 'nutrient', n: 1 },
+  { id: 'cubes', name: 'ROOT CUBES', detail: '2 CUBES, SPEEDS TUBES', cost: 10, kind: 'cube', n: 2 },
+];
+
+export function stairHeightAt(z) {
+  const t = (z - STAIR.z0) / (STAIR.z1 - STAIR.z0);
+  const c = Math.min(1, Math.max(0, t));
+  return STAIR.y0 + (STAIR.y1 - STAIR.y0) * c;
+}
+
+export function footOnStair(x, z, y = null) {
+  if (!(x > STAIR.x0 + 0.14 && x < STAIR.x1 - 0.14 && z >= STAIR.z0 - 0.08 && z <= STAIR.z1 + 0.06)) return false;
+  if (y == null) return true;
+  return Math.abs(y - stairHeightAt(z)) < 0.9;
+}
+
+export function footOnLoft(x, z) {
+  if (x <= LOFT.x0 + 0.4 || x >= LOFT.x1 - 0.4) return false;
+  if (z >= LOFT.zFront - 0.08 || z <= LOFT.zBack + 0.16) return false;
+  return !footOnStair(x, z);
+}
 
 const GLYPH = {
   M: ['10001', '11011', '10101', '10001', '10001', '10001', '10001'],
   O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
   T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
   A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
+  B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
+  P: ['11110', '10001', '10001', '11110', '10000', '10000', '10000'],
   H: ['10001', '10001', '10001', '11111', '10001', '10001', '10001'],
   E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'],
   R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
@@ -109,22 +150,99 @@ function buildPot(big) {
   return m;
 }
 
-function buildTray() {
+const TUBE_CUPS = 4;
+const TUBE_SP = 22;
+
+function buildReservoir() {
   const m = new VoxelModel();
-  m.box(-5, 0, -4, 6, 2, 5, 0xe7ece6, 0.02);
-  m.box(-4, 2, -3, 5, 3, 4, 0x5d4630, 0.03);
-  m.box(-4, 3, -3, 5, 4, 4, 0x6a8f45, 0.03);
+  m.box(-8, 0, -7, 8, 2, 7, 0x3a4046, 0.03);
+  m.box(-9, 2, -8, 9, 12, 8, 0x2a3136, 0.03);
+  m.box(-7, 8, -6, 7, 11, 6, 0x3ec6c0, 0.01);
+  m.box(-8, 12, -7, 8, 14, 7, 0x1c2428, 0.02);
+  m.delBox(-6, 12, -5, 6, 14, 5);
+  m.box(-6, 11, -5, 6, 12, 5, 0x7ee8df, 0.01);
+  m.box(3, 14, -3, 8, 20, 3, 0x4d565e, 0.03);
+  m.box(4, 17, -1, 7, 19, 2, 0x93c85a, 0.01);
+  m.box(8, 9, -2, 16, 12, 2, 0xd5dbd6, 0.02);
   return m;
 }
 
-function buildDome() {
+function buildNftTube() {
   const m = new VoxelModel();
-  for (let x = -4; x <= 4; x++)
-    for (let z = -3; z <= 3; z++)
-      for (let y = 4; y <= 8; y++) {
-        const shell = Math.abs(x) >= 3 || Math.abs(z) >= 2 || y >= 7;
-        if (shell) m.set(x, y, z, y === 8 ? 0xe7f7fb : 0xb7e2f2, 0.01);
+  const x0 = -((TUBE_CUPS * TUBE_SP) / 2);
+  const x1 = -x0;
+  const R = 4;
+  const centers = [];
+  for (let i = 0; i < TUBE_CUPS; i++) centers.push(Math.round(x0 + TUBE_SP / 2 + i * TUBE_SP));
+  for (let x = x0; x < x1; x++) {
+    for (let y = 0; y <= R * 2; y++) {
+      for (let z = -R; z <= R; z++) {
+        const dy = y - R;
+        const d = Math.hypot(dy, z);
+        if (d > R + 0.15 || d < R - 1.45) continue;
+        const nearest = centers.reduce((n, cx) => Math.min(n, Math.abs(x - cx)), 99);
+        if (dy > 1.4 && Math.abs(z) <= 1 && nearest < 3) continue;
+        m.set(x, y, z, z > 1 ? 0xf7faf7 : 0xd0d6d1, 0.02);
       }
+    }
+    m.set(x, R - 2, 0, 0x3ec6c0, 0);
+    m.set(x, R - 2, 1, 0x218f8a, 0);
+  }
+  m.box(x0 - 1, 1, -3, x0 + 2, R * 2 - 1, 4, 0xc5cbc6, 0.02);
+  m.box(x1 - 2, 1, -3, x1 + 1, R * 2 - 1, 4, 0xc5cbc6, 0.02);
+  for (const cx of centers) {
+    m.box(cx - 3, R * 2 - 1, -3, cx + 4, R * 2 + 2, 4, 0x1c2918, 0.03);
+    m.box(cx - 2, R * 2 + 1, -2, cx + 3, R * 2 + 4, 3, 0x6a8f45, 0.02);
+    m.delBox(cx - 1, R * 2 + 2, -1, cx + 2, R * 2 + 4, 2);
+  }
+  for (const lx of [x0 + 8, -2, x1 - 10]) m.box(lx, -5, -1, lx + 2, 1, 2, 0x8d9398, 0.03);
+  return { model: m, centers };
+}
+
+function buildBedFrame(blanket) {
+  const m = new VoxelModel();
+  m.box(-14, 0, -4, 14, 5, 16, 0x6b4428, 0.03);
+  m.box(-12, 5, -2, 12, 8, 15, 0xf4f0e4, 0.02);
+  m.box(-12, 8, -2, 12, 10, 8, blanket, 0.02);
+  m.box(-10, 8, 9, 10, 12, 15, 0xfffaf0, 0.02);
+  m.box(-14, 5, -6, 14, 16, -3, 0x8d6844, 0.03);
+  return m;
+}
+
+function buildComputer() {
+  const m = new VoxelModel();
+  m.box(-12, 0, -6, 12, 8, 7, 0x5c4030, 0.03);
+  m.box(-14, 8, -7, 14, 10, 8, 0xc4a06a, 0.02);
+  m.box(-7, 10, -6, 7, 22, -3, 0x161c14, 0.02);
+  m.box(-6, 11, -3, 6, 21, -2, 0x9dff6a, 0.01);
+  m.box(-1, 10, -3, 1, 12, -1, 0x2a2a2a, 0.02);
+  m.box(-6, 10, 1, 6, 11, 5, 0x242424, 0.02);
+  m.box(8, 10, -5, 13, 20, 1, 0x2c3338, 0.02);
+  m.box(9, 15, 1, 12, 17, 2, 0x7dff6a, 0.01);
+  return m;
+}
+
+function buildStairs() {
+  const m = new VoxelModel();
+  const vx = (n) => Math.round(n * 16);
+  const x0 = vx(STAIR.x0);
+  const x1 = vx(STAIR.x1);
+  const steps = 11;
+  for (let i = 0; i < steps; i++) {
+    const t0 = i / steps;
+    const t1 = (i + 1) / steps;
+    const zA = vx(STAIR.z0 + (STAIR.z1 - STAIR.z0) * t0);
+    const zB = vx(STAIR.z0 + (STAIR.z1 - STAIR.z0) * t1);
+    const top = vx(STAIR.y0 + (STAIR.y1 - STAIR.y0) * t1);
+    const bot = Math.max(vx(0.7), top - 4);
+    m.box(x0 + 2, bot, zA, x1 - 2, top, zB, i % 2 ? 0xd2b07a : 0xb88958, 0.03);
+  }
+  const rail = (x, zEnd) => {
+    m.box(x, vx(STAIR.y0 + 0.15), vx(STAIR.z0), x + 3, vx(STAIR.y1 + 0.85), vx(zEnd), 0xf3ecdc, 0.02);
+    m.box(x, vx(STAIR.y1 + 0.85), vx(STAIR.z0), x + 3, vx(STAIR.y1 + 1.05), vx(zEnd), 0xfff6df, 0.02);
+  };
+  rail(x0, STAIR.z1);
+  rail(x1 - 3, -16.25);
   return m;
 }
 
@@ -146,7 +264,7 @@ function buildHouseInterior(group, colliders, cutaway) {
   floor(xWest, splitL, 0x3f5c34);
   floor(splitL, splitR, 0xd5ddd4);
   floor(splitR, xEast, 0xc49a62);
-  const wall = (x0, z0, x1, z1) => m.box(vx(x0), 12, vx(z0), vx(x1), vx(3.15), vx(z1), plaster, 0.03);
+  const wall = (x0, z0, x1, z1) => m.box(vx(x0), 12, vx(z0), vx(x1), vx(3.34), vx(z1), plaster, 0.03);
   wall(xWest, HOUSE.back - 0.2, xEast, zBack);
   wall(-HOUSE.half - 0.05, HOUSE.back - 0.2, xWest, -14.25);
   wall(xEast, HOUSE.back - 0.2, HOUSE.half + 0.05, -14.25);
@@ -164,9 +282,9 @@ function buildHouseInterior(group, colliders, cutaway) {
   band(xWest + 0.15, splitL - 0.15, -18.15, 0x93c85a);
   band(splitL + 0.4, splitR - 0.4, -18.15, 0xc5e9f6);
   band(splitR + 0.4, xEast - 0.15, -18.15, 0xffe08a);
-  paintFlat(m, 'MOTHER', vx(-10.85), vx(-16.05), 12, 2, 0xf3e7b0);
-  paintFlat(m, 'CLONE', vx(0), vx(-16.35), 12, 2, 0x234026);
-  paintFlat(m, 'VEG', vx(10.85), vx(-16.05), 12, 2, 0xf3e7b0);
+  paintWall(m, 'MOTHER', vx(-11), 36, vx(zBack) - 1, 2, 0xf3e7b0);
+  paintWall(m, 'CLONE', vx(0), 36, vx(zBack) - 1, 2, 0x145e6a);
+  paintWall(m, 'VEG', vx(11), 36, vx(zBack) - 1, 2, 0xf3e7b0);
   place(group, m, 1 / S, 0, 0, 0);
 
   const push = (r) => colliders.push(r);
@@ -176,8 +294,8 @@ function buildHouseInterior(group, colliders, cutaway) {
   push({ x0: xWest, x1: -1.2, z0: -14.48, z1: -13.92 });
   push({ x0: 1.2, x1: xEast, z0: -14.48, z1: -13.92 });
   for (const x0 of [splitL, splitR]) {
-    push({ x0, x1: x0 + 0.28, z0: zBack, z1: -19.7 });
-    push({ x0, x1: x0 + 0.28, z0: -17.3, z1: -14.4 });
+    push({ x0, x1: x0 + 0.28, z0: zBack, z1: -19.7, floor: 0 });
+    push({ x0, x1: x0 + 0.28, z0: -17.3, z1: -14.4, floor: 0 });
   }
 
   const door = new THREE.Group();
@@ -185,11 +303,10 @@ function buildHouseInterior(group, colliders, cutaway) {
   door.position.set(-9 / 8, 0.75, -13.9);
   group.add(door);
 
-  const domeMat = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.38, depthWrite: false });
-  const trayGeo = buildTray().build(1 / 16);
-  const domeGeo = buildDome().build(1 / 16);
   const potBig = buildPot(true);
   const potSm = buildPot(false);
+  place(group, buildReservoir(), 1 / 16, -3.85, 0.75, -20.2);
+  push({ x0: -4.45, x1: -3.15, z0: -20.75, z1: -19.6 });
 
   const mothers = [
     { x: -13.7, z: -21.55 },
@@ -205,23 +322,24 @@ function buildHouseInterior(group, colliders, cutaway) {
     return { ...mom, state: 'empty', strain: null, stage: 0, prog: 0, water: 1, cool: 0, plant };
   });
 
-  const trayX = [-3.15, 0, 3.15];
-  const trays = trayX.flatMap((x) => [-21.35, -18.85].map((z) => ({ x, z }))).map(({ x, z }) => {
-    const base = new THREE.Mesh(trayGeo, voxelMaterial);
-    base.position.set(x, 0.75, z);
-    base.castShadow = true;
-    group.add(base);
-    const dome = new THREE.Mesh(domeGeo, domeMat);
-    dome.position.set(x, 0.75, z);
-    dome.renderOrder = 2;
-    group.add(dome);
-    const plant = toMesh(buildPlant(0, 'bd'), PVS);
-    plant.position.set(x, 0.75 + 0.28, z);
-    plant.scale.setScalar(0.62);
-    plant.visible = false;
-    plant.castShadow = true;
-    group.add(plant);
-    return { x, z, state: 'empty', t: 0, strain: null, plant, dome };
+  const tube = buildNftTube();
+  const tubeGeo = tube.model.build(1 / 16);
+  const tubeY = 0.75 + 5 / 16;
+  const trays = [-21.35, -19.15].flatMap((z) => {
+    const mesh = new THREE.Mesh(tubeGeo, voxelMaterial);
+    mesh.position.set(0.35, tubeY, z);
+    mesh.castShadow = true;
+    group.add(mesh);
+    return tube.centers.map((cx) => {
+      const x = 0.35 + cx / 16;
+      const plant = toMesh(buildPlant(0, 'bd'), PVS);
+      plant.position.set(x, tubeY + 0.72, z);
+      plant.scale.setScalar(0.48);
+      plant.visible = false;
+      plant.castShadow = true;
+      group.add(plant);
+      return { x, z, state: 'empty', t: 0, strain: null, plant };
+    });
   });
 
   const vegSpots = [
@@ -240,6 +358,12 @@ function buildHouseInterior(group, colliders, cutaway) {
     return { x, z, state: 'empty', t: 0, strain: null, plant };
   });
 
+  place(group, buildStairs(), 1 / S, 0, 0, 0);
+  push({ x0: STAIR.x0 - 0.02, x1: STAIR.x0 + 0.18, z0: STAIR.z0, z1: STAIR.z1 });
+  push({ x0: STAIR.x1 - 0.18, x1: STAIR.x1 + 0.02, z0: STAIR.z0, z1: -16.25 });
+  push({ x0: STAIR.x0 + 0.18, x1: STAIR.x1 - 0.18, z0: -16.9, z1: STAIR.z1, floor: 0 });
+  const loft = buildLoft(group, push);
+
   return {
     roof: cutaway.roof,
     facade: cutaway.facade,
@@ -249,10 +373,81 @@ function buildHouseInterior(group, colliders, cutaway) {
     mothers,
     trays,
     veg: vegSpots,
+    upper: loft.upper,
+    computer: loft.computer,
+    loftY: LOFT.y,
+    onStair: footOnStair,
+    onLoft: footOnLoft,
+    stairHeight: stairHeightAt,
     contains(x, z) {
       return x > -HOUSE.half + 0.4 && x < HOUSE.half - 0.4 && z < -14.25 && z > HOUSE.back + 0.32;
     },
   };
+}
+
+function buildLoft(group, push) {
+  const upper = new THREE.Group();
+  upper.visible = false;
+  group.add(upper);
+  const S = 16;
+  const m = new VoxelModel();
+  const vx = (n) => Math.round(n * S);
+  const y0 = vx(3.28);
+  const y1 = vx(LOFT.y);
+  const x0 = vx(LOFT.x0);
+  const x1 = vx(LOFT.x1);
+  const z0 = vx(LOFT.zBack);
+  const z1 = vx(LOFT.zFront);
+  m.box(x0, y0, z0, x1, y1, z1, (x, y, z) => {
+    const plank = Math.floor(x / 4);
+    if (x < vx(-5.4)) return (plank + Math.floor(z / 5)) % 2 ? 0x8d6a45 : 0xa88358;
+    if (x > vx(5.5)) return (plank + Math.floor(z / 5)) % 2 ? 0x6d5344 : 0x7c6150;
+    return plank % 2 ? 0xc49a62 : 0xb58850;
+  }, 0.04);
+  m.delBox(vx(STAIR.x0 - 0.04), y0 - 2, vx(STAIR.z0), vx(STAIR.x1 + 0.04), y1 + 2, vx(STAIR.z1 + 0.05));
+  m.box(vx(-12.4), y1, vx(-17.55), vx(-8.3), y1 + 1, vx(-16.45), 0x3a6ea8, 0.02);
+  m.box(vx(-1.7), y1, vx(-17.55), vx(1.7), y1 + 1, vx(-16.45), 0x6d3d78, 0.02);
+  const railTop = y1 + 14;
+  const gap0 = vx(STAIR.x0 - 0.06);
+  const gap1 = vx(STAIR.x1 + 0.06);
+  const rail = (xa, xb) => {
+    if (xb - xa < 4) return;
+    m.box(xa, y1, z0, xb, y1 + 3, z0 + 3, 0xf3ecdc, 0.02);
+    m.box(xa, railTop - 3, z0, xb, railTop, z0 + 3, 0xfff6df, 0.02);
+    for (let x = xa; x < xb; x += 12) m.box(x, y1, z0, x + 2, railTop, z0 + 3, 0xf7f1e2, 0.02);
+  };
+  rail(x0, gap0);
+  rail(gap1, x1);
+  const wallTop = y1 + vx(2.05);
+  const door0 = vx(-17.05);
+  const door1 = vx(-14.95);
+  const divider = (x) => {
+    m.box(x, y1, z0, x + 4, wallTop, door0, 0xe7dcc4, 0.03);
+    m.box(x, y1, door1, x + 4, wallTop, z1, 0xe7dcc4, 0.03);
+    m.box(x, y1 + 28, door0, x + 4, y1 + 32, door1, 0x2f4420, 0.02);
+  };
+  divider(vx(-5.48));
+  divider(vx(5.32));
+  paintFlat(m, 'BED', vx(-10.2), vx(-15.2), y1, 2, 0xf3e7b0);
+  paintFlat(m, 'BED', vx(0.1), vx(-15.2), y1, 2, 0xf3e7b0);
+  paintFlat(m, 'SHOP', vx(13.5), vx(-15.05), y1, 2, 0xc6f56a);
+  place(upper, m, 1 / S, 0, 0, 0);
+  place(upper, buildBedFrame(0x3d8f6a), 1 / S, -10.3, LOFT.y, -17.15);
+  place(upper, buildBedFrame(0x7a4e9a), 1 / S, -0.1, LOFT.y, -17.15);
+  place(upper, buildBedFrame(0x3a6ea8), 1 / S, 8.15, LOFT.y, -17.15);
+  const computer = { x: 13.55, z: -16.05, floorY: LOFT.y };
+  place(upper, buildComputer(), 1 / S, computer.x, LOFT.y, -17.42);
+
+  const up = (r) => push({ ...r, floor: 1 });
+  up({ x0: LOFT.x0, x1: STAIR.x0 - 0.02, z0: -19.35, z1: LOFT.zBack + 0.22 });
+  up({ x0: STAIR.x1 + 0.02, x1: LOFT.x1, z0: -19.35, z1: LOFT.zBack + 0.22 });
+  for (const x of [-5.48, 5.32]) {
+    up({ x0: x, x1: x + 0.28, z0: LOFT.zBack, z1: -17.05 });
+    up({ x0: x, x1: x + 0.28, z0: -14.95, z1: LOFT.zFront });
+  }
+  for (const x of [-10.3, -0.1, 8.15]) up({ x0: x - 0.95, x1: x + 0.95, z0: -17.58, z1: -16.22 });
+  up({ x0: 12.65, x1: 14.5, z0: -17.9, z1: -16.9 });
+  return { upper, computer };
 }
 
 function buildStandModel() {
