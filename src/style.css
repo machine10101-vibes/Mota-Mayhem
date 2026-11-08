@@ -20,7 +20,8 @@ canvas#leaf-icon, canvas#leaf-logo { image-rendering:pixelated; }
 .inv .lbl { color:#c9d6b5; }
 .inv b { color:var(--gold); font-weight:normal; }
 .inv .row.mota b { color:#c6f56a; }
-.inv .row.seeds b { font-size:8px; letter-spacing:0; }
+.inv .row.seeds { align-items:flex-start; }
+.inv .row.seeds b { font-size:7px; letter-spacing:0; white-space:normal; text-align:right; line-height:1.7; max-width:168px; }
 .jars { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px; }
 .jar { display:flex; justify-content:space-between; padding:4px 6px; background:rgba(0,0,0,.35); border-left:4px solid; font-size:8px; }
 .jar i { font-style:normal; }
@@ -62,8 +63,8 @@ body.touch-ui .press-desk { display:none; }
 #title.dressing { opacity:0; pointer-events:none; }
 body:has(#title:not(.gone)) #help { display:none; }
 .title-actions .icon-btn { width:56px; height:56px; padding:8px; }
-#strains { position:fixed; left:50%; bottom:112px; transform:translateX(-50%); display:flex; gap:8px; z-index:8; pointer-events:auto; }
-.chip { appearance:none; -webkit-appearance:none; border:0; font-family:inherit; font-size:8px; color:#f3f1df; background:var(--panel); min-height:44px; min-width:108px; padding:10px 12px; cursor:pointer; touch-action:manipulation; box-shadow: 0 -3px 0 0 var(--ink), 0 3px 0 0 var(--ink), -3px 0 0 0 var(--ink), 3px 0 0 0 var(--ink), 0 0 0 3px var(--edge) inset; }
+#strains { position:fixed; left:50%; bottom:112px; transform:translateX(-50%); display:flex; flex-wrap:wrap; justify-content:center; gap:8px; z-index:8; pointer-events:auto; width:min(920px, calc(100vw - 16px)); }
+.chip { appearance:none; -webkit-appearance:none; border:0; font-family:inherit; font-size:7px; color:#f3f1df; background:var(--panel); min-height:40px; min-width:64px; padding:8px 8px; cursor:pointer; touch-action:manipulation; box-shadow: 0 -3px 0 0 var(--ink), 0 3px 0 0 var(--ink), -3px 0 0 0 var(--ink), 3px 0 0 0 var(--ink), 0 0 0 3px var(--edge) inset; }
 .chip.on { color:var(--gold); box-shadow: 0 -3px 0 0 var(--ink), 0 3px 0 0 var(--ink), -3px 0 0 0 var(--ink), 3px 0 0 0 var(--ink), 0 0 0 3px var(--gold) inset; }
 #dress { position:fixed; inset:0; z-index:9; display:flex; align-items:flex-end; justify-content:flex-end; padding:var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l); pointer-events:none; }
 body:has(#dress:not(.hidden)) #hud { z-index:12; }
@@ -76,7 +77,7 @@ body:has(#dress:not(.hidden)) #hud { z-index:12; }
 .dress-actions .tbtn { min-height:44px; }
 .dress-note { margin:0; font-size:7px; color:#c9d6b5; }
 #shop { position:fixed; inset:0; z-index:9; display:flex; align-items:center; justify-content:center; padding:var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l); pointer-events:none; }
-.shop-card { pointer-events:auto; width:min(520px, 100%); max-height:min(68vh, 520px); overflow:auto; display:flex; flex-direction:column; gap:8px; touch-action:manipulation; }
+.shop-card { pointer-events:auto; width:min(520px, 100%); max-height:min(78vh, 680px); overflow:auto; display:flex; flex-direction:column; gap:8px; touch-action:manipulation; }
 .shop-mota { margin:0; color:#c6f56a; font-size:10px; }
 .shop-mota b { font-weight:normal; }
 .shop-row { display:grid; grid-template-columns:1fr auto auto; gap:8px; align-items:center; }

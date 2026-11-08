@@ -8,7 +8,7 @@ import { buildPlant, PVS } from './plants.js';
 import { VoxelModel, toMesh, voxelMaterial } from './voxel.js';
 import { HOUSE, LOFT, MOTA_PER_G, SEED_PACK, SUPPLIES, WAREHOUSE_PRICE } from './estate.js';
 import { Particles, Butterflies } from './fx.js';
-import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf } from './strains.js';
+import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace } from './strains.js';
 import { loadSave, writeSave } from './save.js';
 
 const $ = (id) => document.getElementById(id);
@@ -695,7 +695,7 @@ function presentPlant(mesh, d, i, time, dt) {
   d.pop = Math.min(1, d.pop + dt * 2.4);
   const back = 1 + 1.70158;
   const e = 1 + back * Math.pow(d.pop - 1, 3) + 1.70158 * Math.pow(d.pop - 1, 2);
-  const sc2 = 0.2 + 0.8 * e;
+  const sc2 = (0.2 + 0.8 * e) * (strainOf(d.strain).stature || 1);
   mesh.scale.set(sc2, sc2, sc2);
   mesh.rotation.z = Math.sin(time * 1.4 + i * 1.7) * 0.022 * (0.4 + d.stage * 0.3);
   mesh.rotation.x = Math.cos(time * 1.1 + i) * 0.015 * (0.4 + d.stage * 0.3);
@@ -707,7 +707,7 @@ function growTick(d, dt, speed) {
   const dry = d.water <= 0;
   d.age += dt;
   if (dry) d.stress += dt * (d.fromClone ? 0.7 : 1);
-  d.prog += (dt * (dry ? 0.35 : 1) * speed) / DUR[d.stage];
+  d.prog += (dt * (dry ? 0.35 : 1) * speed) / (DUR[d.stage] * strainPace(d.strain, d.stage));
   return d.prog >= 1;
 }
 
@@ -722,7 +722,7 @@ function updatePlants(dt, time) {
         d.water = Math.max(0, d.water - dt / 38);
         d.age += dt;
         if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
-        d.ripe = Math.min(1.25, (d.ripe || 0) + dt / RIPE_TIME);
+        d.ripe = Math.min(1.25, (d.ripe || 0) + dt / (RIPE_TIME * strainPace(d.strain, 4)));
       } else if (d.state === 'growing' && growTick(d, dt, 1)) {
         finishStage(d, mesh, false);
         burst(s, d.state === 'ripening' ? 0xfff3a0 : 0xbfe88a);
@@ -757,7 +757,7 @@ function updatePlants(dt, time) {
         d.water = Math.max(0, d.water - dt / 38);
         d.age += dt;
         if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
-        if (flower) d.ripe = Math.min(1.25, (d.ripe || 0) + dt / (RIPE_TIME / 1.15));
+        if (flower) d.ripe = Math.min(1.25, (d.ripe || 0) + dt / ((RIPE_TIME / 1.15) * strainPace(d.strain, 4)));
       } else if (d.state === 'growing' && d.stage >= 3 && !flower) {
         d.water = Math.max(0, d.water - dt / 38);
         d.age += dt;
@@ -1068,6 +1068,7 @@ function actStation(f) {
       }
       state.wet.shift();
       h.item = { ...bud, t: 0, dry: 0, hold: 0, dropped: false };
+      h.mesh.geometry = world.shed.nugGeo[strainOf(bud.strain).id] || world.shed.nugGeo.bd;
       h.mesh.visible = true;
       h.mesh.scale.setScalar(1);
       P.cool = 0.4;
@@ -1269,9 +1270,9 @@ function actStand() {
   if (seedTotal(state.seeds) < 4) {
     if (state.mota < SEED_PACK.cost) return toast(`NEED ${SEED_PACK.cost} MOTA FOR SEEDS`);
     state.mota -= SEED_PACK.cost;
-    state.seeds.bd = (state.seeds.bd | 0) + 2;
-    state.seeds.gdp = (state.seeds.gdp | 0) + 2;
-    toast('+2 BLUE DREAM  +2 GRANDDADDY PURPLE', 'good');
+    const pack = STRAIN_IDS.slice().sort((a, b) => (state.seeds[a] | 0) - (state.seeds[b] | 0) || STRAIN_IDS.indexOf(a) - STRAIN_IDS.indexOf(b)).slice(0, SEED_PACK.n);
+    for (const id of pack) state.seeds[id] = (state.seeds[id] | 0) + 1;
+    toast(`+1 ${pack.map((id) => strainOf(id).short).join('  +1 ')}`, 'good');
     updateHud();
     markDirty();
     return true;
@@ -1358,7 +1359,7 @@ function updateShed(dt) {
     if (mom.state === 'growing') {
       mom.water = Math.max(0, mom.water - dt / 40);
       const rate = mom.water <= 0 ? 0.35 : 1;
-      mom.prog += (dt * rate) / MOTHER_DUR[Math.min(mom.stage, 1)];
+      mom.prog += (dt * rate) / (MOTHER_DUR[Math.min(mom.stage, 1)] * strainPace(mom.strain, 2));
       if (mom.prog >= 1) {
         mom.prog = 0;
         mom.stage += 1;
@@ -1371,7 +1372,7 @@ function updateShed(dt) {
         }
         mom.plant.geometry = plantGeo(mom.stage, mom.strain);
       }
-      mom.plant.scale.setScalar(mom.state === 'mother' ? 1.2 : 0.5 + mom.stage * 0.28 + mom.prog * 0.1);
+      mom.plant.scale.setScalar((mom.state === 'mother' ? 1.2 : 0.5 + mom.stage * 0.28 + mom.prog * 0.1) * (strainOf(mom.strain).stature || 1));
     } else if (mom.state === 'mother') {
       mom.water = Math.max(0, mom.water - dt / 52);
       mom.cool = Math.max(0, mom.cool - dt);
@@ -1390,8 +1391,8 @@ function updateShed(dt) {
   }
   for (const pot of house.veg) {
     if (pot.state !== 'veg') continue;
-    pot.t += dt;
-    pot.plant.scale.setScalar(0.72 + 0.18 * Math.min(1, pot.t / VEG_TIME));
+    pot.t += dt / strainPace(pot.strain, 2);
+    pot.plant.scale.setScalar((0.72 + 0.18 * Math.min(1, pot.t / VEG_TIME)) * (strainOf(pot.strain).stature || 1));
     if (pot.t >= VEG_TIME) {
       pot.state = 'ready';
       toast(`${strainOf(pot.strain).short} VEG DONE — POT IT UP`, 'good');
@@ -1408,7 +1409,7 @@ function updateShed(dt) {
 
 /* --------------------------------------------------------------------- HUD */
 function updateHud() {
-  $('seeds').textContent = `BD ${state.seeds.bd | 0}  GDP ${state.seeds.gdp | 0}`;
+  $('seeds').textContent = STRAIN_IDS.map((id) => `${strainOf(id).short} ${state.seeds[id] | 0}`).join('  ');
   $('clones').textContent = state.clones.length;
   $('nuts').textContent = state.nutrients | 0;
   $('cubes').textContent = state.cubes | 0;
@@ -1543,11 +1544,12 @@ function updateTarget() {
     tip.style.left = ((v3.x * 0.5 + 0.5) * 100).toFixed(2) + '%';
     tip.style.top = ((-v3.y * 0.5 + 0.5) * 100).toFixed(2) + '%';
     const band = d.state === 'ripening' ? trichomeBand(d.ripe || 0) : null;
-    $('tip-name').textContent = `${strainOf(d.strain).short} ${d.holdVeg ? 'VEGETATIVE' : STAGE_NAMES[d.stage]}`;
+    const spec = strainOf(d.strain);
+    $('tip-name').textContent = `${spec.short} ${d.holdVeg ? 'VEGETATIVE' : STAGE_NAMES[d.stage]}`;
     $('tip-water').style.width = Math.round(d.water * 100) + '%';
     $('tip-water').style.background = d.water > 0 ? '#58b4ee' : '#d9534f';
     $('tip-grow').style.width = Math.round((d.state === 'ready' ? 1 : d.state === 'ripening' ? Math.min(1, d.ripe || 0) : d.holdVeg ? 0.5 : (d.stage + d.prog) / 4) * 100) + '%';
-    $('tip-grade').textContent = band ? band.label : d.holdVeg ? '18/6' : d.state === 'ready' ? gradeOf(d) : '';
+    $('tip-grade').textContent = band ? band.label : d.holdVeg ? '18/6' : d.state === 'ready' ? gradeOf(d) : `${spec.kind} ${spec.weeks}WK`;
   }
   return plot.i;
 }
@@ -1737,12 +1739,10 @@ function frame(now) {
   if (pressed.has('Escape') && state.mode === 'dress') closeDress();
   if (pressed.has('Escape') && state.mode === 'shop') closeShop();
   if (pressed.has('KeyC') && state.mode !== 'dress' && state.mode !== 'shop' && state.mode !== 'loading') openDress();
-  if (state.mode === 'play' && (pressed.has('Digit1') || pressed.has('Numpad1'))) {
-    state.strainPick = 'bd';
-    markDirty();
-  }
-  if (state.mode === 'play' && (pressed.has('Digit2') || pressed.has('Numpad2'))) {
-    state.strainPick = 'gdp';
+  if (state.mode === 'play' && (pressed.has('Digit1') || pressed.has('Numpad1') || pressed.has('Digit2') || pressed.has('Numpad2'))) {
+    const dir = pressed.has('Digit2') || pressed.has('Numpad2') ? 1 : -1;
+    const i = Math.max(0, STRAIN_IDS.indexOf(state.strainPick));
+    state.strainPick = STRAIN_IDS[(i + dir + STRAIN_IDS.length) % STRAIN_IDS.length];
     markDirty();
   }
   if (pressed.has('KeyH') && state.mode !== 'dress') $('help').classList.toggle('hidden');
@@ -1869,7 +1869,7 @@ function snapshot() {
     harvested: state.harvested | 0,
     jars: { AAAA: state.jars.AAAA | 0, AAA: state.jars.AAA | 0, AA: state.jars.AA | 0, A: state.jars.A | 0 },
     wet: state.wet.slice(0, 12).map((w) => ({ grade: w.grade, grams: w.grams | 0, strain: w.strain || 'bd', trimmed: !!w.trimmed })),
-    seeds: { bd: state.seeds.bd | 0, gdp: state.seeds.gdp | 0 },
+    seeds: Object.fromEntries(STRAIN_IDS.map((id) => [id, state.seeds[id] | 0])),
     clones: state.clones.slice(0, 8).map((c) => ({ strain: strainOf(c.strain).id })),
     nutrients: state.nutrients | 0,
     cubes: state.cubes | 0,
@@ -1941,6 +1941,7 @@ function restoreItem(slot, snap) {
     needsBurp: !!snap.needsBurp,
     sealed: false,
   };
+  if (slot.nug) slot.mesh.geometry = world.shed.nugGeo[slot.item.strain] || world.shed.nugGeo.bd;
   slot.mesh.visible = true;
 }
 
@@ -2035,7 +2036,7 @@ function applySave(save) {
   for (const g of GRADES) state.jars[g] = Math.max(0, save.jars?.[g] | 0);
   syncCuredGrams();
   state.wet = Array.isArray(save.wet) ? save.wet.slice(0, 12).map((w) => ({ grade: GRADES.includes(w.grade) ? w.grade : 'A', grams: w.grams | 0, strain: strainOf(w.strain).id, trimmed: w.trimmed === undefined ? true : !!w.trimmed })) : [];
-  state.seeds = { bd: Math.max(0, save.seeds?.bd | 0), gdp: Math.max(0, save.seeds?.gdp | 0) };
+  state.seeds = Object.fromEntries(STRAIN_IDS.map((id) => [id, Math.max(0, save.seeds?.[id] | 0)]));
   state.clones = Array.isArray(save.clones) ? save.clones.slice(0, 8).map((c) => ({ strain: strainOf(c.strain || c).id })) : [];
   state.nutrients = Math.max(0, save.nutrients | 0);
   state.cubes = Math.max(0, save.cubes | 0);
@@ -2209,7 +2210,7 @@ function newGrow() {
   flushSave();
   refreshTitle();
   updateHud();
-  toast('NEW GROW — 10 BLUE DREAM, 10 GRANDDADDY PURPLE', 'good');
+  toast('NEW GROW — SEVEN STRAINS IN THE PACK', 'good');
 }
 
 function armReset(btn) {

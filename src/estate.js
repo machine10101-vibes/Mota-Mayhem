@@ -29,8 +29,13 @@ export const STAIR = {
   y1: LOFT.y,
 };
 export const SUPPLIES = [
-  { id: 'bd', name: 'BLUE DREAM', detail: '4 SEEDS', cost: 12, kind: 'seed', strain: 'bd', n: 4 },
-  { id: 'gdp', name: 'GRANDDADDY PURPLE', detail: '4 SEEDS', cost: 12, kind: 'seed', strain: 'gdp', n: 4 },
+  { id: 'bd', name: 'BLUE DREAM', detail: '4 SEEDS · HYBRID · 9 WK', cost: 12, kind: 'seed', strain: 'bd', n: 4 },
+  { id: 'gdp', name: 'GRANDDADDY PURPLE', detail: '4 SEEDS · INDICA · 9 WK', cost: 12, kind: 'seed', strain: 'gdp', n: 4 },
+  { id: 'gc', name: 'GREEN CRACK', detail: '4 SEEDS · SATIVA · 8 WK', cost: 12, kind: 'seed', strain: 'gc', n: 4 },
+  { id: 'gg', name: 'GORILLA GLUE #4', detail: '4 SEEDS · INDICA · 9.5 WK', cost: 14, kind: 'seed', strain: 'gg', n: 4 },
+  { id: 'lis', name: 'LONG ISLAND SKUNK', detail: '4 SEEDS · HYBRID · 9 WK', cost: 12, kind: 'seed', strain: 'lis', n: 4 },
+  { id: 'uw', name: 'UW PURPLE', detail: '4 SEEDS · INDICA · 8 WK', cost: 12, kind: 'seed', strain: 'uw', n: 4 },
+  { id: 'bb', name: 'DJ SHORT BLUEBERRY', detail: '4 SEEDS · INDICA · 7.5 WK', cost: 14, kind: 'seed', strain: 'bb', n: 4 },
   { id: 'feed', name: 'NUTRIENTS', detail: 'FEEDS MOTHERS AND VEG', cost: 8, kind: 'nutrient', n: 1 },
   { id: 'cubes', name: 'ROOT CUBES', detail: '2 CUBES, SPEEDS TUBES', cost: 10, kind: 'cube', n: 2 },
 ];
