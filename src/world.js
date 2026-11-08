@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { VoxelModel, hash3, mulberry, noise2, shade, mix, toMesh, toChunkedMeshes, voxelMaterial } from './voxel.js';
 import { buildHangNug, buildPlant, PVS } from './plants.js';
 import { attachEstate, HOUSE, LOFT } from './estate.js';
+import { STRAIN_IDS } from './strains.js';
 
 export const YARD = { x: 20, z: 14 };
 export const BED_SIZE = { w: 5.6, d: 4.9 };
@@ -839,7 +840,9 @@ export function buildWorld() {
   doorR.position.set(shedWX(SHED_L.door1), 0, doorZ);
   group.add(doorR);
   place(group, buildShedInterior(), SHED_S, SHED_AT.x, 0, SHED_AT.z);
-  const budGeo = buildHangNug().build(SHED_S);
+  const nugGeo = {};
+  for (const id of STRAIN_IDS) nugGeo[id] = buildHangNug(id).build(SHED_S);
+  const budGeo = nugGeo.bd;
   const jarGeo = buildCureJar().build(SHED_S);
   const hookAt = [];
   for (const lz of SHED_L.beams) for (const lx of SHED_L.pegs) hookAt.push([shedWX(lx + 0.5), shedWZ(lz)]);
@@ -850,7 +853,7 @@ export function buildWorld() {
     mesh.castShadow = true;
     mesh.visible = false;
     group.add(mesh);
-    return { x, z, y: 0, mesh, item: null };
+    return { x, z, y: 0, mesh, item: null, nug: true };
   });
   const jarZ = [-3.35, -3.9, -4.45, -5.0, -5.55, -6.1];
   const cureJars = [13.95, 18.05].flatMap((x) => jarZ.map((z) => [x, z])).map(([x, z]) => {
@@ -878,6 +881,7 @@ export function buildWorld() {
     doorBlocks: [{ x0: 13.68, x1: 15.68, z0: -2.7, z1: -1.9 }],
     hooks,
     cureJars,
+    nugGeo,
     contains(x, z) {
       return x > 13.5 && x < 18.5 && z < -2.6 && z > -11.5;
     },
@@ -895,7 +899,7 @@ export function buildWorld() {
   potModel.box(-4, 8, -4, 4, 9, 4, 0x4b3424, 0.05);
   [-1.7, -0.55, 0.6, 1.75].forEach((px, i) => {
     place(group, potModel, 1 / 16, -16 + px, 17 / 16, -9 - 1.9 + 0.1);
-    const pl = toMesh(buildPlant(1 + (i % 2), i % 2 === 0 ? 'bd' : 'gdp'), PVS);
+    const pl = toMesh(buildPlant(1 + (i % 2), STRAIN_IDS[i % STRAIN_IDS.length]), PVS);
     pl.position.set(-16 + px, 17 / 16 + 9 / 16, -9 - 1.8);
     pl.scale.setScalar(0.9);
     group.add(pl);

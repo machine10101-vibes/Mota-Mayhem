@@ -26,11 +26,11 @@ Desktop
 | Pixel size | `[` and `]` |
 | Toggle help | H |
 
-Phone and tablet: tap to start. Left stick moves, **RUN** sprints, **ACT** (or the on-screen prompt) plants, waters, harvests, opens doors, clones, sells, and buys, drag the yard to look around, pinch to zoom, **?** toggles help. The farmer icon opens the character menu. The backpack icon opens the inventory. **1** and **2** (or the strain chips) pick which seed you plant.
+Phone and tablet: tap to start. Left stick moves, **RUN** sprints, **ACT** (or the on-screen prompt) plants, waters, harvests, opens doors, clones, sells, and buys, drag the yard to look around, pinch to zoom, **?** toggles help. The farmer icon opens the character menu. The backpack icon opens the inventory. **1** and **2** cycle the seed strain, and the strain chips do the same.
 
 ## Gameplay
 
-A new grow starts with 10 Blue Dream seeds and 10 Granddaddy Purple seeds. Plant either strain in the 24 bed
+A new grow starts with 10 Blue Dream seeds, 10 Granddaddy Purple seeds, and 4 seeds each of Green Crack, Gorilla Glue #4, Long Island Skunk, UW Purple, and DJ Short Blueberry. Plant any of them in the 24 bed
 plots, or plant a vegged clone if you have one. Each plant grows through sprout, seedling, vegetative, flowering
 and ready, and a harvest returns one seed of that strain. Clones skip ahead to vegetative and keep the mother's
 strain. Keep soil watered: dry plants slow down and accumulate stress. A flowering plant can take a bloom feed if you are carrying nutrients. Harvest grade (A, AA, AAA, AAAA) starts from how consistently you watered. The finished plant then ripens: clear trichomes are early, cloudy and cloudy-with-amber are the pick, and mostly amber is late. Picking outside that window drops the grade. Open the shed door, walk in, hand-trim the wet flower, hang it to dry, jar it, and burp the jar while it cures. Skipping the burp or leaving a hang too long drops the grade.
@@ -45,7 +45,7 @@ carry the finished clone out to a bed or the warehouse.
 Stairs in the mother room climb to a second story the same depth and width as the rooms below. The west and center rooms upstairs are two more veg rooms, with the same pot layout as the ground-floor veg room. The east room is the supply office. Use the computer there to spend MOTA on Blue Dream seeds, Granddaddy Purple seeds, nutrients, and root cubes. Nutrients feed a mother or a veg pot. Root cubes speed a tube that is still rooting. The upstairs floor stays hidden until you are on the stairs, so the ground-floor grow rooms stay visible from above.
 
 The porch stand sells cured jars for MOTA, the in-game
-token. A mixed seed pack (2 Blue Dream and 2 Granddaddy Purple) is there too when you are low. The east lot
+token. A 4-seed pack of whichever cultivars you have the fewest of is there too when you are low. Flower time follows the cultivar: DJ Short Blueberry finishes fastest, then Green Crack and UW Purple, with Gorilla Glue #4 the slowest. Vegging a mother or a clone uses that same pace. The east lot
 sells a warehouse for 520 MOTA. Buying it opens the gate. Inside are nine indoor pots under 18/6 veg lights. Flip the switch inside to 12/12 when a plant is waiting, and it flowers a little faster than the yard. Ripening pauses if you flip the lights back. Post-harvest is sped up from the 10–14 day dry and multi-week cure.
 
 The farmer icon on the title screen and while you play, and the C key, open the character menu: skin, hair, hat,

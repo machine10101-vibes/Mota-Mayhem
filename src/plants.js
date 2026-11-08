@@ -134,14 +134,17 @@ function spearProfile(t) {
   return Math.max(0.28, p);
 }
 
-function hair(m, x, y, z, ang, late, short) {
+function hair(m, x, y, z, ang, late, short, hairCol) {
   const dx = Math.cos(ang);
   const dz = Math.sin(ang);
-  const col = late > 0.75 ? PISTIL_ORANGE : late > 0.3 ? mix(PISTIL_CREAM, PISTIL_ORANGE, late * 0.7) : PISTIL_CREAM;
+  const cream = hairCol?.cream ?? PISTIL_CREAM;
+  const orange = hairCol?.orange ?? PISTIL_ORANGE;
+  const amber = hairCol?.amber ?? PISTIL_AMBER;
+  const col = late > 0.75 ? orange : late > 0.3 ? mix(cream, orange, late * 0.7) : cream;
   const n = short ? 1 : 2;
   for (let i = 1; i <= n; i++) {
     const tip = i === n && late > 0.8;
-    plot(m, x + dx * i, y + i * 0.55, z + dz * i, tip ? PISTIL_AMBER : col, 0);
+    plot(m, x + dx * i, y + i * 0.55, z + dz * i, tip ? amber : col, 0);
   }
 }
 
@@ -180,7 +183,7 @@ function spear(m, cx, cy, cz, len, girth, pal, R, opt) {
   for (let i = 0; i < edge.length; i += stride) {
     if (R() > opt.pistil * 0.65) continue;
     const [x, y, z, a] = edge[i];
-    hair(m, x, y, z, a, opt.late, !!opt.shortHair);
+    hair(m, x, y, z, a, opt.late, !!opt.shortHair, opt.hair);
   }
 }
 
@@ -219,6 +222,7 @@ function colaOpt(spec, stemCol, late, pistil, frost, sugars, sugarLen, fade, spi
     spin,
     leafD: spec.leafDark,
     leafL: spec.leafLight,
+    hair: spec.hair || null,
   };
 }
 
@@ -238,7 +242,7 @@ function flowering(m, stage, spec, R) {
 
   const late = ready ? 0.9 : 0.16;
   const pistil = ready ? 0.42 : 0.28;
-  const frost = ready ? 0.26 : 0.05;
+  const frost = (ready ? 0.26 : 0.05) * (spec.frost || 1);
   const sites = ready
     ? [
         [14, 6, 3, 6, 2.35],
@@ -325,21 +329,22 @@ export function buildMiniCola(strain) {
   return m;
 }
 
-export function buildHangNug() {
+export function buildHangNug(strain) {
+  const spec = strainOf(strain);
   const m = new VoxelModel();
-  const R = mulberry(99);
-  const pal = [0x6f9e34, 0x4c8424, 0xc6e48a];
-  spear(m, 0, 0, 0, 7, 2.15, pal, R, {
-    stem: 0x6a8f32,
+  const R = mulberry(99 + spec.seed * 17);
+  spear(m, 0, 0, 0, 7, 2.15, spec.bud, R, {
+    stem: mix(0x6a8f32, spec.stem, 0.45),
     late: 0.92,
     pistil: 0.85,
-    frost: 0.4,
+    frost: 0.34 * (spec.frost || 1),
     sugars: 0,
     sugarLen: 2,
     fade: false,
     shortHair: true,
-    leafD: 0x2b6a2a,
-    leafL: 0x5fae3e,
+    leafD: spec.leafDark,
+    leafL: spec.leafLight,
+    hair: spec.hair || null,
     spin: 0.5,
   });
   for (let y = 8; y <= 12; y++) plot(m, 0, y, 0, 0xc9b98a, 0.02);
