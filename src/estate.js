@@ -4,8 +4,33 @@ import { buildPlant, PVS } from './plants.js';
 
 export const WAREHOUSE_PRICE = 520;
 export const SEED_PACK = { n: 4, cost: 16 };
-export const UNLOCK = { mother: 80, tube: 70, vegWest: 140, vegCenter: 140 };
+export const UNLOCK = { mother: 80, tube: 70, vegWest: 140, vegCenter: 140, bed: 80 };
 export const MOTA_PER_G = { A: 4, AA: 6, AAA: 9, AAAA: 14 };
+
+export function buildMotaToken() {
+  const m = new VoxelModel();
+  const R = 8;
+  const leaf = new Set();
+  for (let y = -2; y <= 5; y++) leaf.add(`0,${y}`);
+  for (let x = -3; x <= 3; x++) leaf.add(`${x},2`);
+  for (let x = -2; x <= 2; x++) leaf.add(`${x},3`);
+  for (let x = -2; x <= 2; x++) leaf.add(`${x},1`);
+  leaf.add('-1,4');
+  leaf.add('1,4');
+  leaf.add('0,6');
+  for (let x = -R; x <= R; x++) {
+    for (let y = -R; y <= R; y++) {
+      const d = Math.hypot(x, y);
+      if (d > R + 0.2) continue;
+      const rim = d > R - 1.8;
+      const stamp = leaf.has(`${x},${y}`);
+      const face = stamp ? 0x37b243 : rim ? 0xb87a10 : 0xffd24a;
+      const back = stamp ? 0x228433 : rim ? 0x7c540c : 0xe8a828;
+      for (let z = -1; z <= 1; z++) m.set(x, y, z, z === 0 ? rim ? 0x6a4810 : face : z > 0 ? face : back, 0.02);
+    }
+  }
+  return m;
+}
 export const WH = { x: 30, z: 0, hx: 7, hz: 5.5 };
 export const HOUSE = {
   half: 16.45,

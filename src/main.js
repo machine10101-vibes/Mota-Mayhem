@@ -3,10 +3,10 @@ import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
 import '@fontsource/press-start-2p';
 import './style.css';
 import { createPlayer, LOOK_KEYS, LOOK_OPTIONS, normalizeLook } from './character.js';
-import { buildWorld, SLOT_OFFSETS } from './world.js';
+import { BEDS, buildWorld, SLOT_OFFSETS } from './world.js';
 import { buildPlant, PVS } from './plants.js';
 import { VoxelModel, toMesh, voxelMaterial } from './voxel.js';
-import { HOUSE, LOFT, MOTA_PER_G, SEED_PACK, SUPPLIES, UNLOCK, WAREHOUSE_PRICE } from './estate.js';
+import { buildMotaToken, HOUSE, LOFT, MOTA_PER_G, SEED_PACK, SUPPLIES, UNLOCK, WAREHOUSE_PRICE } from './estate.js';
 import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace } from './strains.js';
 import { loadSave, writeSave } from './save.js';
@@ -202,6 +202,51 @@ function buildMarker() {
   marker.add(mesh);
   marker.visible = false;
   scene.add(marker);
+}
+
+const tokens = [];
+function spawnTokens() {
+  const src = toMesh(buildMotaToken(), 0.1, [0, 0, 0], new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), false);
+  const geo = src.geometry;
+  const mat = src.material;
+  const add = (x, y, z, parent, show, scale) => {
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    mesh.scale.setScalar(scale);
+    mesh.name = 'mota-token';
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    parent.add(mesh);
+    tokens.push({ mesh, y, phase: tokens.length * 0.7, show });
+  };
+  for (const mom of world.house.mothers) {
+    if (!mom.locked) continue;
+    add(mom.x, 2.85, mom.z, scene, () => !motherOpen(mom), 1.05);
+  }
+  const lockedTrays = world.house.trays.filter((t) => t.locked);
+  if (lockedTrays.length) {
+    const x = lockedTrays.reduce((n, t) => n + t.x, 0) / lockedTrays.length;
+    add(x, 2.7, lockedTrays[0].z, scene, () => !trayOpen(lockedTrays[0]), 1.05);
+  }
+  for (const room of ['west', 'center']) {
+    const pots = world.house.veg.filter((v) => v.room === room);
+    if (!pots.length) continue;
+    const x = pots.reduce((n, p) => n + p.x, 0) / pots.length;
+    const z = pots.reduce((n, p) => n + p.z, 0) / pots.length;
+    add(x, pots[0].y + 1.65, z, world.house.upper, () => !vegOpen(pots[0]), 1.05);
+  }
+  BEDS.forEach((b, bed) => add(b.x, 2.55, b.z, scene, () => !!slotsData[bed * 4]?.locked, 1.45));
+}
+
+function updateTokens(time) {
+  for (const tok of tokens) {
+    const show = tok.show();
+    tok.mesh.visible = show;
+    if (!show) continue;
+    tok.mesh.position.y = tok.y + Math.sin(time * 2.2 + tok.phase) * 0.12;
+    tok.mesh.lookAt(camera.position.x, tok.mesh.position.y, camera.position.z);
+    tok.mesh.rotateZ(Math.sin(time * 1.3 + tok.phase) * 0.16);
+  }
 }
 
 /* ------------------------------------------------------------------- input */
@@ -628,7 +673,7 @@ function updatePlayer(dt) {
 /* ------------------------------------------------------------------ plants */
 function initSlots() {
   world.slots.forEach((s, i) => {
-    const d = { state: 'empty', stage: 0, prog: 0, water: 0, waterVis: 0, stress: 0, age: 0, strain: 'bd', pop: 1, rot: ((i * 2654435761) % 628) / 100, fromClone: false };
+    const d = { state: 'empty', stage: 0, prog: 0, water: 0, waterVis: 0, stress: 0, age: 0, strain: 'bd', pop: 1, rot: ((i * 2654435761) % 628) / 100, fromClone: false, locked: (i / 4 | 0) !== 0 };
     slotsData.push(d);
     const mesh = new THREE.Mesh(plantGeo(0, d.strain), voxelMaterial);
     mesh.castShadow = true;
@@ -845,6 +890,7 @@ function beginGrow(plot, stage, fromClone, strain) {
 function actPlot(plot) {
   const { d, s } = plot;
   const mesh = plotMesh(plot);
+  if (plot.where === 'yard' && d.locked) return tryUnlockBed(s.bed);
   if (Math.hypot(s.x - P.x, s.z - P.z) > 0.3) P.facing = Math.atan2(s.x - P.x, s.z - P.z);
   if (d.state === 'empty') {
     if (state.clones.length) {
@@ -1123,6 +1169,23 @@ function vegOpen(pot) {
   if (!pot.up) return true;
   return pot.room === 'west' ? world.house.vegWest : world.house.vegCenter;
 }
+function tryUnlockBed(bed) {
+  if (!slotsData.some((d, i) => (i / 4 | 0) === bed && d.locked)) return false;
+  if (state.mota < UNLOCK.bed) {
+    toast(`NEED ${UNLOCK.bed} MOTA — GROW BOX`);
+    return true;
+  }
+  state.mota -= UNLOCK.bed;
+  slotsData.forEach((d, i) => {
+    if ((i / 4 | 0) === bed) d.locked = false;
+  });
+  P.cool = 0.4;
+  toast('GROW BOX UNLOCKED', 'good');
+  updateHud();
+  markDirty();
+  return true;
+}
+
 function tryUnlock(flag, cost, label) {
   if (world.house[flag]) return false;
   if (state.mota < cost) {
@@ -1515,7 +1578,7 @@ function updateTarget() {
   const atStation = st && st.d2 + 0.12 < gardenD;
   const plantingSeed = atStation
     ? st.kind === 'mother' && motherOpen(st.ref) && (!st.ref.state || st.ref.state === 'empty')
-    : !!(plot && plot.d.state === 'empty' && state.clones.length === 0);
+    : !!(plot && plot.d.state === 'empty' && !plot.d.locked && state.clones.length === 0);
   setStrainBar(plantingSeed);
   if (atStation) {
     showStation(st);
@@ -1537,7 +1600,11 @@ function updateTarget() {
   const actLbl = touchUI ? 'TAP' : 'SPACE';
   let text;
   let btn = 'ACT';
-  if (d.state === 'empty') {
+  if (plot.where === 'yard' && d.locked) {
+    const short = state.mota < UNLOCK.bed;
+    text = short ? `GROW BOX  ${state.mota}/${UNLOCK.bed} MOTA` : `${actLbl}  UNLOCK GROW BOX  ${UNLOCK.bed} MOTA`;
+    btn = short ? 'ACT' : 'BUY';
+  } else if (d.state === 'empty') {
     if (state.clones.length) {
       const clone = state.clones[0];
       text = `${actLbl}  PLANT ${strainOf(clone.strain).short} CLONE`;
@@ -1569,7 +1636,7 @@ function updateTarget() {
   setActLabel(btn);
   prompt.textContent = text;
   prompt.style.display = 'block';
-  if (d.state === 'empty') {
+  if (d.state === 'empty' || d.locked) {
     tip.style.display = 'none';
   } else {
     v3.set(s.x, s.y + 0.4 + d.stage * 0.35 + 0.8, s.z).project(camera);
@@ -1824,6 +1891,7 @@ function frame(now) {
   }
   particles.update(dt);
   updateCamera(dt);
+  updateTokens(time);
   updateTarget();
   saveClock += dt;
   if ((state.mode === 'play' || state.mode === 'dress' || state.mode === 'shop') && saveClock > 4) {
@@ -1947,6 +2015,7 @@ function snapshot() {
       tube2: !!world.house.tube2,
       vegWest: !!world.house.vegWest,
       vegCenter: !!world.house.vegCenter,
+      beds: BEDS.map((_, bed) => !slotsData[bed * 4]?.locked),
     },
   };
 }
@@ -2059,6 +2128,7 @@ function resetWorld() {
   world.house.upper.visible = false;
   P.facing = state.mode === 'dress' ? 0.62 : 0;
   blankPlots(slotsData, plantMeshes);
+  slotsData.forEach((d, i) => { d.locked = (i / 4 | 0) !== 0; });
   blankPlots(whData, whMeshes);
   const W = world.warehouse;
   W.owned = false;
@@ -2140,6 +2210,10 @@ function applySave(save) {
   world.house.tube2 = legacy ? true : !!u.tube2;
   world.house.vegWest = legacy ? true : !!u.vegWest;
   world.house.vegCenter = legacy ? true : !!u.vegCenter;
+  const beds = !legacy && Array.isArray(u.beds) ? u.beds : null;
+  slotsData.forEach((d, i) => {
+    d.locked = beds ? beds[i / 4 | 0] === false : false;
+  });
   world.shed.hooks.forEach((h, i) => restoreItem(h, save.hooks?.[i]));
   world.shed.cureJars.forEach((j, i) => restoreItem(j, save.cure?.[i]));
   const owned = !!save.warehouse;
@@ -2274,7 +2348,7 @@ function newGrow() {
   flushSave();
   refreshTitle();
   updateHud();
-  toast('NEW GROW — ONE MOTHER, ONE TUBE, FOUR VEG POTS', 'good');
+  toast('NEW GROW — ONE MOTHER, ONE TUBE, ONE GROW BOX', 'good');
 }
 
 function armReset(btn) {
@@ -2445,6 +2519,7 @@ function boot() {
   buildMarker();
   initSlots();
   initWarehouse();
+  spawnTokens();
   if (save) applySave(save);
   resize();
   addEventListener('resize', resize);
