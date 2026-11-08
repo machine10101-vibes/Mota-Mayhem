@@ -133,7 +133,21 @@ const geoCache = new Map();
 const marker = new THREE.Group();
 
 const DUR = [7, 11, 15, 15];
+const RIPE_TIME = 20;
 const STAGE_NAMES = ['SPROUT', 'SEEDLING', 'VEGETATIVE', 'FLOWERING', 'READY'];
+
+function trichomeBand(ripe) {
+  if (ripe < 0.34) return { id: 'clear', label: 'TRICHOMES CLEAR', pick: false };
+  if (ripe < 0.72) return { id: 'cloudy', label: 'TRICHOMES CLOUDY', pick: true };
+  if (ripe < 0.88) return { id: 'milky', label: 'CLOUDY + AMBER', pick: true };
+  return { id: 'amber', label: 'TRICHOMES AMBER', pick: false };
+}
+
+function paintLights(W = world?.warehouse) {
+  if (!W?.bulbMat) return;
+  const flower = W.lights === 'flower';
+  W.bulbMat.color.setHex(flower ? 0xffc56a : 0xb48cff);
+}
 
 function plantGeo(stage, strain) {
   const id = strainOf(strain).id;
@@ -638,8 +652,31 @@ function setStage(i, stage) {
   d.stage = stage;
   d.prog = 0;
   d.pop = 0;
+  d.holdVeg = false;
   plantMeshes[i].geometry = plantGeo(stage, d.strain);
-  if (stage >= 4) d.state = 'ready';
+  if (stage >= 4) {
+    d.state = 'ripening';
+    d.ripe = 0;
+  }
+}
+
+function finishStage(d, mesh, indoor) {
+  const next = d.stage + 1;
+  if (indoor && next === 3 && world.warehouse.lights !== 'flower') {
+    d.holdVeg = true;
+    d.prog = 0;
+    d.pop = 0;
+    return;
+  }
+  d.stage = next;
+  d.prog = 0;
+  d.pop = 0;
+  d.holdVeg = false;
+  if (next >= 4) {
+    d.state = 'ripening';
+    d.ripe = 0;
+  }
+  mesh.geometry = plantGeo(d.stage, d.strain);
 }
 
 function gradeOf(d) {
@@ -665,6 +702,7 @@ function presentPlant(mesh, d, i, time, dt) {
 }
 
 function growTick(d, dt, speed) {
+  if (d.stage >= 4) return false;
   d.water = Math.max(0, d.water - dt / 38);
   const dry = d.water <= 0;
   d.age += dt;
@@ -680,10 +718,14 @@ function updatePlants(dt, time) {
     if (d.state === 'empty') mesh.visible = false;
     else {
       mesh.visible = true;
-      if (d.state === 'growing' && growTick(d, dt, 1)) {
-        const next = d.stage + 1;
-        setStage(i, next);
-        burst(s, next >= 4 ? 0xfff3a0 : 0xbfe88a);
+      if (d.state === 'ripening') {
+        d.water = Math.max(0, d.water - dt / 38);
+        d.age += dt;
+        if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
+        d.ripe = Math.min(1.25, (d.ripe || 0) + dt / RIPE_TIME);
+      } else if (d.state === 'growing' && growTick(d, dt, 1)) {
+        finishStage(d, mesh, false);
+        burst(s, d.state === 'ripening' ? 0xfff3a0 : 0xbfe88a);
       }
       presentPlant(mesh, d, i, time, dt);
     }
@@ -698,13 +740,31 @@ function updatePlants(dt, time) {
     if (d.state === 'empty') mesh.visible = false;
     else {
       mesh.visible = true;
-      if (d.state === 'growing' && growTick(d, dt, 1.35)) {
-        d.stage += 1;
-        d.prog = 0;
-        d.pop = 0;
-        if (d.stage >= 4) d.state = 'ready';
-        mesh.geometry = plantGeo(d.stage, d.strain);
-        burst(s, d.stage >= 4 ? 0xfff3a0 : 0xd7b4ff);
+      const flower = world.warehouse.lights === 'flower';
+      if (d.holdVeg) {
+        d.water = Math.max(0, d.water - dt / 38);
+        d.age += dt;
+        if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
+        if (flower) {
+          d.holdVeg = false;
+          d.stage = 3;
+          d.prog = 0;
+          d.pop = 0;
+          mesh.geometry = plantGeo(3, d.strain);
+          burst(s, 0xd7b4ff);
+        }
+      } else if (d.state === 'ripening') {
+        d.water = Math.max(0, d.water - dt / 38);
+        d.age += dt;
+        if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
+        if (flower) d.ripe = Math.min(1.25, (d.ripe || 0) + dt / (RIPE_TIME / 1.15));
+      } else if (d.state === 'growing' && d.stage >= 3 && !flower) {
+        d.water = Math.max(0, d.water - dt / 38);
+        d.age += dt;
+        if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
+      } else if (d.state === 'growing' && growTick(d, dt, 1.35)) {
+        finishStage(d, mesh, true);
+        burst(s, d.state === 'ripening' ? 0xfff3a0 : 0xd7b4ff);
       }
       presentPlant(mesh, d, i + 40, time, dt);
     }
@@ -760,6 +820,8 @@ function beginGrow(plot, stage, fromClone, strain) {
   d.water = fromClone ? 0.9 : 0.6;
   d.stress = 0;
   d.age = 0;
+  d.ripe = 0;
+  d.holdVeg = false;
   if (where === 'yard') setStage(i, stage);
   else {
     d.stage = stage;
@@ -795,19 +857,44 @@ function actPlot(plot) {
     });
     updateHud();
   } else if (d.state === 'growing') {
-    if (d.water > 0.7) return toast('PLANT IS WELL WATERED');
-    d.water = 1;
-    P.cool = 0.75;
-    player.playAction('water');
-    markDirty();
-    for (let k = 0; k < 26; k++)
-      later(0.2 + k * 0.016, () => particles.emit({ x: P.x + Math.sin(P.facing) * 0.95 + (Math.random() - 0.5) * 0.15, y: 1.25, z: P.z + Math.cos(P.facing) * 0.95 + (Math.random() - 0.5) * 0.15, vx: Math.sin(P.facing) * 0.5, vy: -0.5, vz: Math.cos(P.facing) * 0.5, life: 0.5, size: 0.065, color: 0x7ec8f2, color2: 0x3f86c8, g: -9 }));
-  } else if (d.state === 'ready') {
-    const grade = gradeOf(d);
+    if (d.water <= 0.7) {
+      d.water = 1;
+      P.cool = 0.75;
+      player.playAction('water');
+      markDirty();
+      for (let k = 0; k < 26; k++)
+        later(0.2 + k * 0.016, () => particles.emit({ x: P.x + Math.sin(P.facing) * 0.95 + (Math.random() - 0.5) * 0.15, y: 1.25, z: P.z + Math.cos(P.facing) * 0.95 + (Math.random() - 0.5) * 0.15, vx: Math.sin(P.facing) * 0.5, vy: -0.5, vz: Math.cos(P.facing) * 0.5, life: 0.5, size: 0.065, color: 0x7ec8f2, color2: 0x3f86c8, g: -9 }));
+      return;
+    }
+    if (d.holdVeg) return toast('FLIP THE WAREHOUSE TO 12/12');
+    if (d.stage >= 3 && state.nutrients > 0) {
+      state.nutrients--;
+      d.water = 1;
+      d.stress = Math.max(0, d.stress - Math.max(1, d.age) * 0.15);
+      P.cool = 0.45;
+      player.playAction('water');
+      toast('BLOOM FEED — FLOWER STRESS EASED', 'good');
+      updateHud();
+      markDirty();
+      return;
+    }
+    return toast('PLANT IS WELL WATERED');
+  } else if (d.state === 'ready' || d.state === 'ripening') {
+    let grade = gradeOf(d);
+    let call = '';
+    if (d.state === 'ripening') {
+      const band = trichomeBand(d.ripe || 0);
+      const next = band.pick ? grade : dropGrade(grade);
+      call = ` — ${band.label}`;
+      if (next !== grade) {
+        grade = next;
+        call += ' — GRADE DROPPED';
+      }
+    }
     const grams = gramsFor(grade);
     if (state.wet.length >= 12) return toast('HANDS ARE FULL — HANG IT IN THE SHED');
     const id = strainOf(d.strain).id;
-    state.wet.push({ grade, grams, strain: id });
+    state.wet.push({ grade, grams, strain: id, trimmed: false });
     state.harvested++;
     state.seeds[id] = (state.seeds[id] | 0) + 1;
     markDirty();
@@ -815,11 +902,13 @@ function actPlot(plot) {
     player.playAction('harvest');
     d.state = 'empty';
     d.water = 0;
+    d.ripe = 0;
+    d.holdVeg = false;
     d.fromClone = false;
     mesh.visible = false;
     later(0.3, () => {
       for (let k = 0; k < 34; k++) particles.emit({ x: s.x, y: s.y + 0.7, z: s.z, vx: (Math.random() - 0.5) * 3, vy: 2 + Math.random() * 3, vz: (Math.random() - 0.5) * 3, life: 1, size: 0.08, color: k % 3 === 0 ? 0xf08a2e : 0xf4fbe6, g: -5 });
-      toast(`${strainOf(id).short} ${grade} WET FLOWER — DRY IT IN THE SHED`, 'good');
+      toast(`${strainOf(id).short} ${grade} WET FLOWER${call} — TRIM IT IN THE SHED`, call.includes('DROPPED') ? '' : 'good');
     });
     updateHud();
   }
@@ -905,7 +994,10 @@ function stationFocus() {
   }
   consider(world.stand.x, world.stand.z, 'stand', null, 1.55);
   if (!world.warehouse.owned) consider(world.lot.x, world.lot.z, 'lot', null, 1.7);
-  else consider(22.15, 0, 'wh-door', null, 1.65);
+  else {
+    consider(22.15, 0, 'wh-door', null, 1.65);
+    if (world.warehouse.open || world.warehouse.contains(P.x, P.z)) consider(world.warehouse.lightSwitch.x, world.warehouse.lightSwitch.z, 'wh-lights', null, 1.55, 1.15, 1);
+  }
   return best;
 }
 
@@ -948,6 +1040,16 @@ function actStation(f) {
   if (f.kind === 'computer') return openShop();
   if (f.kind === 'stand') return actStand();
   if (f.kind === 'lot') return actBuyWarehouse();
+  if (f.kind === 'wh-lights') {
+    const W = world.warehouse;
+    W.lights = W.lights === 'flower' ? 'veg' : 'flower';
+    paintLights(W);
+    P.cool = 0.35;
+    const waiting = whData.some((d) => d.holdVeg);
+    toast(W.lights === 'flower' ? (waiting ? '12/12 — FLOWER STARTED' : '12/12 — FLOWERING LIGHTS') : '18/6 — VEG LIGHTS', 'good');
+    markDirty();
+    return true;
+  }
   if (f.kind === 'hook') {
     const h = f.ref;
     if (!h.item) {
@@ -955,7 +1057,16 @@ function actStation(f) {
         toast('HARVEST A PLANT FIRST');
         return true;
       }
-      const bud = state.wet.shift();
+      const bud = state.wet[0];
+      if (!bud.trimmed) {
+        bud.trimmed = true;
+        P.cool = 0.35;
+        player.playAction('harvest');
+        toast('HAND TRIMMED — TRICHOMES KEPT', 'good');
+        markDirty();
+        return true;
+      }
+      state.wet.shift();
       h.item = { ...bud, t: 0, dry: 0, hold: 0, dropped: false };
       h.mesh.visible = true;
       h.mesh.scale.setScalar(1);
@@ -1402,14 +1513,24 @@ function updateTarget() {
       text = pick.ok ? `${actLbl}  ${pick.text}` : pick.text;
       btn = pick.ok ? 'PLANT' : 'ACT';
     }
+  } else if (d.state === 'ripening') {
+    const band = trichomeBand(d.ripe || 0);
+    text = `${actLbl}  HARVEST — ${band.label}`;
+    btn = band.pick ? 'PICK' : band.id === 'amber' ? 'LATE' : 'EARLY';
   } else if (d.state === 'ready') {
     text = `${actLbl}  HARVEST`;
     btn = 'PICK';
-  } else if (d.water > 0.7) {
-    text = 'WELL WATERED';
-  } else {
+  } else if (d.water <= 0.7) {
     text = `${actLbl}  WATER`;
     btn = 'WATER';
+  } else if (d.holdVeg) {
+    text = 'WAITING FOR 12/12';
+    btn = 'ACT';
+  } else if (d.stage >= 3 && state.nutrients > 0) {
+    text = `${actLbl}  BLOOM FEED`;
+    btn = 'FEED';
+  } else {
+    text = 'WELL WATERED';
   }
   setActLabel(btn);
   prompt.textContent = text;
@@ -1421,11 +1542,12 @@ function updateTarget() {
     tip.style.display = 'block';
     tip.style.left = ((v3.x * 0.5 + 0.5) * 100).toFixed(2) + '%';
     tip.style.top = ((-v3.y * 0.5 + 0.5) * 100).toFixed(2) + '%';
-    $('tip-name').textContent = `${strainOf(d.strain).short} ${STAGE_NAMES[d.stage]}`;
+    const band = d.state === 'ripening' ? trichomeBand(d.ripe || 0) : null;
+    $('tip-name').textContent = `${strainOf(d.strain).short} ${d.holdVeg ? 'VEGETATIVE' : STAGE_NAMES[d.stage]}`;
     $('tip-water').style.width = Math.round(d.water * 100) + '%';
     $('tip-water').style.background = d.water > 0 ? '#58b4ee' : '#d9534f';
-    $('tip-grow').style.width = Math.round((d.state === 'ready' ? 1 : (d.stage + d.prog) / 4) * 100) + '%';
-    $('tip-grade').textContent = d.state === 'ready' ? gradeOf(d) : '';
+    $('tip-grow').style.width = Math.round((d.state === 'ready' ? 1 : d.state === 'ripening' ? Math.min(1, d.ripe || 0) : d.holdVeg ? 0.5 : (d.stage + d.prog) / 4) * 100) + '%';
+    $('tip-grade').textContent = band ? band.label : d.holdVeg ? '18/6' : d.state === 'ready' ? gradeOf(d) : '';
   }
   return plot.i;
 }
@@ -1468,9 +1590,15 @@ function stationUi(st, actLbl) {
     const open = world.warehouse.open;
     return { text: open ? `${actLbl}  CLOSE WAREHOUSE` : `${actLbl}  OPEN WAREHOUSE`, btn: open ? 'CLOSE' : 'OPEN' };
   }
+  if (st.kind === 'wh-lights') {
+    const flower = world.warehouse.lights === 'flower';
+    return { text: flower ? `${actLbl}  FLIP TO 18/6` : `${actLbl}  FLIP TO 12/12`, btn: flower ? '18/6' : '12/12' };
+  }
   if (st.kind === 'hook') {
     const it = st.ref.item;
-    if (!it) return { text: state.wet.length ? `${actLbl}  HANG TO DRY` : 'HARVEST FIRST', btn: state.wet.length ? 'HANG' : 'ACT' };
+    const bud = state.wet[0];
+    if (!it && bud && !bud.trimmed) return { text: `${actLbl}  HAND TRIM ${bud.grade}`, btn: 'TRIM' };
+    if (!it) return { text: bud ? `${actLbl}  HANG ${bud.grade}` : 'HARVEST FIRST', btn: bud ? 'HANG' : 'ACT' };
     if (it.dry < 1) return { text: `DRYING ${Math.round(it.dry * 100)}%  ${it.grade}`, btn: 'ACT' };
     const left = Math.max(0, Math.ceil(10 - (it.hold || 0)));
     return { text: `${actLbl}  JAR ${it.grade} · ${left}s`, btn: 'JAR' };
@@ -1711,6 +1839,8 @@ function plotSnap(d) {
     age: d.age,
     strain: d.strain || 'bd',
     fromClone: !!d.fromClone,
+    ripe: d.ripe || 0,
+    holdVeg: !!d.holdVeg,
   };
 }
 
@@ -1738,7 +1868,7 @@ function snapshot() {
     grams: state.grams | 0,
     harvested: state.harvested | 0,
     jars: { AAAA: state.jars.AAAA | 0, AAA: state.jars.AAA | 0, AA: state.jars.AA | 0, A: state.jars.A | 0 },
-    wet: state.wet.slice(0, 12).map((w) => ({ grade: w.grade, grams: w.grams | 0, strain: w.strain || 'bd' })),
+    wet: state.wet.slice(0, 12).map((w) => ({ grade: w.grade, grams: w.grams | 0, strain: w.strain || 'bd', trimmed: !!w.trimmed })),
     seeds: { bd: state.seeds.bd | 0, gdp: state.seeds.gdp | 0 },
     clones: state.clones.slice(0, 8).map((c) => ({ strain: strainOf(c.strain).id })),
     nutrients: state.nutrients | 0,
@@ -1749,6 +1879,7 @@ function snapshot() {
     pz: P.z,
     facing: P.facing,
     warehouse: !!world.warehouse.owned,
+    lights: world.warehouse.lights === 'flower' ? 'flower' : 'veg',
     plots: slotsData.map(plotSnap),
     wh: whData.map(plotSnap),
     mothers: world.house.mothers.map((m) => ({
@@ -1774,13 +1905,15 @@ function flushSave() {
 }
 
 function applyPlot(d, mesh, snap) {
-  const growing = snap.state === 'growing' || snap.state === 'ready';
+  const growing = snap.state === 'growing' || snap.state === 'ready' || snap.state === 'ripening';
   d.state = growing ? snap.state : 'empty';
   d.stage = Math.max(0, Math.min(4, snap.stage | 0));
   d.prog = Number(snap.prog) || 0;
   d.water = Number(snap.water) || 0;
   d.stress = Number(snap.stress) || 0;
   d.age = Number(snap.age) || 0;
+  d.ripe = Number(snap.ripe) || 0;
+  d.holdVeg = !!snap.holdVeg && d.state === 'growing';
   d.strain = strainOf(snap.strain).id;
   d.fromClone = !!snap.fromClone;
   d.pop = 0;
@@ -1845,6 +1978,8 @@ function blankPlots(list, meshes) {
     d.stress = 0;
     d.age = 0;
     d.strain = 'bd';
+    d.ripe = 0;
+    d.holdVeg = false;
     d.fromClone = false;
     d.pop = 0;
     meshes[i].visible = false;
@@ -1874,6 +2009,8 @@ function resetWorld() {
   W.owned = false;
   W.gateOpen = false;
   W.open = false;
+  W.lights = 'veg';
+  paintLights(W);
   W.forSale.visible = true;
   world.lot.mesh.visible = true;
   world.house.open = false;
@@ -1897,7 +2034,7 @@ function applySave(save) {
   state.harvested = save.harvested | 0;
   for (const g of GRADES) state.jars[g] = Math.max(0, save.jars?.[g] | 0);
   syncCuredGrams();
-  state.wet = Array.isArray(save.wet) ? save.wet.slice(0, 12).map((w) => ({ grade: GRADES.includes(w.grade) ? w.grade : 'A', grams: w.grams | 0, strain: strainOf(w.strain).id })) : [];
+  state.wet = Array.isArray(save.wet) ? save.wet.slice(0, 12).map((w) => ({ grade: GRADES.includes(w.grade) ? w.grade : 'A', grams: w.grams | 0, strain: strainOf(w.strain).id, trimmed: w.trimmed === undefined ? true : !!w.trimmed })) : [];
   state.seeds = { bd: Math.max(0, save.seeds?.bd | 0), gdp: Math.max(0, save.seeds?.gdp | 0) };
   state.clones = Array.isArray(save.clones) ? save.clones.slice(0, 8).map((c) => ({ strain: strainOf(c.strain || c).id })) : [];
   state.nutrients = Math.max(0, save.nutrients | 0);
@@ -1945,6 +2082,8 @@ function applySave(save) {
   world.warehouse.gateOpen = owned;
   world.warehouse.open = false;
   world.warehouse.forSale.visible = !owned;
+  world.warehouse.lights = save.lights === 'flower' ? 'flower' : 'veg';
+  paintLights(world.warehouse);
   world.lot.mesh.visible = !owned;
   world.house.open = false;
   world.shed.open = false;

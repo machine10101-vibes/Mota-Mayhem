@@ -33,9 +33,7 @@ Phone and tablet: tap to start. Left stick moves, **RUN** sprints, **ACT** (or t
 A new grow starts with 10 Blue Dream seeds and 10 Granddaddy Purple seeds. Plant either strain in the 24 bed
 plots, or plant a vegged clone if you have one. Each plant grows through sprout, seedling, vegetative, flowering
 and ready, and a harvest returns one seed of that strain. Clones skip ahead to vegetative and keep the mother's
-strain. Keep soil watered: dry plants slow down and accumulate stress. Harvest grade (A, AA, AAA, AAAA) starts
-from how consistently you watered, then you finish it in the shed. Open the shed door, walk in, hang wet flower
-to dry, jar it, and burp the jar while it cures. Skipping the burp or leaving a hang too long drops the grade.
+strain. Keep soil watered: dry plants slow down and accumulate stress. A flowering plant can take a bloom feed if you are carrying nutrients. Harvest grade (A, AA, AAA, AAAA) starts from how consistently you watered. The finished plant then ripens: clear trichomes are early, cloudy and cloudy-with-amber are the pick, and mostly amber is late. Picking outside that window drops the grade. Open the shed door, walk in, hand-trim the wet flower, hang it to dry, jar it, and burp the jar while it cures. Skipping the burp or leaving a hang too long drops the grade.
 Cured flower lands in the jars.
 
 Open the house from the porch. The mother, clone, and veg rooms run deep enough to walk into and wide enough to move around the pots. The mother room on the left starts with two empty pots. Plant a seed you are
@@ -48,8 +46,7 @@ Stairs in the mother room climb to a second story the same depth and width as th
 
 The porch stand sells cured jars for MOTA, the in-game
 token. A mixed seed pack (2 Blue Dream and 2 Granddaddy Purple) is there too when you are low. The east lot
-sells a warehouse for 520 MOTA. Buying it opens the gate. Inside are nine indoor pots under lights that flower
-a little faster than the yard. Post-harvest is sped up from the 10–14 day dry and multi-week cure.
+sells a warehouse for 520 MOTA. Buying it opens the gate. Inside are nine indoor pots under 18/6 veg lights. Flip the switch inside to 12/12 when a plant is waiting, and it flowers a little faster than the yard. Ripening pauses if you flip the lights back. Post-harvest is sped up from the 10–14 day dry and multi-week cure.
 
 The farmer icon on the title screen and while you play, and the C key, open the character menu: skin, hair, hat,
 shirt, overalls, and boots, with a live preview. The backpack icon opens the inventory of MOTA, seeds, clones, feed, and jars. Both panels stay closed until that icon is clicked. **NEW GROW** resets the farm to the starter seeds and keeps

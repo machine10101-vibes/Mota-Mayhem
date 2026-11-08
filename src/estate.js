@@ -582,16 +582,19 @@ function buildWarehouseParts() {
   glass.box(-hx + 1, 18, 24, -hx + 2, 34, 46, 0xc5e7f6, 0.01);
   glass.box(-hx + 1, 18, -46, -hx + 2, 34, -24, 0xc5e7f6, 0.01);
   glass.box(-20, 18, hz - 2, 20, 34, hz - 1, 0xc5e7f6, 0.01);
-  for (const lz of [-38, 0, 38]) {
-    shell.box(-50, 2, lz - 9, 44, 6, lz + 9, 0x4a5450, 0.03);
-    shell.box(-46, 38, lz - 1, 40, 40, lz + 2, 0x241c33, 0.02);
-    shell.box(-44, 37, lz, 38, 38, lz + 1, 0xd7b4ff, 0.01);
-  }
+  for (const lz of [-38, 0, 38]) shell.box(-50, 2, lz - 9, 44, 6, lz + 9, 0x4a5450, 0.03);
   paintWall(shell, 'WAREHOUSE', 0, 30, hz, 2, 0xf3e7b0);
   roof.box(-hx - 3, H - 1, -hz - 3, hx + 3, H + 2, hz + 3, 0x3a4450, 0.03);
   roof.box(-hx - 1, H + 2, -3, hx + 1, H + 5, 3, 0x2f7f4a, 0.02);
   for (let x = -hx; x <= hx; x += 18) roof.box(x, H - 4, -hz, x + 2, H, hz, 0x2c3540, 0.02);
-  return { shell, roof, glass };
+  const bulbs = new VoxelModel();
+  for (const lz of [-38, 0, 38]) {
+    bulbs.box(-46, 37, lz - 1, 40, 40, lz + 2, 0xffffff, 0);
+  }
+  const sw = new VoxelModel();
+  sw.box(-80, 14, 22, -77, 24, 28, 0x2c322c, 0.02);
+  sw.box(-77, 17, 24, -76, 21, 26, 0xe7e2d4, 0.01);
+  return { shell, roof, glass, bulbs, sw };
 }
 
 function buildSaleBanner() {
@@ -609,6 +612,9 @@ function buildWarehouse(group, colliders) {
   const glassMat = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.32, depthWrite: false });
   const glass = place(group, parts.glass, 1 / U, WH.x, 0, WH.z, 0, glassMat, false);
   glass.renderOrder = 2;
+  const bulbMat = new THREE.MeshLambertMaterial({ vertexColors: true, color: 0xb48cff });
+  const bulbs = place(group, parts.bulbs, 1 / U, WH.x, 0, WH.z, 0, bulbMat, false);
+  place(group, parts.sw, 1 / U, WH.x, 0, WH.z);
   const forSale = place(group, buildSaleBanner(), 1 / 14, WH.x, 1.15, WH.z + WH.hz + 0.08);
 
   const door = new THREE.Group();
@@ -631,6 +637,7 @@ function buildWarehouse(group, colliders) {
     { x0: east - 0.32, x1: east + 0.12, z0: -hz, z1: hz },
     { x0: west, x1: east, z0: hz - 0.32, z1: hz + 0.12 },
     { x0: west, x1: east, z0: -hz - 0.12, z1: -hz + 0.32 },
+    { x0: 23.25, x1: 23.72, z0: 1.75, z1: 2.45 },
   );
 
   const slots = [];
@@ -646,6 +653,10 @@ function buildWarehouse(group, colliders) {
     open: false,
     owned: false,
     gateOpen: false,
+    lights: 'veg',
+    bulbMat,
+    bulbs,
+    lightSwitch: { x: 24.05, z: 2.1 },
     slots,
     doorBlock: { x0: west - 0.05, x1: west + 0.4, z0: -1.35, z1: 1.35 },
     gateBlock: { x0: 19.7, x1: 20.4, z0: -1.25, z1: 1.25 },
