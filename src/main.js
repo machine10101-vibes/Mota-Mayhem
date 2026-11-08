@@ -6,7 +6,7 @@ import { createPlayer, LOOK_KEYS, LOOK_OPTIONS, normalizeLook } from './characte
 import { buildWorld, SLOT_OFFSETS } from './world.js';
 import { buildPlant, PVS } from './plants.js';
 import { VoxelModel, toMesh, voxelMaterial } from './voxel.js';
-import { HOUSE, LOFT, MOTA_PER_G, SEED_PACK, SUPPLIES, WAREHOUSE_PRICE } from './estate.js';
+import { HOUSE, LOFT, MOTA_PER_G, SEED_PACK, SUPPLIES, UNLOCK, WAREHOUSE_PRICE } from './estate.js';
 import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace } from './strains.js';
 import { loadSave, writeSave } from './save.js';
@@ -132,8 +132,16 @@ const whMeshes = [];
 const geoCache = new Map();
 const marker = new THREE.Group();
 
-const DUR = [7, 11, 15, 15];
-const RIPE_TIME = 20;
+const GROW = 6;
+const DUR = [7, 11, 15, 15].map((n) => n * GROW);
+const RIPE_TIME = 20 * GROW;
+const THIRST = 110;
+const DRY_TIME = 14 * GROW;
+const CURE_TIME = 16 * GROW;
+const HANG_GRACE = 10 * GROW;
+const ROOT_TIME = 12 * GROW;
+const VEG_TIME = 16 * GROW;
+const MOTHER_DUR = [8, 10].map((n) => n * GROW);
 const STAGE_NAMES = ['SPROUT', 'SEEDLING', 'VEGETATIVE', 'FLOWERING', 'READY'];
 
 function trichomeBand(ripe) {
@@ -703,7 +711,7 @@ function presentPlant(mesh, d, i, time, dt) {
 
 function growTick(d, dt, speed) {
   if (d.stage >= 4) return false;
-  d.water = Math.max(0, d.water - dt / 38);
+  d.water = Math.max(0, d.water - dt / THIRST);
   const dry = d.water <= 0;
   d.age += dt;
   if (dry) d.stress += dt * (d.fromClone ? 0.7 : 1);
@@ -719,7 +727,7 @@ function updatePlants(dt, time) {
     else {
       mesh.visible = true;
       if (d.state === 'ripening') {
-        d.water = Math.max(0, d.water - dt / 38);
+        d.water = Math.max(0, d.water - dt / THIRST);
         d.age += dt;
         if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
         d.ripe = Math.min(1.25, (d.ripe || 0) + dt / (RIPE_TIME * strainPace(d.strain, 4)));
@@ -742,7 +750,7 @@ function updatePlants(dt, time) {
       mesh.visible = true;
       const flower = world.warehouse.lights === 'flower';
       if (d.holdVeg) {
-        d.water = Math.max(0, d.water - dt / 38);
+        d.water = Math.max(0, d.water - dt / THIRST);
         d.age += dt;
         if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
         if (flower) {
@@ -754,12 +762,12 @@ function updatePlants(dt, time) {
           burst(s, 0xd7b4ff);
         }
       } else if (d.state === 'ripening') {
-        d.water = Math.max(0, d.water - dt / 38);
+        d.water = Math.max(0, d.water - dt / THIRST);
         d.age += dt;
         if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
         if (flower) d.ripe = Math.min(1.25, (d.ripe || 0) + dt / ((RIPE_TIME / 1.15) * strainPace(d.strain, 4)));
       } else if (d.state === 'growing' && d.stage >= 3 && !flower) {
-        d.water = Math.max(0, d.water - dt / 38);
+        d.water = Math.max(0, d.water - dt / THIRST);
         d.age += dt;
         if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
       } else if (d.state === 'growing' && growTick(d, dt, 1.35)) {
@@ -937,8 +945,6 @@ function act(slotIndex = -1) {
 }
 
 const GRADES = ['A', 'AA', 'AAA', 'AAAA'];
-const DRY_TIME = 14;
-const CURE_TIME = 16;
 function dropGrade(g) {
   const i = GRADES.indexOf(g);
   return GRADES[Math.max(0, i - 1)] || g;
@@ -955,10 +961,6 @@ function applyGradeDrop(it) {
 function syncCuredGrams() {
   state.grams = GRADES.reduce((n, g) => n + (state.jars[g] | 0) * gramsFor(g), 0);
 }
-
-const ROOT_TIME = 12;
-const VEG_TIME = 16;
-const MOTHER_DUR = [8, 10];
 
 function stationFocus() {
   if (!world?.shed) return null;
@@ -1111,7 +1113,33 @@ function actStation(f) {
   return true;
 }
 
+function motherOpen(mom) {
+  return !mom.locked || world.house.mother2;
+}
+function trayOpen(tray) {
+  return !tray.locked || world.house.tube2;
+}
+function vegOpen(pot) {
+  if (!pot.up) return true;
+  return pot.room === 'west' ? world.house.vegWest : world.house.vegCenter;
+}
+function tryUnlock(flag, cost, label) {
+  if (world.house[flag]) return false;
+  if (state.mota < cost) {
+    toast(`NEED ${cost} MOTA — ${label}`);
+    return true;
+  }
+  state.mota -= cost;
+  world.house[flag] = true;
+  P.cool = 0.4;
+  toast(`${label} UNLOCKED`, 'good');
+  updateHud();
+  markDirty();
+  return true;
+}
+
 function actMother(mom) {
+  if (!motherOpen(mom)) return tryUnlock('mother2', UNLOCK.mother, '2ND MOTHER');
   if (!mom.state || mom.state === 'empty') {
     const pick = seedChoice();
     if (!pick.ok) return toast(pick.text);
@@ -1157,8 +1185,8 @@ function actMother(mom) {
     if (state.nutrients > 0) return feedMother(mom);
     return toast('MOTHER IS RESTING');
   }
-  const tray = world.house.trays.find((t) => t.state === 'empty');
-  if (!tray) return toast('HYDRO TUBES ARE FULL');
+  const tray = world.house.trays.find((t) => t.state === 'empty' && trayOpen(t));
+  if (!tray) return toast(world.house.tube2 ? 'HYDRO TUBES ARE FULL' : 'TUBES ARE FULL — UNLOCK THE BACK ROW');
   mom.cool = 8;
   mom.water = Math.max(0, mom.water - 0.22);
   tray.state = 'rooting';
@@ -1189,6 +1217,7 @@ function feedMother(mom) {
 }
 
 function actTray(tray) {
+  if (!trayOpen(tray)) return tryUnlock('tube2', UNLOCK.tube, 'BACK TUBE ROW');
   if (tray.state === 'empty') return toast('TAKE A CUTTING FROM A MOTHER');
   if (tray.state === 'rooting') {
     if (state.cubes > 0) {
@@ -1212,8 +1241,8 @@ function actTray(tray) {
     return toast('STILL ROOTING');
   }
   if (tray.state !== 'ready') return toast('STILL ROOTING');
-  const pot = world.house.veg.find((v) => v.state === 'empty');
-  if (!pot) return toast('VEG POTS ARE FULL');
+  const pot = world.house.veg.find((v) => v.state === 'empty' && vegOpen(v));
+  if (!pot) return toast(world.house.vegWest && world.house.vegCenter ? 'VEG POTS ARE FULL' : 'DOWNSTAIRS VEG IS FULL — UPSTAIRS ROOMS TAKE MOTA');
   pot.state = 'veg';
   pot.t = 0;
   pot.strain = tray.strain || 'bd';
@@ -1230,6 +1259,10 @@ function actTray(tray) {
 }
 
 function actVeg(pot) {
+  if (!vegOpen(pot)) {
+    const west = pot.room === 'west';
+    return tryUnlock(west ? 'vegWest' : 'vegCenter', west ? UNLOCK.vegWest : UNLOCK.vegCenter, west ? 'WEST VEG ROOM' : 'CENTER VEG ROOM');
+  }
   if (pot.state === 'empty') return toast('BRING A ROOTED CLONE');
   if (pot.state === 'veg' && state.nutrients > 0) {
     state.nutrients--;
@@ -1313,7 +1346,7 @@ function updateShed(dt) {
       it.dry = Math.min(1, it.t / DRY_TIME);
     } else {
       it.hold += dt;
-      if (it.hold > 10 && !it.dropped) {
+      if (it.hold > HANG_GRACE && !it.dropped) {
         it.dropped = true;
         if (applyGradeDrop(it)) toast('OVERDRIED — GRADE DROPPED');
         markDirty();
@@ -1357,7 +1390,7 @@ function updateShed(dt) {
   house.facade.visible = showHouseShell;
   for (const mom of house.mothers) {
     if (mom.state === 'growing') {
-      mom.water = Math.max(0, mom.water - dt / 40);
+      mom.water = Math.max(0, mom.water - dt / THIRST);
       const rate = mom.water <= 0 ? 0.35 : 1;
       mom.prog += (dt * rate) / (MOTHER_DUR[Math.min(mom.stage, 1)] * strainPace(mom.strain, 2));
       if (mom.prog >= 1) {
@@ -1374,7 +1407,7 @@ function updateShed(dt) {
       }
       mom.plant.scale.setScalar((mom.state === 'mother' ? 1.2 : 0.5 + mom.stage * 0.28 + mom.prog * 0.1) * (strainOf(mom.strain).stature || 1));
     } else if (mom.state === 'mother') {
-      mom.water = Math.max(0, mom.water - dt / 52);
+      mom.water = Math.max(0, mom.water - dt / (THIRST * 1.25));
       mom.cool = Math.max(0, mom.cool - dt);
     }
     if (mom.plant.visible) mom.plant.rotation.z = Math.sin(cam.t * 1.3 + mom.x) * 0.03;
@@ -1481,7 +1514,7 @@ function updateTarget() {
   const gardenD = plot ? plot.d2 : Infinity;
   const atStation = st && st.d2 + 0.12 < gardenD;
   const plantingSeed = atStation
-    ? st.kind === 'mother' && (!st.ref.state || st.ref.state === 'empty')
+    ? st.kind === 'mother' && motherOpen(st.ref) && (!st.ref.state || st.ref.state === 'empty')
     : !!(plot && plot.d.state === 'empty' && state.clones.length === 0);
   setStrainBar(plantingSeed);
   if (atStation) {
@@ -1602,7 +1635,7 @@ function stationUi(st, actLbl) {
     if (!it && bud && !bud.trimmed) return { text: `${actLbl}  HAND TRIM ${bud.grade}`, btn: 'TRIM' };
     if (!it) return { text: bud ? `${actLbl}  HANG ${bud.grade}` : 'HARVEST FIRST', btn: bud ? 'HANG' : 'ACT' };
     if (it.dry < 1) return { text: `DRYING ${Math.round(it.dry * 100)}%  ${it.grade}`, btn: 'ACT' };
-    const left = Math.max(0, Math.ceil(10 - (it.hold || 0)));
+    const left = Math.max(0, Math.ceil(HANG_GRACE - (it.hold || 0)));
     return { text: `${actLbl}  JAR ${it.grade} · ${left}s`, btn: 'JAR' };
   }
   if (st.kind === 'jar') {
@@ -1615,6 +1648,10 @@ function stationUi(st, actLbl) {
   }
   if (st.kind === 'mother') {
     const mom = st.ref;
+    if (!motherOpen(mom)) {
+      const short = state.mota < UNLOCK.mother;
+      return { text: short ? `2ND MOTHER  ${state.mota}/${UNLOCK.mother} MOTA` : `${actLbl}  UNLOCK 2ND MOTHER  ${UNLOCK.mother} MOTA`, btn: short ? 'ACT' : 'BUY' };
+    }
     if (!mom.state || mom.state === 'empty') {
       const pick = seedChoice();
       return { text: pick.ok ? `${actLbl}  ${pick.text}` : pick.text, btn: pick.ok ? 'PLANT' : 'ACT' };
@@ -1640,6 +1677,10 @@ function stationUi(st, actLbl) {
   }
   if (st.kind === 'tray') {
     const tray = st.ref;
+    if (!trayOpen(tray)) {
+      const short = state.mota < UNLOCK.tube;
+      return { text: short ? `BACK TUBE ROW  ${state.mota}/${UNLOCK.tube} MOTA` : `${actLbl}  UNLOCK BACK TUBE  ${UNLOCK.tube} MOTA`, btn: short ? 'ACT' : 'BUY' };
+    }
     const name = strainOf(tray.strain).short;
     if (tray.state === 'empty') return { text: 'EMPTY TUBE', btn: 'ACT' };
     if (tray.state === 'rooting') {
@@ -1651,6 +1692,13 @@ function stationUi(st, actLbl) {
   }
   if (st.kind === 'veg') {
     const pot = st.ref;
+    if (!vegOpen(pot)) {
+      const west = pot.room === 'west';
+      const cost = west ? UNLOCK.vegWest : UNLOCK.vegCenter;
+      const name = west ? 'WEST VEG ROOM' : 'CENTER VEG ROOM';
+      const short = state.mota < cost;
+      return { text: short ? `${name}  ${state.mota}/${cost} MOTA` : `${actLbl}  UNLOCK ${name}  ${cost} MOTA`, btn: short ? 'ACT' : 'BUY' };
+    }
     const name = strainOf(pot.strain).short;
     if (pot.state === 'empty') return { text: 'EMPTY VEG POT', btn: 'ACT' };
     if (pot.state === 'veg') {
@@ -1894,6 +1942,12 @@ function snapshot() {
     veg: world.house.veg.map((v) => ({ state: v.state, strain: v.strain, t: v.t || 0 })),
     hooks: world.shed.hooks.map((h) => itemSnap(h.item)),
     cure: world.shed.cureJars.map((j) => itemSnap(j.item)),
+    unlocks: {
+      mother2: !!world.house.mother2,
+      tube2: !!world.house.tube2,
+      vegWest: !!world.house.vegWest,
+      vegCenter: !!world.house.vegCenter,
+    },
   };
 }
 
@@ -2016,6 +2070,10 @@ function resetWorld() {
   world.lot.mesh.visible = true;
   world.house.open = false;
   world.shed.open = false;
+  world.house.mother2 = false;
+  world.house.tube2 = false;
+  world.house.vegWest = false;
+  world.house.vegCenter = false;
   for (const mom of world.house.mothers) Object.assign(mom, { state: 'empty', strain: null, stage: 0, prog: 0, water: 1, cool: 0 });
   for (const tray of world.house.trays) Object.assign(tray, { state: 'empty', strain: null, t: 0 });
   for (const pot of world.house.veg) Object.assign(pot, { state: 'empty', strain: null, t: 0 });
@@ -2076,6 +2134,12 @@ function applySave(save) {
     pot.strain = on ? strainOf(snap.strain).id : null;
     pot.t = Number(snap.t) || 0;
   });
+  const u = save.unlocks;
+  const legacy = !u;
+  world.house.mother2 = legacy ? true : !!u.mother2;
+  world.house.tube2 = legacy ? true : !!u.tube2;
+  world.house.vegWest = legacy ? true : !!u.vegWest;
+  world.house.vegCenter = legacy ? true : !!u.vegCenter;
   world.shed.hooks.forEach((h, i) => restoreItem(h, save.hooks?.[i]));
   world.shed.cureJars.forEach((j, i) => restoreItem(j, save.cure?.[i]));
   const owned = !!save.warehouse;
@@ -2210,7 +2274,7 @@ function newGrow() {
   flushSave();
   refreshTitle();
   updateHud();
-  toast('NEW GROW — SEVEN STRAINS IN THE PACK', 'good');
+  toast('NEW GROW — ONE MOTHER, ONE TUBE, FOUR VEG POTS', 'good');
 }
 
 function armReset(btn) {

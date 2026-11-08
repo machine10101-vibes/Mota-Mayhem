@@ -4,6 +4,7 @@ import { buildPlant, PVS } from './plants.js';
 
 export const WAREHOUSE_PRICE = 520;
 export const SEED_PACK = { n: 4, cost: 16 };
+export const UNLOCK = { mother: 80, tube: 70, vegWest: 140, vegCenter: 140 };
 export const MOTA_PER_G = { A: 4, AA: 6, AAA: 9, AAAA: 14 };
 export const WH = { x: 30, z: 0, hx: 7, hz: 5.5 };
 export const HOUSE = {
@@ -362,7 +363,7 @@ function buildHouseInterior(group, colliders, cutaway) {
   const mothers = [
     { x: -13.7, z: -21.55 },
     { x: -8.15, z: -21.55 },
-  ].map((mom) => {
+  ].map((mom, i) => {
     place(group, potBig, 1 / 14, mom.x, 0.75, mom.z);
     const plant = toMesh(buildPlant(0, 'bd'), PVS);
     plant.position.set(mom.x, 0.75 + 0.78, mom.z);
@@ -370,13 +371,13 @@ function buildHouseInterior(group, colliders, cutaway) {
     plant.visible = false;
     plant.castShadow = true;
     group.add(plant);
-    return { ...mom, state: 'empty', strain: null, stage: 0, prog: 0, water: 1, cool: 0, plant };
+    return { ...mom, state: 'empty', strain: null, stage: 0, prog: 0, water: 1, cool: 0, plant, locked: i === 0 };
   });
 
   const tube = buildNftTube();
   const tubeGeo = tube.model.build(1 / 16);
   const tubeY = 0.75 + 5 / 16;
-  const trays = [-21.35, -19.15].flatMap((z) => {
+  const trays = [-21.35, -19.15].flatMap((z, row) => {
     const mesh = new THREE.Mesh(tubeGeo, voxelMaterial);
     mesh.position.set(0.35, tubeY, z);
     mesh.castShadow = true;
@@ -389,7 +390,7 @@ function buildHouseInterior(group, colliders, cutaway) {
       plant.visible = false;
       plant.castShadow = true;
       group.add(plant);
-      return { x, z, state: 'empty', t: 0, strain: null, plant };
+      return { x, z, state: 'empty', t: 0, strain: null, plant, locked: row === 0 };
     });
   });
 
@@ -419,6 +420,10 @@ function buildHouseInterior(group, colliders, cutaway) {
     upper: loft.upper,
     computer: loft.computer,
     loftY: LOFT.y,
+    mother2: false,
+    tube2: false,
+    vegWest: false,
+    vegCenter: false,
     onStair: footOnStair,
     onLoft: footOnLoft,
     stairHeight: stairHeightAt,
@@ -500,7 +505,11 @@ function buildLoft(group, push) {
     [2.6, -21.55],
     [-2.6, -18.85],
     [2.6, -18.85],
-  ].map(([x, z]) => addVegPot(upper, pot, x, z, LOFT.y));
+  ].map(([x, z]) => {
+    const spot = addVegPot(upper, pot, x, z, LOFT.y);
+    spot.room = x < -5.4 ? 'west' : 'center';
+    return spot;
+  });
   place(upper, buildLightStand(), 1 / S, -6.3, LOFT.y, -16.45);
   place(upper, buildLightStand(), 1 / S, 4.4, LOFT.y, -16.45);
   for (const x of [-14.8, -0.2, 14.2]) place(upper, buildSconce(), 1 / S, x, LOFT.y + 0.85, -22.4);

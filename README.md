@@ -36,17 +36,17 @@ and ready, and a harvest returns one seed of that strain. Clones skip ahead to v
 strain. Keep soil watered: dry plants slow down and accumulate stress. A flowering plant can take a bloom feed if you are carrying nutrients. Harvest grade (A, AA, AAA, AAAA) starts from how consistently you watered. The finished plant then ripens: clear trichomes are early, cloudy and cloudy-with-amber are the pick, and mostly amber is late. Picking outside that window drops the grade. Open the shed door, walk in, hand-trim the wet flower, hang it to dry, jar it, and burp the jar while it cures. Skipping the burp or leaving a hang too long drops the grade.
 Cured flower lands in the jars.
 
-Open the house from the porch. The mother, clone, and veg rooms run deep enough to walk into and wide enough to move around the pots. The mother room on the left starts with two empty pots. Plant a seed you are
+Open the house from the porch. A new game opens one mother pot, the front hydroponic tube row (four cups), and the four vegetative pots in the downstairs veg room. The second mother and the back tube row are in the rooms and unlock for MOTA. Plant a seed you are
 holding and that plant grows into a mother, then stays there for cuttings. The clone room is straight ahead.
-Cuttings root in tube-style hydroponic lines: two NFT tubes, a reservoir, and a pump, with a net cup at each
-site. The veg room is on the right. Water a mother, take a cutting, wait for it to root, move it into veg, then
+Cuttings root in tube-style hydroponic lines: an NFT tube, a reservoir, and a pump, with a net cup at each
+site. Water a mother, take a cutting, wait for it to root, move it into veg, then
 carry the finished clone out to a bed or the warehouse.
 
-Stairs in the mother room climb to a second story the same depth and width as the rooms below. The west and center rooms upstairs are two more veg rooms, with the same pot layout as the ground-floor veg room. The east room is the supply office. Use the computer there to spend MOTA on Blue Dream seeds, Granddaddy Purple seeds, nutrients, and root cubes. Nutrients feed a mother or a veg pot. Root cubes speed a tube that is still rooting. The upstairs floor stays hidden until you are on the stairs, so the ground-floor grow rooms stay visible from above.
+Stairs in the mother room climb to a second story the same depth and width as the rooms below. The west and center rooms upstairs are two more veg rooms, with the same pot layout as the ground-floor veg room. Each of those rooms unlocks for MOTA. The east room is the supply office and is open from the start. Use the computer there to spend MOTA on seeds, nutrients, and root cubes. Nutrients feed a mother or a veg pot. Root cubes speed a tube that is still rooting. The upstairs floor stays hidden until you are on the stairs, so the ground-floor grow rooms stay visible from above.
 
 The porch stand sells cured jars for MOTA, the in-game
-token. A 4-seed pack of whichever cultivars you have the fewest of is there too when you are low. Flower time follows the cultivar: DJ Short Blueberry finishes fastest, then Green Crack and UW Purple, with Gorilla Glue #4 the slowest. Vegging a mother or a clone uses that same pace. The east lot
-sells a warehouse for 520 MOTA. Buying it opens the gate. Inside are nine indoor pots under 18/6 veg lights. Flip the switch inside to 12/12 when a plant is waiting, and it flowers a little faster than the yard. Ripening pauses if you flip the lights back. Post-harvest is sped up from the 10–14 day dry and multi-week cure.
+token. A 4-seed pack of whichever cultivars you have the fewest of is there too when you are low. Flower time follows the cultivar: DJ Short Blueberry finishes fastest, then Green Crack and UW Purple, with Gorilla Glue #4 the slowest. Vegging a mother or a clone uses that same pace. Growth, drying, and curing run slower than the first builds: a full seed-to-ripe pass takes several minutes, and a hang or a cure takes about a minute and a half. The east lot
+sells a warehouse for 520 MOTA. Buying it opens the gate. Inside are nine indoor pots under 18/6 veg lights. Flip the switch inside to 12/12 when a plant is waiting, and it flowers a little faster than the yard. Ripening pauses if you flip the lights back.
 
 The farmer icon on the title screen and while you play, and the C key, open the character menu: skin, hair, hat,
 shirt, overalls, and boots, with a live preview. The backpack icon opens the inventory of MOTA, seeds, clones, feed, and jars. Both panels stay closed until that icon is clicked. **NEW GROW** resets the farm to the starter seeds and keeps
