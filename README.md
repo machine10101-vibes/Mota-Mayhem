@@ -30,8 +30,7 @@ Phone and tablet: tap to start. Left stick moves, **RUN** sprints, **ACT** (or t
 
 ## Gameplay
 
-A new grow starts with 10 Blue Dream seeds, 10 Granddaddy Purple seeds, and 4 seeds each of Green Crack, Gorilla Glue #4, Long Island Skunk, UW Purple, and DJ Short Blueberry. Plant any of them in the 24 bed
-plots, or plant a vegged clone if you have one. Each plant grows through sprout, seedling, vegetative, flowering
+A new grow starts with 10 Blue Dream seeds, 10 Granddaddy Purple seeds, and 4 seeds each of Green Crack, Gorilla Glue #4, Long Island Skunk, UW Purple, and DJ Short Blueberry. One outdoor grow box is open, the wooden bed closest to the porch on the west side, with four plots. The other five boxes are locked. A gold MOTA token floats over each locked box, and over the locked mother, the locked tube row, and each locked upstairs veg room. Walk up and spend 80 MOTA to open another grow box. Plant in an open plot, or plant a vegged clone if you have one. Each plant grows through sprout, seedling, vegetative, flowering
 and ready, and a harvest returns one seed of that strain. Clones skip ahead to vegetative and keep the mother's
 strain. Keep soil watered: dry plants slow down and accumulate stress. A flowering plant can take a bloom feed if you are carrying nutrients. Harvest grade (A, AA, AAA, AAAA) starts from how consistently you watered. The finished plant then ripens: clear trichomes are early, cloudy and cloudy-with-amber are the pick, and mostly amber is late. Picking outside that window drops the grade. Open the shed door, walk in, hand-trim the wet flower, hang it to dry, jar it, and burp the jar while it cures. Skipping the burp or leaving a hang too long drops the grade.
 Cured flower lands in the jars.
