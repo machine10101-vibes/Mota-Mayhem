@@ -10,8 +10,8 @@ import { buildMotaToken, buildNutrientBottle, buildRootCube, HOUSE, LOFT, MOTA_P
 import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace } from './strains.js';
 import { loadSave, writeSave, adoptAddress, unbindAddress } from './save.js';
-import { clearSession, inKleverHandoff, isMobile, launchKleverApp, markPrompt, promptIsCooling, readSession, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
-import { accountLabel, accountProblem, clearAccountSession, createAccount, readAccountSession, signInAccount } from './wallet/account.js';
+import { clearKleverLogin, clearSession, inKleverHandoff, isMobile, launchKleverApp, markPrompt, promptIsCooling, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
+import { accountLabel, accountProblem, clearAccountSession, createAccount, readAccountSession, rememberWallet, signInAccount } from './wallet/account.js';
 import { clearCloudToken, flushCloud, schedulePush, syncGarden } from './wallet/cloud.js';
 
 const $ = (id) => document.getElementById(id);
@@ -2495,20 +2495,20 @@ function refreshWalletUi() {
   const form = $('account-form');
   const swap = $('btn-wallet-switch');
   const help = $('wallet-help');
-  const signed = !!walletSession?.address;
-  const emailAccount = walletSession?.provider === 'email';
-  const place = emailAccount ? 'account' : 'wallet';
-  sign?.classList.toggle('hidden', signed);
+  const signed = walletSession?.provider === 'email' && !!walletSession.address;
+  sign?.classList.toggle('hidden', !signed);
   form?.classList.toggle('hidden', signed);
   swap?.classList.toggle('hidden', !signed);
   $('press-line')?.classList.toggle('hidden', !signed || cloudSyncing);
+  if (sign) {
+    const linked = signed && walletSession.wallet;
+    sign.textContent = linked ? shortAddress(walletSession.wallet) : 'CONNECT WALLET';
+    sign.setAttribute('aria-label', linked ? 'Connected Klever wallet' : 'Connect wallet');
+  }
   if (!status) return;
   if (!signed) {
     help?.classList.add('hidden');
-    if (sign) sign.textContent = 'SIGN IN WITH KLEVER';
-    status.textContent = window.kleverWeb
-      ? 'Tap Sign in, then approve the signature. Klever keeps that window open until you do. Email is here too.'
-      : 'Sign in with Klever, or create an account with email. Your garden is saved to that account.';
+    status.textContent = 'Create an account with email and a password. Your garden is saved to that account.';
     const dressNote = document.querySelector('#dress .dress-note');
     if (dressNote) dressNote.textContent = 'SAVED ON THIS DEVICE';
     return;
@@ -2516,19 +2516,19 @@ function refreshWalletUi() {
   help?.classList.add('hidden');
   status.replaceChildren();
   const who = document.createElement('b');
-  who.textContent = emailAccount ? accountLabel(walletSession) : shortAddress(walletSession.address);
+  who.textContent = accountLabel(walletSession);
   const lead = walletNote === 'new'
     ? 'New garden saved to '
     : walletNote === 'claimed'
       ? 'Your garden is now saved to '
       : 'Welcome back. This garden belongs to ';
   const tail = cloudSyncing
-    ? `. Opening the garden saved to this ${place}…`
+    ? '. Opening the garden saved to this account…'
     : cloudState === 'on'
-      ? `. It is saved to this ${place}.`
+      ? '. It is saved to this account.'
       : cloudState === 'error'
         ? '. Saved on this browser. The garden record could not be reached.'
-        : `. It stays on this browser under that ${place}.`;
+        : '. It stays on this browser under that account.';
   status.append(lead, who, tail);
   const dressNote = document.querySelector('#dress .dress-note');
   if (dressNote) dressNote.textContent = 'SAVED TO THIS ACCOUNT';
@@ -2543,11 +2543,10 @@ function handOffToWallet() {
   const finish = () => {
     walletBusy = false;
     if (sign) sign.disabled = false;
-    if (walletSession?.address) return;
-    // Coming back from the wallet must not open it again. The grower taps Sign in to retry.
+    if (walletSession?.wallet) return;
     const help = $('wallet-help');
     if (help) showWalletHelp(help, 'mobile-app');
-    if (status) status.textContent = 'Klever Wallet is open. Tap Sign in there, then approve the signature.';
+    if (status) status.textContent = 'Klever Wallet is open. Tap Connect wallet, then approve the signature.';
   };
   window.setTimeout(() => {
     if (!document.hidden) {
@@ -2565,7 +2564,8 @@ function handOffToWallet() {
 
 async function onWallet(automatic = false) {
   if (walletBusy || state.mode === 'play') return;
-  if (automatic && (walletSession?.address || promptIsCooling())) return;
+  if (walletSession?.provider !== 'email') return;
+  if (automatic && (walletSession.wallet || promptIsCooling())) return;
   if (isMobile() && !window.kleverWeb && !inKleverHandoff()) {
     markPrompt();
     walletBusy = true;
@@ -2581,13 +2581,16 @@ async function onWallet(automatic = false) {
     ? 'Confirm the signature in the Klever Wallet app…'
     : 'Confirm the signature in the Klever extension…';
   try {
-    const session = await signIn();
-    clearAccountSession();
-    await applyWallet(session);
+    const linked = await signIn();
+    rememberWallet(walletSession, linked.address);
+    clearKleverLogin();
+    const body = writeSave({ ...(loadSave() || { v: 1, ...snapshot() }), wallet: walletSession.wallet });
+    if (body && cloudPush) schedulePush(walletSession, body);
+    refreshWalletUi();
   } catch (err) {
     const help = $('wallet-help');
     if (help && (err.code === 'mobile-app' || err.code === 'extension')) showWalletHelp(help, err.code);
-    if (status) status.textContent = err.message || 'Klever sign-in failed.';
+    if (status) status.textContent = err.message || 'The wallet could not be connected.';
   } finally {
     walletBusy = false;
     if (sign) sign.disabled = false;
@@ -2595,7 +2598,7 @@ async function onWallet(automatic = false) {
 }
 
 async function applyWallet(session) {
-  if (session.provider === 'email') clearSession();
+  if (session.provider === 'email') clearKleverLogin();
   else clearAccountSession();
   walletSession = session;
   cloudPush = false;
@@ -2629,6 +2632,10 @@ async function applyWallet(session) {
       writeSave(result.garden, false);
     }
     cloudPush = result.state === 'on';
+    if (session.provider === 'email') {
+      const linked = result.replaced ? result.garden?.wallet : (loadSave()?.wallet || session.wallet);
+      rememberWallet(session, linked || '');
+    }
   } catch {
     cloudState = 'error';
   }
@@ -2644,18 +2651,9 @@ function watchAccount() {
   watchAccount.bound = true;
   hub.onAccountChanged((event) => {
     const next = event?.address;
-    if (!next || next === walletSession?.address) return;
-    flushSave();
-    flushCloud();
-    clearSession();
-    clearCloudToken();
-    unbindAddress();
-    walletSession = null;
-    if (state.mode === 'play') location.reload();
-    else {
-      refreshWalletUi();
-      refreshTitle();
-    }
+    if (!next || walletSession?.provider !== 'email' || !walletSession.wallet || next === walletSession.wallet) return;
+    rememberWallet(walletSession, '');
+    refreshWalletUi();
   });
 }
 
@@ -2684,6 +2682,10 @@ async function onAccount(kind) {
       return;
     }
     await applyWallet(session);
+    if (walletSession?.provider === 'email' && !walletSession.wallet && params.get('klever') === '1') {
+      walletBusy = false;
+      await onWallet(true);
+    }
   } catch (err) {
     if (status) status.textContent = err.message || 'The account could not be opened.';
   } finally {
@@ -2809,6 +2811,7 @@ function snapshot() {
       beds: BEDS.map((_, bed) => !slotsData[bed * 4]?.locked),
     },
     ...(walletSession?.provider === 'email' && walletSession.email ? { accountEmail: walletSession.email } : {}),
+    ...(walletSession?.wallet ? { wallet: walletSession.wallet } : {}),
   };
 }
 
@@ -3376,15 +3379,15 @@ function boot() {
 }
 
 async function openAccount() {
-  const session = readSession() || readAccountSession();
+  const session = readAccountSession();
   if (session) await applyWallet(session);
   else refreshWalletUi();
   refreshTitle();
   updateHud();
   $('loading').classList.add('gone');
   if (params.has('autostart')) startGame();
-  else if (!session && params.get('klever') === '1' && !promptIsCooling()) {
-    // One ask. A reload while the sheet is up must not open a second one.
+  else if (session?.provider === 'email' && !session.wallet && params.get('klever') === '1' && !promptIsCooling()) {
+    // The wallet browser opened this page. Ask once for the connection.
     setTimeout(() => onWallet(true), 600);
   }
 }

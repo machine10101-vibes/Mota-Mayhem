@@ -6,6 +6,7 @@
 import { loadCloudConfig } from './cloud.js';
 
 const SESSION_KEY = 'mm-account-session';
+const WALLET_RE = /^klv1[02-9ac-hj-np-z]{58}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export function accountId(id) {
@@ -73,6 +74,14 @@ export function clearAccountSession() {
   }
 }
 
+/** Keeps a connected Klever address on the email account. */
+export function rememberWallet(session, address) {
+  if (!session || session.provider !== 'email') return session;
+  session.wallet = WALLET_RE.test(address || '') ? address : '';
+  storeSession(session);
+  return session;
+}
+
 export function accountLabel(session) {
   if (!session || session.provider !== 'email') return '';
   return session.email || 'Email account';
@@ -107,6 +116,7 @@ function sessionFromToken(json, previous = null) {
       ? json.refresh_token
       : (previous?.refreshToken || ''),
     expiresAt: Date.now() + (Number(json.expires_in) || 3600) * 1000,
+    wallet: WALLET_RE.test(previous?.wallet || '') ? previous.wallet : '',
   };
 }
 
