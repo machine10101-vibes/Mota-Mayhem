@@ -93,12 +93,19 @@ async function call(body, keepalive = false) {
 async function ensureToken(session) {
   const existing = readToken(session.address);
   if (existing) return existing;
-  const res = await call({
-    op: 'auth',
-    address: session.address,
-    message: session.message,
-    signature: session.signature,
-  });
+  let body;
+  if (session.provider === 'google') {
+    const { freshAccessToken } = await import('./google.js');
+    body = { op: 'auth', provider: 'google', accessToken: await freshAccessToken(session) };
+  } else {
+    body = {
+      op: 'auth',
+      address: session.address,
+      message: session.message,
+      signature: session.signature,
+    };
+  }
+  const res = await call(body);
   if (!res || res.status !== 200 || typeof res.json.token !== 'string') {
     throw new Error(res?.json?.error || 'The garden could not be opened.');
   }
