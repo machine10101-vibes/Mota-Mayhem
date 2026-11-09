@@ -1,6 +1,8 @@
 import { verifyKleverSignature } from './verify.js';
 
 export const SESSION_KEY = 'mm-klever-session';
+const PROMPT_LOCK = 'mm-klever-prompt-lock';
+const PROMPT_COOL_MS = 90_000;
 export const KLEVER_EXTENSION = 'https://chromewebstore.google.com/detail/klever-wallet/ifclboecfhkjbpmhgehodcjpciihhmif';
 export const KLEVER_ANDROID = 'https://play.google.com/store/apps/details?id=finance.klever.bitcoin.wallet';
 export const KLEVER_IOS = 'https://apps.apple.com/app/klever-wallet-bitcoin-crypto/id1615064243';
@@ -31,11 +33,43 @@ function fail(code, message) {
   return err;
 }
 
-function signatureText(signed) {
-  if (signed == null) return '';
-  if (typeof signed === 'string') return signed.trim();
-  const value = signed.signature || signed.hex || signed.data?.signature || (typeof signed.toHex === 'function' ? signed.toHex() : '');
-  return String(value || '').trim();
+function signatureText(signed, depth = 0) {
+  if (signed == null || depth > 4) return '';
+  if (typeof signed === 'string') {
+    const trimmed = signed.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        return signatureText(JSON.parse(trimmed), depth + 1);
+      } catch {
+        return trimmed;
+      }
+    }
+    return trimmed;
+  }
+  if (Array.isArray(signed)) return signatureText(signed[0], depth + 1);
+  const nested = (typeof signed.data === 'string' && signed.data) || signed.data?.signature || '';
+  const value = signed.signature || signed.sig || signed.hex || signed.result || nested
+    || (typeof signed.toHex === 'function' ? signed.toHex() : '');
+  if (value && value !== signed) return signatureText(value, depth + 1);
+  return '';
+}
+
+/** True when this page already asked the wallet a moment ago. Stops a reload from asking again. */
+export function promptIsCooling() {
+  try {
+    const at = Number(localStorage.getItem(PROMPT_LOCK) || 0);
+    return Number.isFinite(at) && Date.now() - at < PROMPT_COOL_MS;
+  } catch {
+    return false;
+  }
+}
+
+export function markPrompt() {
+  try {
+    localStorage.setItem(PROMPT_LOCK, String(Date.now()));
+  } catch {
+    /* the request still proceeds */
+  }
 }
 
 /**
@@ -140,21 +174,50 @@ export async function signIn() {
   }
   if (!ok) throw fail('bad-signature', 'The signature does not match this Klever address.');
   const session = { address, message, signature, at: Date.now() };
-  try {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  } catch {
-    /* private mode can refuse storage; the garden still runs for this page */
-  }
+  saveSession(session);
   return session;
 }
 
-/** A refresh in the same tab keeps the signature. A new visit asks the wallet again. */
+function saveSession(session) {
+  const text = JSON.stringify(session);
+  for (const store of [sessionStorage, localStorage]) {
+    try {
+      store.setItem(SESSION_KEY, text);
+    } catch {
+      /* private mode can refuse one of the stores */
+    }
+  }
+}
+
+function storedSession() {
+  for (const store of [sessionStorage, localStorage]) {
+    try {
+      const raw = JSON.parse(store.getItem(SESSION_KEY) || 'null');
+      if (raw) return raw;
+    } catch {
+      /* try the other store */
+    }
+  }
+  return null;
+}
+
+/** A reload keeps the signature, including when the wallet restarts its browser. */
 export function readSession() {
   try {
-    const raw = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
-    if (!raw || !ADDRESS_RE.test(raw.address) || typeof raw.message !== 'string' || typeof raw.signature !== 'string') return null;
-    if (!verifyKleverSignature(raw.message, raw.signature, raw.address)) return null;
-    if (!raw.message.includes(`Address: ${raw.address}`)) return null;
+    const raw = storedSession();
+    if (!raw) return null;
+    const ok = ADDRESS_RE.test(raw.address)
+      && typeof raw.message === 'string'
+      && typeof raw.signature === 'string'
+      && raw.message.includes(`Address: ${raw.address}`)
+      && verifyKleverSignature(raw.message, raw.signature, raw.address);
+    if (!ok) {
+      for (const store of [sessionStorage, localStorage]) {
+        try { store.removeItem(SESSION_KEY); } catch { /* already gone */ }
+      }
+      return null;
+    }
+    saveSession(raw);
     return raw;
   } catch {
     return null;
@@ -162,10 +225,13 @@ export function readSession() {
 }
 
 export function clearSession() {
-  try {
-    sessionStorage.removeItem(SESSION_KEY);
-  } catch {
-    /* already gone */
+  for (const store of [sessionStorage, localStorage]) {
+    try {
+      store.removeItem(SESSION_KEY);
+      store.removeItem(PROMPT_LOCK);
+    } catch {
+      /* already gone */
+    }
   }
 }
 

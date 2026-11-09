@@ -10,7 +10,7 @@ import { buildMotaToken, buildNutrientBottle, buildRootCube, HOUSE, LOFT, MOTA_P
 import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace } from './strains.js';
 import { loadSave, writeSave, adoptAddress, unbindAddress } from './save.js';
-import { clearSession, inKleverHandoff, isMobile, launchKleverApp, readSession, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
+import { clearSession, inKleverHandoff, isMobile, launchKleverApp, markPrompt, promptIsCooling, readSession, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
 import { clearCloudToken, flushCloud, schedulePush, syncGarden } from './wallet/cloud.js';
 
 const $ = (id) => document.getElementById(id);
@@ -2501,7 +2501,9 @@ function refreshWalletUi() {
   if (!signed) {
     help?.classList.add('hidden');
     if (sign) sign.textContent = 'SIGN IN WITH KLEVER';
-    status.textContent = 'Sign in with your Klever wallet. Your garden is saved to that address.';
+    status.textContent = window.kleverWeb
+      ? 'Tap Sign in, then approve the signature. Klever keeps that window open until you do.'
+      : 'Sign in with your Klever wallet. Your garden is saved to that address.';
     const dressNote = document.querySelector('#dress .dress-note');
     if (dressNote) dressNote.textContent = 'SAVED ON THIS DEVICE';
     return;
@@ -2534,17 +2536,13 @@ function handOffToWallet() {
   if (status) status.textContent = 'Opening Klever Wallet…';
   launchKleverApp();
   const finish = () => {
-    if (window.kleverWeb) {
-      walletBusy = false;
-      if (sign) sign.disabled = false;
-      onWallet();
-      return;
-    }
-    const help = $('wallet-help');
-    if (help) showWalletHelp(help, 'mobile-app');
-    if (status) status.textContent = 'Klever Wallet did not open. Use the button below to open the app installed on this phone.';
     walletBusy = false;
     if (sign) sign.disabled = false;
+    if (walletSession?.address) return;
+    // Coming back from the wallet must not open it again. The grower taps Sign in to retry.
+    const help = $('wallet-help');
+    if (help) showWalletHelp(help, 'mobile-app');
+    if (status) status.textContent = 'Klever Wallet is open. Tap Sign in there, then approve the signature.';
   };
   window.setTimeout(() => {
     if (!document.hidden) {
@@ -2560,13 +2558,16 @@ function handOffToWallet() {
   }, 1500);
 }
 
-async function onWallet() {
+async function onWallet(automatic = false) {
   if (walletBusy || state.mode === 'play') return;
+  if (automatic && (walletSession?.address || promptIsCooling())) return;
   if (isMobile() && !window.kleverWeb && !inKleverHandoff()) {
+    markPrompt();
     walletBusy = true;
     handOffToWallet();
     return;
   }
+  markPrompt();
   walletBusy = true;
   const sign = $('btn-wallet');
   const status = $('wallet-status');
@@ -3320,7 +3321,10 @@ function boot() {
   });
   $('loading').classList.add('gone');
   if (params.has('autostart')) startGame();
-  else if (!session && params.get('klever') === '1') setTimeout(() => onWallet(), 600);
+  else if (!session && params.get('klever') === '1' && !promptIsCooling()) {
+    // One ask. A reload while the sheet is up must not open a second one.
+    setTimeout(() => onWallet(true), 600);
+  }
   window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick, openDress, closeDress, openShop, closeShop, buySupply, newGrow, flushSave, loadSave, onWallet };
 }
 
