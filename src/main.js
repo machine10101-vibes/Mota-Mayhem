@@ -16,14 +16,15 @@ const params = new URLSearchParams(location.search);
 const coarse = matchMedia('(pointer: coarse)').matches;
 
 /* ---------------------------------------------------------------- renderer */
-const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: params.has('shot') });
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: params.has('shot') });
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.NoToneMapping;
 $('stage').appendChild(renderer.domElement);
 
 let pixelScale = Number(params.get('px')) || Number(localStorage.getItem('mm-pixel')) || 0;
-const autoScale = () => Math.max(1, Math.round(viewSize().h / 440));
+const autoScale = () => Math.max(2, Math.round(viewSize().h / 440));
+const bufSize = new THREE.Vector2();
 let rt = null;
 const post = new THREE.ShaderMaterial({
   uniforms: {
@@ -43,13 +44,17 @@ const post = new THREE.ShaderMaterial({
       vec4 c = texture2D(tColor, vUv);
       float d = L(vec2(0.0));
       float e = max(max(d - L(vec2(-1.0, 0.0)), d - L(vec2(1.0, 0.0))), max(d - L(vec2(0.0, 1.0)), d - L(vec2(0.0, -1.0))));
-      float edge = step(0.018 * d + 0.12, e);
+      float edge = smoothstep(0.03 * d + 0.45, 0.03 * d + 1.35, e);
       vec3 col = c.rgb;
       float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
-      col = mix(vec3(luma), col, 1.12);
-      col = mix(col, col * vec3(0.16, 0.19, 0.24), edge * 0.92);
+      col = mix(vec3(luma), col, 1.08);
+      col = mix(col, col * vec3(0.28, 0.32, 0.36), edge * 0.4);
+      vec3 horizon = vec3(0.80, 0.91, 0.84);
+      vec3 zenith = vec3(0.45, 0.73, 0.90);
+      vec3 skyCol = mix(horizon, zenith, clamp(vUv.y * 1.2, 0.0, 1.0));
+      col = mix(col, skyCol, smoothstep(far * 0.84, far * 0.995, d));
       vec2 q = vUv - 0.5;
-      col *= 1.0 - dot(q, q) * 0.42;
+      col *= 1.0 - dot(q, q) * 0.18;
       gl_FragColor = vec4(col, 1.0);
       #include <colorspace_fragment>
     }
@@ -66,33 +71,44 @@ function viewSize() {
 
 function resize() {
   const vs = viewSize();
-  const ps = pixelScale || autoScale();
+  const chunky = pixelScale > 1;
+  const dpr = chunky ? 1 : Math.min(window.devicePixelRatio || 1, coarse ? 1.25 : 1.5);
+  const ps = chunky ? pixelScale : 1;
   const w = Math.max(64, Math.floor(vs.w / ps));
   const h = Math.max(64, Math.floor(vs.h / ps));
-  renderer.setPixelRatio(1);
+  renderer.setPixelRatio(dpr);
   renderer.setSize(w, h, false);
   renderer.domElement.style.width = '100%';
   renderer.domElement.style.height = '100%';
+  renderer.domElement.style.imageRendering = chunky ? 'pixelated' : 'auto';
+  renderer.getDrawingBufferSize(bufSize);
   if (rt) rt.dispose();
-  rt = new THREE.WebGLRenderTarget(w, h, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthTexture: new THREE.DepthTexture(w, h) });
-  post.uniforms.res.value.set(w, h);
+  const filter = chunky ? THREE.NearestFilter : THREE.LinearFilter;
+  rt = new THREE.WebGLRenderTarget(bufSize.x, bufSize.y, {
+    minFilter: filter,
+    magFilter: filter,
+    samples: chunky ? 0 : coarse ? 2 : 4,
+    depthTexture: new THREE.DepthTexture(bufSize.x, bufSize.y),
+  });
+  post.uniforms.res.value.set(bufSize.x, bufSize.y);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }
 
 /* ------------------------------------------------------------------- scene */
 const scene = new THREE.Scene();
-const SKY = 0xa8d8ee;
-scene.background = new THREE.Color(SKY);
-scene.fog = new THREE.Fog(SKY, 55, 120);
+const SKY = 0xb7e4c8;
+scene.background = new THREE.Color(0x7eb8e4);
+scene.fog = new THREE.Fog(SKY, 62, 138);
 const camera = new THREE.PerspectiveCamera(33, 16 / 9, 1, 220);
 
-scene.add(new THREE.HemisphereLight(0xd8ecff, 0x6f8a45, 1.55));
-const sun = new THREE.DirectionalLight(0xfff0cf, 2.6);
-sun.position.set(-16, 30, 16);
+scene.add(new THREE.HemisphereLight(0xe7f4ff, 0x7d9a52, 1.35));
+const sun = new THREE.DirectionalLight(0xfff0cf, 2.35);
+sun.position.set(-18, 34, 14);
 sun.target.position.set(0, 0, -3);
 sun.castShadow = true;
-sun.shadow.mapSize.set(coarse ? 2048 : 4096, coarse ? 2048 : 4096);
+sun.shadow.mapSize.set(coarse ? 1024 : 2048, coarse ? 1024 : 2048);
+sun.shadow.radius = coarse ? 2 : 3.5;
 const sc = sun.shadow.camera;
 sc.left = -36;
 sc.right = 46;
@@ -100,9 +116,12 @@ sc.top = 26;
 sc.bottom = -34;
 sc.near = 5;
 sc.far = 110;
-sun.shadow.bias = -0.0004;
-sun.shadow.normalBias = 0.035;
+sun.shadow.bias = -0.00035;
+sun.shadow.normalBias = 0.04;
 scene.add(sun, sun.target);
+const fill = new THREE.DirectionalLight(0xc9e2ff, 0.62);
+fill.position.set(22, 14, -18);
+scene.add(fill);
 
 /* ------------------------------------------------------------------- state */
 const state = {
@@ -2387,6 +2406,23 @@ function frame(now) {
   quad.render(renderer);
 }
 
+function inFullscreen() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+}
+
+function enterFullscreen() {
+  if (inFullscreen()) return;
+  const el = document.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+  if (!req) return;
+  try {
+    const pending = req.call(el, { navigationUI: 'hide' });
+    if (pending && typeof pending.catch === 'function') pending.catch(() => {});
+  } catch {
+    /* the browser only allows this from a tap or a key */
+  }
+}
+
 function startGame() {
   if (state.mode === 'play' || state.mode === 'dress' || state.mode === 'loading') return;
   state.mode = 'play';
@@ -2406,6 +2442,7 @@ function startGame() {
   canSave = true;
   flushSave();
   refreshTitle();
+  enterFullscreen();
 }
 
 const LEAF = ['...XX...', 'X..XX..X', 'XX.XX.XX', '.XXXXXX.', 'X.XXXX.X', '..XXXX..', '...XX...', '...XX...', '...XX...', '...XX...'];
@@ -3031,6 +3068,11 @@ function boot() {
   resize();
   addEventListener('resize', resize);
   visualViewport?.addEventListener('resize', resize);
+  addEventListener('fullscreenchange', resize);
+  addEventListener('webkitfullscreenchange', resize);
+  addEventListener('pointerdown', () => {
+    if (state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress') enterFullscreen();
+  }, true);
   addEventListener('orientationchange', () => setTimeout(resize, 120));
   bindTouch();
   bindDress();

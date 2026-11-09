@@ -1,7 +1,7 @@
 :root { --ink:#1b2412; --panel:rgba(12,18,10,.94); --edge:#93c85a; --gold:#ffe66a; --safe-l: max(12px, env(safe-area-inset-left, 0px)); --safe-r: max(12px, env(safe-area-inset-right, 0px)); --safe-t: max(12px, env(safe-area-inset-top, 0px)); --safe-b: max(12px, env(safe-area-inset-bottom, 0px)); --frame: 0 -3px 0 0 var(--ink), 0 3px 0 0 var(--ink), -3px 0 0 0 var(--ink), 3px 0 0 0 var(--ink), inset 0 0 0 3px var(--edge); --frame-gold: 0 -3px 0 0 var(--ink), 0 3px 0 0 var(--ink), -3px 0 0 0 var(--ink), 3px 0 0 0 var(--ink), inset 0 0 0 3px var(--gold); }
 * { box-sizing: border-box; }
 html, body { margin:0; height:100%; height:100dvh; overflow:hidden; background:#10160c; font-family:'Press Start 2P', monospace; color:#f3f1df; user-select:none; -webkit-user-select:none; touch-action:none; -webkit-touch-callout:none; overscroll-behavior:none; }
-#stage, #stage canvas { position:fixed; inset:0; width:100%; height:100%; display:block; image-rendering:pixelated; image-rendering:crisp-edges; image-rendering:pixelated; touch-action:none; }
+#stage, #stage canvas { position:fixed; inset:0; width:100%; height:100%; display:block; image-rendering:auto; touch-action:none; }
 canvas#leaf-icon, canvas#leaf-logo { image-rendering:pixelated; }
 .hidden { display:none !important; }
 .gone { opacity:0; pointer-events:none !important; }
