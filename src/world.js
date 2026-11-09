@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { VoxelModel, hash3, mulberry, noise2, shade, mix, toMesh, toChunkedMeshes, voxelMaterial } from './voxel.js';
-import { buildHangNug, buildPlant, PVS } from './plants.js';
+import { buildHangNug, buildPlant, PLANT_VS, PVS } from './plants.js';
 import { attachEstate, HOUSE, LOFT } from './estate.js';
 import { STRAIN_IDS } from './strains.js';
 
@@ -927,9 +927,9 @@ export function buildWorld() {
   potModel.box(-4, 8, -4, 4, 9, 4, 0x4b3424, 0.05);
   [-1.7, -0.55, 0.6, 1.75].forEach((px, i) => {
     place(group, potModel, 1 / 16, -16 + px, 17 / 16, -9 - 1.9 + 0.1);
-    const pl = toMesh(buildPlant(1 + (i % 2), STRAIN_IDS[i % STRAIN_IDS.length]), PVS);
+    const pl = toMesh(buildPlant(1 + (i % 2), STRAIN_IDS[i % STRAIN_IDS.length]), PLANT_VS);
     pl.position.set(-16 + px, 17 / 16 + 9 / 16, -9 - 1.8);
-    pl.scale.setScalar(0.9);
+    pl.scale.setScalar(0.72);
     group.add(pl);
   });
 

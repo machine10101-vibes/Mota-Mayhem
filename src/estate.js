@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { VoxelModel, hash3, mix, shade, toMesh, voxelMaterial } from './voxel.js';
-import { buildPlant, PVS } from './plants.js';
+import { buildPlant, PLANT_VS } from './plants.js';
 
 export const WAREHOUSE_PRICE = 520;
 export const SEED_PACK = { n: 4, cost: 16 };
@@ -486,7 +486,7 @@ function buildHouseInterior(group, colliders, cutaway) {
     { x: -8.15, z: -21.55 },
   ].map((mom, i) => {
     place(group, potBig, 1 / 14, mom.x, 0.75, mom.z);
-    const plant = toMesh(buildPlant(0, 'bd'), PVS);
+    const plant = toMesh(buildPlant(0, 'bd'), PLANT_VS);
     plant.position.set(mom.x, 0.75 + 0.78, mom.z);
     plant.scale.setScalar(0.55);
     plant.visible = false;
@@ -505,7 +505,7 @@ function buildHouseInterior(group, colliders, cutaway) {
     group.add(mesh);
     return tube.centers.map((cx) => {
       const x = 0.35 + cx / 16;
-      const plant = toMesh(buildPlant(0, 'bd'), PVS);
+      const plant = toMesh(buildPlant(0, 'bd'), PLANT_VS);
       plant.position.set(x, tubeY + 0.72, z);
       plant.scale.setScalar(0.48);
       plant.visible = false;
@@ -556,7 +556,7 @@ function buildHouseInterior(group, colliders, cutaway) {
 
 function addVegPot(parent, pot, x, z, y) {
   place(parent, pot, 1 / 15, x, y, z);
-  const plant = toMesh(buildPlant(2, 'bd'), PVS);
+  const plant = toMesh(buildPlant(2, 'bd'), PLANT_VS);
   plant.position.set(x, y + 0.62, z);
   plant.scale.setScalar(0.78);
   plant.visible = false;

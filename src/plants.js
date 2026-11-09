@@ -2,6 +2,8 @@ import { VoxelModel, hash3, mix, mulberry, shade } from './voxel.js';
 import { strainOf } from './strains.js';
 
 export const PVS = 0.05;
+export const PLANT_VS = 0.046;
+const U = 1.4;
 
 const FAN = {
   1: [{ a: 0, l: 1 }],
@@ -36,10 +38,10 @@ const SUGAR_TIP = 0xd4b15a;
 
 function plot(m, x, y, z, col, j = 0.02) {
   const yi = Math.round(y);
-  if (yi < 0 || yi > 72) return;
+  if (yi < 0 || yi > 96) return;
   const xi = Math.round(x);
   const zi = Math.round(z);
-  if (Math.abs(xi) > 48 || Math.abs(zi) > 48) return;
+  if (Math.abs(xi) > 64 || Math.abs(zi) > 64) return;
   m.set(xi, yi, zi, col, j);
 }
 
@@ -49,7 +51,13 @@ function stalk(m, h, col, dark, thick) {
     plot(m, 0, y, 0, light, 0.02);
     if (!thick) continue;
     plot(m, 1, y, 0, dark, 0.02);
+    plot(m, -1, y, 0, col, 0.02);
     plot(m, 0, y, 1, y % 2 === 0 ? dark : col, 0.02);
+    plot(m, 0, y, -1, y % 2 === 0 ? col : dark, 0.02);
+    if (h > 18 && y % 2 === 0) {
+      plot(m, 1, y, 1, dark, 0.02);
+      plot(m, -1, y, -1, shade(col, 0.88), 0.02);
+    }
   }
   plot(m, 1, 0, 0, dark, 0.02);
   plot(m, -1, 0, 0, dark, 0.02);
@@ -63,7 +71,7 @@ function leaflet(m, bx, by, bz, ang, len, dark, light, droop, fade) {
   const px = -dz;
   const pz = dx;
   const L = Math.max(4, len);
-  const maxHalf = L >= 11 ? 1.75 : L >= 7 ? 1.55 : 1.4;
+  const maxHalf = L >= 16 ? 2.9 : L >= 11 ? 2.35 : L >= 7 ? 1.95 : 1.6;
   const vein = mix(light, 0xe7f6a4, 0.55);
   const blade = mix(dark, light, 0.42);
   const pad = Math.ceil(L + maxHalf + 2);
@@ -77,14 +85,15 @@ function leaflet(m, bx, by, bz, ang, len, dark, light, droop, fade) {
       const t = Math.min(1, along / L);
       const belly = Math.sin(Math.PI * Math.pow(t, 0.78));
       const envelope = belly * maxHalf;
-      const seg = 2.2;
+      const seg = 3.05;
       const segPos = ((along % seg) + seg) % seg;
       const toothT = segPos / seg;
-      const half = t > 0.9 ? Math.max(0.34, envelope * 0.38) : envelope * (0.32 + 0.68 * toothT);
+      const half = t > 0.9 ? Math.max(0.42, envelope * 0.32) : envelope * (0.2 + 0.8 * toothT);
       if (envelope < 0.2 || Math.abs(across) > half) continue;
-      const y = by + Math.sin(t * Math.PI) * 0.85 - droop * t * t * 1.35;
-      const onVein = Math.abs(across) <= 0.45;
-      const onTooth = Math.abs(across) >= half - 0.42;
+      const arc = Math.max(1.15, L * 0.11);
+      const y = by + Math.sin(t * Math.PI) * arc * 0.62 - droop * t * t * arc;
+      const onVein = Math.abs(across) <= 0.7;
+      const onTooth = Math.abs(across) >= half - 0.55;
       const sideVein = !onVein && segPos < seg * 0.4 && Math.abs(across) > 0.5 && t > 0.14 && t < 0.86;
       let col = onVein ? vein : onTooth ? dark : sideVein ? mix(vein, blade, 0.4) : blade;
       if (fade && t > 0.58) col = mix(col, SUGAR_TIP, (t - 0.58) / 0.42);
@@ -92,8 +101,9 @@ function leaflet(m, bx, by, bz, ang, len, dark, light, droop, fade) {
       if (onVein && t > 0.08 && t < 0.9) plot(m, ix, y + 1, iz, vein, 0.01);
     }
   }
-  const tipY = by + 0 - droop * 1.35;
-  plot(m, bx + dx * (L + 0.8), tipY, bz + dz * (L + 0.8), fade ? SUGAR_TIP : dark, 0.01);
+  const tipArc = Math.max(1.15, L * 0.11);
+  const tipY = by - droop * tipArc;
+  plot(m, bx + dx * (L + 0.9), tipY, bz + dz * (L + 0.9), fade ? SUGAR_TIP : dark, 0.01);
 }
 
 function fan(m, x, y, z, ang, size, fingers, droop, dark, light, stemCol, fade) {
@@ -101,11 +111,14 @@ function fan(m, x, y, z, ang, size, fingers, droop, dark, light, stemCol, fade) 
   const dz = Math.sin(ang);
   const pet = Math.max(2, Math.round(size * 0.36));
   const petCol = mix(stemCol, light, 0.62);
+  const pxn = -dz;
+  const pzn = dx;
   let py = y;
   for (let i = 1; i <= pet; i++) {
-    const lift = Math.sin((i / pet) * Math.PI) * 0.85;
+    const lift = Math.sin((i / pet) * Math.PI) * Math.max(0.85, size * 0.08);
     py = y + lift + i * 0.06;
     plot(m, x + dx * i, py, z + dz * i, i === pet ? light : petCol, 0.02);
+    if (size > 8) plot(m, x + dx * i + pxn * 0.7, py, z + dz * i + pzn * 0.7, petCol, 0.02);
   }
   const px = x + dx * pet;
   const pz = z + dz * pet;
@@ -150,13 +163,13 @@ function hair(m, x, y, z, ang, late, short, hairCol) {
   const orange = hairCol?.orange ?? PISTIL_ORANGE;
   const amber = hairCol?.amber ?? PISTIL_AMBER;
   const col = late > 0.72 ? orange : late > 0.32 ? mix(cream, orange, (late - 0.32) / 0.4) : cream;
-  const n = short ? 2 : 3;
+  const n = short ? 2 : 4;
   let a = ang;
   for (let i = 1; i <= n; i++) {
     a += short ? 0.18 : late > 0.65 ? 0.42 : 0.1;
-    const lift = short ? 0.4 : late > 0.72 ? 0.28 : 0.66;
+    const lift = short ? 0.4 : late > 0.72 ? 0.32 : 0.72;
     const tip = i === n && late > 0.78;
-    plot(m, x + Math.cos(a) * i * 0.95, y + i * lift, z + Math.sin(a) * i * 0.95, tip ? amber : col, 0);
+    plot(m, x + Math.cos(a) * i * 1.15, y + i * lift, z + Math.sin(a) * i * 1.15, tip ? amber : col, 0);
   }
 }
 
@@ -256,7 +269,7 @@ function seedHusk(m, ang, y, reach) {
 function knuckle(m, y, col, dark) {
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2 + 0.4;
-    plot(m, Math.cos(a) * 1.45, y, Math.sin(a) * 1.45, i % 2 ? dark : col, 0.02);
+    plot(m, Math.cos(a) * 2.15, y, Math.sin(a) * 2.15, i % 2 ? dark : col, 0.02);
   }
 }
 
@@ -291,19 +304,19 @@ function flowering(m, stage, spec, R) {
   const late = ready ? 0.9 : 0.08;
   const pistil = ready ? 0.4 : 0.7;
   const frost = (ready ? 0.38 : 0.03) * (spec.frost || 1);
-  stalk(m, ready ? 14 : 17, stemCol, stemDark, true);
+  stalk(m, (ready ? 14 : 17) * U, stemCol, stemDark, true);
 
   const nodes = ready
     ? [
-        { y: 3, fingers: 7, size: 12, droop: 1.7 },
-        { y: 6, fingers: 5, size: 9, droop: 0.85 },
-        { y: 9, fingers: 3, size: 6, droop: 0.25 },
+        { y: 3 * U, fingers: 7, size: 12 * U, droop: 1.7 },
+        { y: 6 * U, fingers: 5, size: 9 * U, droop: 0.85 },
+        { y: 9 * U, fingers: 3, size: 6 * U, droop: 0.25 },
       ]
     : [
-        { y: 3, fingers: 5, size: 10, droop: 1.45 },
-        { y: 7, fingers: 7, size: 12, droop: 0.9 },
-        { y: 11, fingers: 7, size: 10, droop: 0.4 },
-        { y: 14, fingers: 5, size: 7, droop: 0.08 },
+        { y: 3 * U, fingers: 5, size: 10 * U, droop: 1.45 },
+        { y: 7 * U, fingers: 7, size: 12 * U, droop: 0.9 },
+        { y: 11 * U, fingers: 7, size: 10 * U, droop: 0.4 },
+        { y: 14 * U, fingers: 5, size: 7 * U, droop: 0.08 },
       ];
   let ang = 0.22 + (spec.seed % 6) * 0.15;
   for (const n of nodes) {
@@ -314,19 +327,19 @@ function flowering(m, stage, spec, R) {
 
   const sides = ready
     ? [
-        { y: 6, len: 5, rise: 3.4, cola: 7, girth: 2.2, sugars: 3 },
-        { y: 9, len: 4, rise: 2.8, cola: 6, girth: 2.0, sugars: 3 },
+        { y: 6 * U, len: 5 * U, rise: 3.4 * U, cola: 7 * U, girth: 2.7, sugars: 4 },
+        { y: 9 * U, len: 4 * U, rise: 2.8 * U, cola: 6 * U, girth: 2.45, sugars: 3 },
       ]
     : [
-        { y: 11, len: 5, rise: 2.6, cola: 4, girth: 1.45, sugars: 2 },
-        { y: 14, len: 4, rise: 2.3, cola: 4, girth: 1.35, sugars: 2 },
+        { y: 11 * U, len: 5 * U, rise: 2.6 * U, cola: 4 * U, girth: 1.8, sugars: 3 },
+        { y: 14 * U, len: 4 * U, rise: 2.3 * U, cola: 4 * U, girth: 1.65, sugars: 2 },
       ];
   for (const s of sides) {
     for (const side of [0, Math.PI]) {
       const a = ang + side;
-      const end = limb(m, Math.cos(a) * 1.15, s.y, Math.sin(a) * 1.15, a, s.len, s.rise, stemCol, stemDark);
+      const end = limb(m, Math.cos(a) * 1.6, s.y, Math.sin(a) * 1.6, a, s.len, s.rise, stemCol, stemDark);
       spear(m, end.x, end.y, end.z, s.cola, s.girth, spec.bud, R, {
-        ...colaOpt(spec, stemCol, late, pistil, frost, s.sugars, ready ? 4.2 : 3.2, ready, a),
+        ...colaOpt(spec, stemCol, late, pistil, frost, s.sugars, ready ? 6 : 4.4, ready, a),
         leanX: Math.cos(a) * 0.14,
         leanZ: Math.sin(a) * 0.14,
       });
@@ -337,13 +350,13 @@ function flowering(m, stage, spec, R) {
   spear(
     m,
     0,
-    ready ? 11 : 15,
+    (ready ? 11 : 15) * U,
     0,
-    ready ? 12 : 7,
-    ready ? 3.35 : 2.05,
+    (ready ? 12 : 7) * U,
+    ready ? 4.1 : 2.5,
     spec.bud,
     R,
-    colaOpt(spec, stemCol, late, pistil, frost, ready ? 5 : 3, ready ? 4.6 : 3.5, ready, 0.35),
+    colaOpt(spec, stemCol, late, pistil, frost, ready ? 6 : 4, ready ? 6.2 : 4.6, ready, 0.35),
   );
 }
 
@@ -352,12 +365,12 @@ function vegetative(m, spec) {
   const stemDark = spec.stemD;
   const dark = spec.leafDark;
   const light = spec.leafLight;
-  stalk(m, 16, stemCol, stemDark, true);
+  stalk(m, 16 * U, stemCol, stemDark, true);
   const nodes = [
-    { y: 3, fingers: 5, size: 9, droop: 1.45, ax: 3 },
-    { y: 7, fingers: 7, size: 12, droop: 0.85, ax: 0 },
-    { y: 11, fingers: 7, size: 11, droop: 0.35, ax: 0 },
-    { y: 14, fingers: 5, size: 8, droop: 0.05, ax: 0 },
+    { y: 3 * U, fingers: 5, size: 9 * U, droop: 1.45, ax: 3 * U },
+    { y: 7 * U, fingers: 7, size: 12 * U, droop: 0.85, ax: 0 },
+    { y: 11 * U, fingers: 7, size: 11 * U, droop: 0.35, ax: 0 },
+    { y: 14 * U, fingers: 5, size: 8 * U, droop: 0.05, ax: 0 },
   ];
   let ang = 0.2 + (spec.seed % 5) * 0.18;
   for (const n of nodes) {
@@ -365,12 +378,12 @@ function vegetative(m, spec) {
     pair(m, n.y, ang, n.size, n.fingers, n.droop, dark, light, stemCol);
     if (n.ax) {
       for (const side of [0, Math.PI]) {
-        sideBranch(m, n.y, ang + side + 0.42, n.ax, n.ax * 0.72, dark, light, stemCol, stemDark, Math.min(5, n.fingers), Math.max(4, n.size * 0.5), 0.55, false);
+        sideBranch(m, n.y, ang + side + 0.42, n.ax, n.ax * 0.72, dark, light, stemCol, stemDark, Math.min(5, n.fingers), Math.max(5, n.size * 0.5), 0.55, false);
       }
     }
     ang += Math.PI / 2;
   }
-  pair(m, 16.4, ang, 4.4, 3, -0.7, dark, light, stemCol);
+  pair(m, 16.4 * U, ang, 4.4 * U, 3, -0.7, dark, light, stemCol);
 }
 
 function seedling(m, spec) {
@@ -378,28 +391,28 @@ function seedling(m, spec) {
   const stemDark = shade(stemCol, 0.78);
   const dark = spec.leafDark;
   const light = spec.leafLight;
-  stalk(m, 12, stemCol, stemDark, true);
-  fleshyCotyledon(m, 0.12, 2.3, 4.4, -0.7, 0.7);
-  fleshyCotyledon(m, Math.PI + 0.04, 2.3, 3.5, -0.9, 0.82);
-  knuckle(m, 6, stemCol, stemDark);
-  fan(m, 0, 6, 0, Math.PI / 2, 7.2, 1, 0.35, dark, light, stemCol, false);
-  fan(m, 0, 6, 0, -Math.PI / 2, 6.2, 1, 0.45, dark, light, stemCol, false);
-  knuckle(m, 9, stemCol, stemDark);
-  pair(m, 9.2, 0.06, 8, 3, -0.15, dark, light, stemCol);
-  pair(m, 12, Math.PI / 2, 4, 1, -1.35, dark, light, stemCol);
+  stalk(m, 12 * U, stemCol, stemDark, true);
+  fleshyCotyledon(m, 0.12, 2.3 * U, 4.4 * U, -0.7 * U, 0.7);
+  fleshyCotyledon(m, Math.PI + 0.04, 2.3 * U, 3.5 * U, -0.9 * U, 0.82);
+  knuckle(m, 6 * U, stemCol, stemDark);
+  fan(m, 0, 6 * U, 0, Math.PI / 2, 7.2 * U, 1, 0.35, dark, light, stemCol, false);
+  fan(m, 0, 6 * U, 0, -Math.PI / 2, 6.2 * U, 1, 0.45, dark, light, stemCol, false);
+  knuckle(m, 9 * U, stemCol, stemDark);
+  pair(m, 9.2 * U, 0.06, 8 * U, 3, -0.15, dark, light, stemCol);
+  pair(m, 12 * U, Math.PI / 2, 4 * U, 1, -1.35, dark, light, stemCol);
 }
 
 function sprout(m, spec) {
   const hypo = mix(0xe7f6c4, spec.leafLight, 0.12);
-  for (let y = 0; y <= 6; y++) {
-    const hook = y > 4 ? (y - 4) * 0.8 : 0;
-    plot(m, hook, y, 0, y < 2 ? mix(hypo, 0xc8b878, 0.4) : hypo, 0.02);
+  for (let y = 0; y <= 6 * U; y++) {
+    const hook = y > 4 * U ? (y - 4 * U) * 0.8 : 0;
+    plot(m, hook, y, 0, y < 2 * U ? mix(hypo, 0xc8b878, 0.4) : hypo, 0.02);
   }
-  fleshyCotyledon(m, 0.16, 4.5, 4.2, 3.5, 0.04);
-  fleshyCotyledon(m, Math.PI - 0.06, 4.5, 3.3, 2.8, 0.12);
-  fan(m, 0.3, 6.1, 0, Math.PI / 2, 6.4, 1, -0.3, spec.leafDark, spec.leafLight, hypo, false);
-  fan(m, 0.3, 6.1, 0, -Math.PI / 2, 5.3, 1, -0.15, spec.leafDark, spec.leafLight, hypo, false);
-  seedHusk(m, 0.16, 7.4, 4.8);
+  fleshyCotyledon(m, 0.16, 4.5 * U, 4.2 * U, 3.5 * U, 0.04);
+  fleshyCotyledon(m, Math.PI - 0.06, 4.5 * U, 3.3 * U, 2.8 * U, 0.12);
+  fan(m, 0.3 * U, 6.1 * U, 0, Math.PI / 2, 6.4 * U, 1, -0.3, spec.leafDark, spec.leafLight, hypo, false);
+  fan(m, 0.3 * U, 6.1 * U, 0, -Math.PI / 2, 5.3 * U, 1, -0.15, spec.leafDark, spec.leafLight, hypo, false);
+  seedHusk(m, 0.16, 7.4 * U, 4.8 * U);
 }
 
 export function buildPlant(stage, strain) {
