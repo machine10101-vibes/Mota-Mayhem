@@ -21,10 +21,10 @@ export function loadSave() {
 }
 
 /**
- * Bind the garden to a Klever address.
- * `loaded` means this browser already had that wallet's garden.
- * `claimed` means an older unsigned garden was moved onto the wallet.
- * `new` means this wallet is starting fresh here.
+ * Bind the garden to an account id.
+ * `loaded` means this browser already had that account's garden.
+ * `claimed` means an older unsigned garden was moved onto the account.
+ * `new` means this account is starting fresh here.
  */
 export function adoptAddress(address) {
   boundAddress = address;

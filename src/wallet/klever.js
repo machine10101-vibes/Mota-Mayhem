@@ -121,8 +121,8 @@ async function connectProvider(kw, mobile) {
     throw fail(
       'no-account',
       mobile
-        ? 'Choose a Klever account in the app, then sign in again.'
-        : 'Open the Klever extension, choose an account, then sign in again.',
+        ? 'Choose a Klever account in the app, then connect again.'
+        : 'Open the Klever extension, choose an account, then connect again.',
     );
   }
   return address;
@@ -139,15 +139,15 @@ export async function signIn() {
     throw fail(
       mobile ? 'mobile-app' : 'extension',
       mobile
-        ? 'Open this page in the Klever Wallet app. The app will ask you to sign.'
-        : 'Install the Klever Wallet extension, then sign in from this page.',
+        ? 'Open this page in the Klever Wallet app. The app will ask you to approve the connection.'
+        : 'Install the Klever Wallet extension, then press Connect wallet on this page.',
     );
   }
   const address = await connectProvider(kw, mobile);
   const nonceBytes = crypto.getRandomValues(new Uint8Array(16));
   const nonce = [...nonceBytes].map((b) => b.toString(16).padStart(2, '0')).join('');
   const message = [
-    'Mota Mayhem wants you to sign in with your Klever wallet.',
+    'Mota Mayhem wants you to connect your Klever wallet.',
     'This does not send any coins.',
     `Address: ${address}`,
     `Nonce: ${nonce}`,
@@ -157,7 +157,7 @@ export async function signIn() {
   try {
     signed = await requestSignature(kw, message);
   } catch {
-    throw fail('rejected', mobile ? 'The Klever app closed the sign-in request.' : 'The Klever extension closed the sign-in request.');
+    throw fail('rejected', mobile ? 'The Klever app closed the connection request.' : 'The Klever extension closed the connection request.');
   }
   const signature = signatureText(signed);
   let ok = verifyKleverSignature(message, signature, address);
@@ -224,10 +224,21 @@ export function readSession() {
   }
 }
 
-export function clearSession() {
+/** Drops a Klever login without clearing the connect-wallet prompt lock. */
+export function clearKleverLogin() {
   for (const store of [sessionStorage, localStorage]) {
     try {
       store.removeItem(SESSION_KEY);
+    } catch {
+      /* already gone */
+    }
+  }
+}
+
+export function clearSession() {
+  clearKleverLogin();
+  for (const store of [sessionStorage, localStorage]) {
+    try {
       store.removeItem(PROMPT_LOCK);
     } catch {
       /* already gone */
@@ -318,7 +329,7 @@ export function showWalletHelp(el, kind) {
   const actions = document.createElement('div');
   actions.className = 'wallet-actions';
   if (kind === 'mobile-app') {
-    p.textContent = 'Sign in opens the Klever Wallet installed on this phone and asks you to approve the signature there. Install the app below only if it is not on this phone.';
+    p.textContent = 'Connect wallet opens the Klever Wallet installed on this phone and asks you to approve the signature there. Install the app below only if it is not on this phone.';
     if (isMobile()) actions.append(actionButton('Open Klever Wallet', () => launchKleverApp()));
     actions.append(
       actionButton('Copy page link', async (ev) => {
@@ -329,7 +340,7 @@ export function showWalletHelp(el, kind) {
       storeLink(KLEVER_IOS, 'App Store'),
     );
   } else {
-    p.textContent = 'On a computer, the Klever Wallet extension asks you to sign. Install it, refresh this page, and press sign in again.';
+    p.textContent = 'On a computer, the Klever Wallet extension asks you to approve the connection. Install it, refresh this page, and press Connect wallet again.';
     actions.append(storeLink(KLEVER_EXTENSION, 'Install the Klever extension'));
   }
   el.append(p, actions);
