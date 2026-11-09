@@ -312,13 +312,66 @@ function sideBranch(m, y, ang, len, rise, dark, light, stemCol, stemDark, finger
   return end;
 }
 
+function budBall(m, x, y, z, rad, pal, R, frost) {
+  const r = Math.max(1.35, rad);
+  const y0 = -Math.max(1, Math.round(r * 0.42));
+  const y1 = Math.max(2, Math.round(r * 0.72));
+  for (let dy = y0; dy <= y1; dy++) {
+    const yt = dy / (r * 0.85);
+    const slice = r * Math.sqrt(Math.max(0, 1 - yt * yt));
+    const cr = Math.ceil(slice);
+    for (let dx = -cr; dx <= cr; dx++) {
+      for (let dz = -cr; dz <= cr; dz++) {
+        const d = Math.hypot(dx, dz);
+        if (d > slice) continue;
+        const rim = d > slice - 0.85;
+        let col = rim ? pal[2] : (dx + dy + dz) % 3 === 0 ? pal[1] : pal[0];
+        if (rim && R() < frost) col = mix(pal[2], FROST, 0.62);
+        plot(m, x + dx, y + dy, z + dz, col, 0.02);
+      }
+    }
+  }
+}
+
+function stackCola(m, x, y, z, dx, dy, dz, count, girth, pal, R, opt) {
+  const len = Math.hypot(dx, dy, dz) || 1;
+  dx /= len;
+  dy /= len;
+  dz /= len;
+  let px = -dz;
+  let pz = dx;
+  const pLen = Math.hypot(px, pz) || 1;
+  px /= pLen;
+  pz /= pLen;
+  const n = Math.max(2, count | 0);
+  const step = Math.max(2.35, girth * 0.92);
+  for (let i = 0; i < n; i++) {
+    const t = n === 1 ? 0 : i / (n - 1);
+    const rad = girth * (0.82 + 0.18 * Math.sin(Math.PI * Math.min(1, t + 0.05))) * (1 - t * 0.2);
+    const spin = i * 2.15 + (opt.spin || 0);
+    const swirl = girth * 0.28;
+    const bx = x + dx * i * step + Math.cos(spin) * px * swirl;
+    const by = y + dy * i * step;
+    const bz = z + dz * i * step + Math.sin(spin) * pz * swirl;
+    budBall(m, bx, by, bz, rad, pal, R, opt.frost || 0);
+    const hairs = opt.hairs ?? 4;
+    for (let h = 0; h < hairs; h++) {
+      const a = spin + (h / hairs) * Math.PI * 2;
+      hair(m, bx + Math.cos(a) * rad * 0.45, by + rad * 0.35, bz + Math.sin(a) * rad * 0.45, a, opt.late, true, opt.hair);
+    }
+    if (i % 2 === 0 && opt.leafD != null) {
+      leaflet(m, bx, by + 0.4, bz, spin + 0.6, opt.sugarLen || 4, opt.leafD, opt.leafL, 0.18, !!opt.fade);
+    }
+  }
+}
+
 function finishTree(m, spec, R, ready) {
   const stemCol = ready ? mix(0x6a4a24, spec.stem, 0.2) : mix(spec.stem, 0xd7e7a8, 0.16);
   const stemDark = ready ? 0x3a2814 : spec.stemD;
   const dark = spec.leafDark;
   const light = spec.leafLight;
-  const gold = [0xf0d15a, 0xc9a43a, 0xfff0a0];
-  const bud = ready ? spec.bud.map((c, i) => mix(c, gold[i], 0.78)) : spec.bud;
+  const gold = [0xe8b84a, 0xb88828, 0xf2d56a];
+  const bud = spec.bud.map((c, i) => mix(c, gold[i], ready ? 0.86 : 0.58));
   const late = ready ? 0.88 : 0.05;
   const frost = (ready ? 0.16 : 0.02) * (spec.frost || 1);
   const hairCol = ready
@@ -326,16 +379,16 @@ function finishTree(m, spec, R, ready) {
     : spec.hair || { cream: 0xf4f1e2, orange: 0xf7f3e6, amber: 0xe7f0cc };
   const tiers = ready
     ? [
-        { y: 8, fan: 18, fingers: 7, droop: 0.5, arms: 4, reach: 16, rise: 6, cola: 6, girth: 2.2 },
-        { y: 15, fan: 16, fingers: 7, droop: 0.36, arms: 4, reach: 13, rise: 6, cola: 6, girth: 2.1 },
-        { y: 22, fan: 13, fingers: 7, droop: 0.22, arms: 4, reach: 10, rise: 5, cola: 5, girth: 1.95 },
-        { y: 28, fan: 10, fingers: 5, droop: 0.12, arms: 4, reach: 7, rise: 4, cola: 4, girth: 1.8 },
+        { y: 8, fan: 18, fingers: 7, droop: 0.5, arms: 4, reach: 14, rise: 6, buds: 6, girth: 3.15 },
+        { y: 15, fan: 16, fingers: 7, droop: 0.36, arms: 4, reach: 11, rise: 6, buds: 5, girth: 2.9 },
+        { y: 22, fan: 13, fingers: 7, droop: 0.22, arms: 4, reach: 8, rise: 5, buds: 5, girth: 2.65 },
+        { y: 28, fan: 10, fingers: 5, droop: 0.12, arms: 4, reach: 6, rise: 4, buds: 4, girth: 2.4 },
         { y: 33, fan: 7, fingers: 5, droop: 0.06, arms: 0 },
       ]
     : [
-        { y: 7, fan: 13, fingers: 7, droop: 0.5, arms: 4, reach: 9, rise: 4, cola: 4, girth: 1.55 },
-        { y: 13, fan: 11, fingers: 7, droop: 0.28, arms: 4, reach: 7, rise: 4, cola: 4, girth: 1.45 },
-        { y: 19, fan: 8, fingers: 5, droop: 0.12, arms: 4, reach: 5, rise: 3, cola: 3, girth: 1.3 },
+        { y: 7, fan: 13, fingers: 7, droop: 0.5, arms: 4, reach: 8, rise: 4, buds: 5, girth: 2.55 },
+        { y: 13, fan: 11, fingers: 7, droop: 0.28, arms: 4, reach: 6, rise: 4, buds: 4, girth: 2.35 },
+        { y: 19, fan: 8, fingers: 5, droop: 0.12, arms: 4, reach: 5, rise: 3, buds: 4, girth: 2.15 },
         { y: 24, fan: 6, fingers: 5, droop: 0.04, arms: 0 },
       ];
   const top = tiers[tiers.length - 1].y;
@@ -347,14 +400,17 @@ function finishTree(m, spec, R, ready) {
       plot(m, Math.cos(a) * rad, y, Math.sin(a) * rad, k % 2 ? stemDark : stemCol, 0.02);
     }
   }
-  const colaAt = (x, y, z, len, girth, a, sugars) => {
-    spear(m, x, y, z, len, girth, bud, R, {
-      ...colaOpt(spec, stemCol, late, ready ? 0.7 : 0.28, frost, sugars, ready ? 4.2 : 3.2, false, a),
+  const colaAt = (x, y, z, count, girth, a) => {
+    stackCola(m, x, y, z, Math.cos(a) * 0.38, 0.92, Math.sin(a) * 0.38, count, girth, bud, R, {
+      frost,
+      late,
       hair: hairCol,
-      shortHair: !ready,
-      crown: false,
-      leanX: Math.cos(a) * (ready ? 0.7 : 0.25),
-      leanZ: Math.sin(a) * (ready ? 0.7 : 0.25),
+      hairs: ready ? 4 : 1,
+      spin: a,
+      leafD: dark,
+      leafL: light,
+      sugarLen: ready ? 4.4 : 3.2,
+      fade: ready,
     });
   };
   let ang = 0.22 + (spec.seed % 5) * 0.18;
@@ -381,16 +437,21 @@ function finishTree(m, spec, R, ready) {
           stemCol,
           false,
         );
-        colaAt(end.x, end.y, end.z, n.cola, n.girth, a, ready ? 2 : 1);
+        colaAt(end.x, end.y + 0.6, end.z, n.buds, n.girth, a);
       }
     }
     ang += Math.PI / 2;
   }
-  spear(m, 0, top + 1, 0, ready ? 14 : 7, ready ? 2.55 : 1.7, bud, R, {
-    ...colaOpt(spec, stemCol, late, ready ? 0.7 : 0.28, frost, ready ? 6 : 2, ready ? 4.6 : 3.2, ready, 0.4),
+  stackCola(m, 0, ready ? 20 : 15, 0, 0, 1, 0, ready ? 11 : 9, ready ? 3.45 : 2.7, bud, R, {
+    frost,
+    late,
     hair: hairCol,
-    shortHair: !ready,
-    crown: true,
+    hairs: ready ? 5 : 1,
+    spin: 0.4,
+    leafD: dark,
+    leafL: light,
+    sugarLen: ready ? 5.2 : 3.4,
+    fade: ready,
   });
 }
 

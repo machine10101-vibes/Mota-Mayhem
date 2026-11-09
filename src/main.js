@@ -767,7 +767,7 @@ function gramsFor(grade) {
   return grade === 'AAAA' ? 9 : grade === 'AAA' ? 7 : grade === 'AA' ? 5 : 3;
 }
 
-const PLANT_TOP = [0.82, 1.36, 1.78, 2.02, 3.12];
+const PLANT_TOP = [0.82, 1.36, 1.78, 2.26, 3.28];
 const plantBits = {
   frostGeo: new THREE.SphereGeometry(0.07, 6, 4),
   ringGeo: new THREE.RingGeometry(0.18, 0.36, 6),
