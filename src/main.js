@@ -6,7 +6,7 @@ import { createPlayer, LOOK_KEYS, LOOK_OPTIONS, normalizeLook } from './characte
 import { BEDS, buildWorld, SLOT_OFFSETS } from './world.js';
 import { buildPlant, PVS } from './plants.js';
 import { VoxelModel, toMesh, voxelMaterial } from './voxel.js';
-import { buildMotaToken, HOUSE, LOFT, MOTA_PER_G, SEED_PACK, SUPPLIES, UNLOCK, WAREHOUSE_PRICE } from './estate.js';
+import { buildMotaToken, buildNutrientBottle, buildRootCube, HOUSE, LOFT, MOTA_PER_G, SEED_PACK, SUPPLIES, UNLOCK, WAREHOUSE_PRICE } from './estate.js';
 import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace } from './strains.js';
 import { loadSave, writeSave } from './save.js';
@@ -1662,6 +1662,158 @@ function budHex(n) {
   return '#' + (n >>> 0).toString(16).padStart(6, '0');
 }
 
+const bagIcons = [];
+let bagView = null;
+const feedGeo = buildNutrientBottle().build(0.08);
+const cubeGeo = buildRootCube().build(0.08);
+feedGeo.computeBoundingBox();
+cubeGeo.computeBoundingBox();
+
+function ensureBagView() {
+  if (bagView) return bagView;
+  const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(1);
+  renderer.setSize(80, 80, false);
+  renderer.setClearColor(0x000000, 0);
+  const scene = new THREE.Scene();
+  scene.add(new THREE.HemisphereLight(0xfff6e0, 0x24331c, 1.2));
+  const sun = new THREE.DirectionalLight(0xfff3d2, 1.45);
+  sun.position.set(2.4, 4.2, 3.2);
+  scene.add(sun);
+  const mesh = new THREE.Mesh(new THREE.BufferGeometry(), voxelMaterial);
+  mesh.frustumCulled = false;
+  const pivot = new THREE.Group();
+  pivot.add(mesh);
+  scene.add(pivot);
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 50);
+  bagView = { renderer, scene, mesh, pivot, camera };
+  return bagView;
+}
+
+function iconFrame(geo) {
+  if (!geo.boundingBox) geo.computeBoundingBox();
+  const box = geo.boundingBox;
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const radius = Math.max(size.x, size.y, size.z, 0.05) * 0.7;
+  const cam = new THREE.Vector3(radius * 0.75, radius * 1.45, radius * 0.9);
+  const temp = new THREE.PerspectiveCamera();
+  temp.position.copy(cam);
+  temp.lookAt(0, 0, 0);
+  temp.updateMatrixWorld();
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(temp.quaternion);
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(temp.quaternion);
+  let half = 0.001;
+  for (const x of [box.min.x, box.max.x]) {
+    for (const y of [box.min.y, box.max.y]) {
+      for (const z of [box.min.z, box.max.z]) {
+        const p = new THREE.Vector3(x - center.x, y - center.y, z - center.z);
+        half = Math.max(half, Math.abs(p.dot(right)), Math.abs(p.dot(up)));
+      }
+    }
+  }
+  return { center, cam, half: half * 1.16 };
+}
+
+function bagSignature(pick) {
+  const clones = state.clones.map((c) => c.strain).join(',');
+  const wet = state.wet.map((w) => `${w.strain}:${w.grade}`).join(',');
+  const seeds = STRAIN_IDS.map((id) => state.seeds[id] | 0).join(',');
+  const jars = GRADES.map((g) => state.jars[g] | 0).join(',');
+  return [pick, seeds, clones, wet, jars, state.nutrients | 0, state.cubes | 0].join('|');
+}
+
+function addBagSlot(grid, item) {
+  const el = document.createElement(item.select ? 'button' : 'div');
+  if (item.select) el.type = 'button';
+  el.className = 'bag-slot' + (item.on ? ' on' : '');
+  const canvas = document.createElement('canvas');
+  canvas.width = 80;
+  canvas.height = 80;
+  const name = document.createElement('span');
+  name.textContent = item.label;
+  const count = document.createElement('b');
+  count.textContent = String(item.count);
+  el.append(canvas, name, count);
+  if (item.select) {
+    el.addEventListener('pointerdown', (e) => {
+      swallow(e);
+      state.strainPick = item.id;
+      $('bag-grid').dataset.sig = '';
+      markDirty();
+      updateHud();
+    });
+  }
+  grid.append(el);
+  const frame = iconFrame(item.geo);
+  bagIcons.push({ canvas, ctx: canvas.getContext('2d'), geo: item.geo, frame, phase: bagIcons.length * 0.7 });
+}
+
+function paintBag(pick) {
+  const grid = $('bag-grid');
+  if (!grid) return;
+  const sig = bagSignature(pick);
+  if (grid.dataset.sig === sig) return;
+  grid.dataset.sig = sig;
+  grid.replaceChildren();
+  bagIcons.length = 0;
+  for (const id of STRAIN_IDS) {
+    const n = state.seeds[id] | 0;
+    if (!n) continue;
+    addBagSlot(grid, { select: true, id, label: strainOf(id).short, count: n, geo: plantGeo(0, id), on: id === pick });
+  }
+  const clones = new Map();
+  for (const c of state.clones) clones.set(c.strain, (clones.get(c.strain) || 0) + 1);
+  for (const [id, n] of clones) addBagSlot(grid, { label: `${strainOf(id).short} CLONE`, count: n, geo: plantGeo(2, id) });
+  const wet = new Map();
+  for (const bud of state.wet) {
+    const key = `${bud.strain}:${bud.grade}`;
+    wet.set(key, (wet.get(key) || 0) + 1);
+  }
+  for (const [key, n] of wet) {
+    const [id, grade] = key.split(':');
+    const geo = world?.shed?.nugGeo?.[id];
+    if (!geo) continue;
+    addBagSlot(grid, { label: `${strainOf(id).short} ${grade}`, count: n, geo });
+  }
+  const jarGeo = world?.shed?.cureJars?.[0]?.mesh?.geometry;
+  if (jarGeo) {
+    for (const grade of ['AAAA', 'AAA', 'AA', 'A']) {
+      const n = state.jars[grade] | 0;
+      if (n) addBagSlot(grid, { label: grade, count: n, geo: jarGeo });
+    }
+  }
+  if (state.nutrients > 0) addBagSlot(grid, { label: 'FEED', count: state.nutrients | 0, geo: feedGeo });
+  if (state.cubes > 0) addBagSlot(grid, { label: 'CUBE', count: state.cubes | 0, geo: cubeGeo });
+  if (!grid.childElementCount) {
+    const empty = document.createElement('p');
+    empty.className = 'bag-empty';
+    empty.textContent = 'BAG IS EMPTY';
+    grid.append(empty);
+  }
+}
+
+function renderBagIcons(time) {
+  if (!bagIcons.length || $('inv').classList.contains('hidden')) return;
+  const view = ensureBagView();
+  for (const icon of bagIcons) {
+    view.mesh.geometry = icon.geo;
+    view.mesh.position.copy(icon.frame.center).multiplyScalar(-1);
+    view.pivot.rotation.y = time * 0.55 + icon.phase;
+    view.camera.position.copy(icon.frame.cam);
+    const half = icon.frame.half;
+    view.camera.left = -half;
+    view.camera.right = half;
+    view.camera.top = half;
+    view.camera.bottom = -half;
+    view.camera.lookAt(0, 0, 0);
+    view.camera.updateProjectionMatrix();
+    view.renderer.render(view.scene, view.camera);
+    icon.ctx.clearRect(0, 0, 80, 80);
+    icon.ctx.drawImage(view.renderer.domElement, 0, 0);
+  }
+}
+
 function updateHud() {
   const pick = STRAINS[state.strainPick] ? state.strainPick : 'bd';
   const held = strainOf(pick);
@@ -1671,40 +1823,9 @@ function updateHud() {
   $('strain-swatch').style.background = budHex(held.bud[0]);
   $('clones').textContent = state.clones.length;
   $('nuts').textContent = state.nutrients | 0;
-  $('cubes').textContent = state.cubes | 0;
   $('grams').textContent = state.grams;
   $('wet').textContent = state.wet.length;
-  const shed = world?.shed;
-  const busy = shed ? shed.hooks.filter((h) => h.item).length + shed.cureJars.filter((j) => j.item).length : 0;
-  $('shed-count').textContent = busy;
-  for (const g of ['AAAA', 'AAA', 'AA', 'A']) $('jar-' + g).textContent = state.jars[g];
-  const seeds = $('seeds');
-  const sig = STRAIN_IDS.map((id) => state.seeds[id] | 0).join(',') + '|' + pick;
-  if (seeds.dataset.sig !== sig) {
-    seeds.dataset.sig = sig;
-    seeds.replaceChildren();
-    for (const id of STRAIN_IDS) {
-      const spec = strainOf(id);
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'seed-tile' + (id === pick ? ' on' : '');
-      const sw = document.createElement('i');
-      sw.style.background = budHex(spec.bud[0]);
-      const name = document.createElement('span');
-      name.textContent = spec.short;
-      const count = document.createElement('b');
-      count.textContent = String(state.seeds[id] | 0);
-      b.append(sw, name, count);
-      b.addEventListener('pointerdown', (e) => {
-        swallow(e);
-        state.strainPick = id;
-        seeds.dataset.sig = '';
-        markDirty();
-        updateHud();
-      });
-      seeds.append(b);
-    }
-  }
+  paintBag(pick);
 }
 
 const tip = $('tip');
@@ -2236,6 +2357,7 @@ function frame(now) {
   updateTokens(time);
   updateTarget();
   updateBadges();
+  renderBagIcons(time);
   saveClock += dt;
   if ((state.mode === 'play' || state.mode === 'dress' || state.mode === 'shop') && saveClock > 4) {
     saveClock = 0;

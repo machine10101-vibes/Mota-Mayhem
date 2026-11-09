@@ -48,7 +48,7 @@ token. A 4-seed pack of whichever cultivars you have the fewest of is there too 
 sells a warehouse for 520 MOTA. Buying it opens the gate. Inside are nine indoor pots under 18/6 veg lights. Flip the switch inside to 12/12 when a plant is waiting, and it flowers a little faster than the yard. Ripening pauses if you flip the lights back, and the plant holds its water until 12/12 is on again.
 
 The farmer icon on the title screen and while you play, and the C key, open the character menu: skin, hair, hat,
-shirt, overalls, and boots, with a live preview. The backpack icon opens the inventory of MOTA, seeds, clones, feed, and jars. Both panels stay closed until that icon is clicked. **NEW GROW** resets the farm to the starter seeds and keeps
+shirt, overalls, and boots, with a live preview. The backpack icon opens the bag. Each pocket shows the same model used in the yard, at a small size: a sprout for each seed, a vegetative plant for a clone, the shed bud for wet flower, the cure jar, the green feed bottle, and the root cube. Tap a seed pocket to choose that strain. Both panels stay closed until that icon is clicked. **NEW GROW** resets the farm to the starter seeds and keeps
 the look. The character, MOTA, seeds, nutrients, root cubes, clones, beds, mothers, hydro tubes, veg pots, shed, and warehouse are saved in
 this browser.
 
