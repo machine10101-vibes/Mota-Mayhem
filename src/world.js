@@ -104,12 +104,15 @@ function buildGround(colliderInfo) {
       const h = hash3(vx, 2, vz, 8);
       const edge = Math.min(YARD.x - Math.abs(wx), YARD.z - Math.abs(wz));
       const nearPath = Math.abs(wx) < pathHalf + 0.5 && wz > -9.8;
-      if (h > 0.95 - (edge < 2.5 ? 0.04 : 0)) {
-        const tall = hash3(vx, 3, vz, 9) > 0.8;
-        const tc = pick([0x58a032, 0x7bc44c, 0x4e8f2c], vx, 0, vz, 6);
+      if (h > 0.9 - (edge < 2.5 ? 0.04 : 0)) {
+        const tall = hash3(vx, 3, vz, 9) > 0.78;
+        const tc = pick([0x58a032, 0x7bc44c, 0x4e8f2c, 0x8ed15a], vx, 0, vz, 6);
         m.set(vx, 0, vz, tc, 0.05);
-        if (tall) m.set(vx, 1, vz, shade(tc, 1.15), 0.05);
-      } else if (h < 0.005 + (edge < 3 ? 0.03 : 0) && !nearPath && edge > 0.6) {
+        if (tall) {
+          m.set(vx, 1, vz, shade(tc, 1.18), 0.04);
+          if (hash3(vx, 6, vz, 10) > 0.45) m.set(vx + (hash3(vx, 7, vz, 11) > 0.5 ? 1 : -1), 0, vz, shade(tc, 0.9), 0.04);
+        }
+      } else if (h < 0.014 + (edge < 3 ? 0.03 : 0) && !nearPath && edge > 0.6) {
         const col = flowerCols[Math.floor(hash3(Math.floor(vx / 6), 0, Math.floor(vz / 6), 14) * flowerCols.length)];
         m.set(vx, 0, vz, 0x3f8a2a, 0.04);
         m.set(vx, 1, vz, 0x4a9a30, 0.04);
