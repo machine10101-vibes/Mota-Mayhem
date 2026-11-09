@@ -206,7 +206,7 @@ function buildMarker() {
 
 const tokens = [];
 function spawnTokens() {
-  const src = toMesh(buildMotaToken(), 0.1, [0, 0, 0], new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), false);
+  const src = toMesh(buildMotaToken(), 0.052, [0, 0, 0], new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), false);
   const geo = src.geometry;
   const mat = src.material;
   const add = (x, y, z, parent, show, scale) => {

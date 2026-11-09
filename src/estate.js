@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { VoxelModel, hash3, shade, toMesh, voxelMaterial } from './voxel.js';
+import { VoxelModel, hash3, mix, shade, toMesh, voxelMaterial } from './voxel.js';
 import { buildPlant, PVS } from './plants.js';
 
 export const WAREHOUSE_PRICE = 520;
@@ -9,26 +9,101 @@ export const MOTA_PER_G = { A: 4, AA: 6, AAA: 9, AAAA: 14 };
 
 export function buildMotaToken() {
   const m = new VoxelModel();
-  const R = 8;
-  const leaf = new Set();
-  for (let y = -2; y <= 5; y++) leaf.add(`0,${y}`);
-  for (let x = -3; x <= 3; x++) leaf.add(`${x},2`);
-  for (let x = -2; x <= 2; x++) leaf.add(`${x},3`);
-  for (let x = -2; x <= 2; x++) leaf.add(`${x},1`);
-  leaf.add('-1,4');
-  leaf.add('1,4');
-  leaf.add('0,6');
-  for (let x = -R; x <= R; x++) {
-    for (let y = -R; y <= R; y++) {
+  const R = 16;
+  const rimColor = (ang) => {
+    const c = Math.cos(ang);
+    const s = Math.sin(ang);
+    const cyan = 0x2ee6d4;
+    const blue = 0x3b8cff;
+    const purple = 0x6a28e6;
+    const violet = 0xb14bff;
+    if (c >= 0) return mix(s >= 0 ? blue : violet, cyan, c);
+    return mix(purple, s >= 0 ? blue : violet, Math.abs(s) * 0.85);
+  };
+  for (let x = -R - 1; x <= R + 1; x++) {
+    for (let y = -R - 1; y <= R + 1; y++) {
       const d = Math.hypot(x, y);
-      if (d > R + 0.2) continue;
-      const rim = d > R - 1.8;
-      const stamp = leaf.has(`${x},${y}`);
-      const face = stamp ? 0x37b243 : rim ? 0xb87a10 : 0xffd24a;
-      const back = stamp ? 0x228433 : rim ? 0x7c540c : 0xe8a828;
-      for (let z = -1; z <= 1; z++) m.set(x, y, z, z === 0 ? rim ? 0x6a4810 : face : z > 0 ? face : back, 0.02);
+      if (d > R + 0.4 || d < R - 2.7) continue;
+      const col = rimColor(Math.atan2(x, y));
+      m.set(x, y, -1, mix(col, 0x24105a, 0.4), 0.02);
+      m.set(x, y, 0, col, 0.015);
     }
   }
+  const glyphs = [
+    [0b101, 0b111, 0b101],
+    [0b111, 0b101, 0b101],
+    [0b111, 0b010, 0b010],
+    [0b010, 0b111, 0b101],
+    [0b111, 0b101, 0b111],
+    [0b110, 0b101, 0b011],
+    [0b111, 0b100, 0b111],
+    [0b101, 0b111, 0b010],
+    [0b011, 0b101, 0b110],
+    [0b111, 0b001, 0b111],
+  ];
+  const count = 16;
+  for (let i = 0; i < count; i++) {
+    const ang = (i / count) * Math.PI * 2;
+    const rad = R - 1.25;
+    const cx = Math.sin(ang) * rad;
+    const cy = Math.cos(ang) * rad;
+    const tx = Math.cos(ang);
+    const ty = -Math.sin(ang);
+    const rx = Math.sin(ang);
+    const ry = Math.cos(ang);
+    const glyph = glyphs[i % glyphs.length];
+    const ink = mix(0x7af6ea, rimColor(ang), 0.22);
+    glyph.forEach((bits, row) => {
+      for (let col = 0; col < 3; col++) {
+        if (!(bits & (1 << (2 - col)))) continue;
+        const along = (col - 1) * 1.15;
+        const out = (1 - row) * 1.15;
+        const x = Math.round(cx + tx * along + rx * out);
+        const y = Math.round(cy + ty * along + ry * out);
+        if (Math.hypot(x, y) < R - 3.1) continue;
+        m.set(x, y, 1, ink, 0);
+      }
+    });
+  }
+  const leafAt = (x, y, col) => {
+    for (let z = 0; z <= 2; z++) m.set(x, y, z, z === 2 ? col : mix(col, 0x0d6b28, 0.5), 0.012);
+  };
+  const leaflet = (ang, len, girth) => {
+    const dx = Math.sin(ang);
+    const dy = Math.cos(ang);
+    const px = Math.cos(ang);
+    const py = -Math.sin(ang);
+    for (let t = 0; t <= len; t += 0.25) {
+      const u = t / len;
+      if (t < 1.8) {
+        leafAt(Math.round(dx * t), Math.round(dy * t) - 2, 0x2fbf45);
+        continue;
+      }
+      const env = Math.sin(Math.PI * Math.pow((t - 1.2) / (len - 1.2), 0.85)) * girth;
+      const tooth = Math.floor(t * 1.6) % 2 === 0 ? 0.45 : 1;
+      const w = env * tooth;
+      for (let s = -Math.ceil(w); s <= Math.ceil(w); s++) {
+        if (Math.abs(s) > w + 0.05) continue;
+        const x = Math.round(dx * t + px * s);
+        const y = Math.round(dy * t + py * s) - 2;
+        const vein = s === 0;
+        const edge = Math.abs(s) >= w - 0.45;
+        const tip = u > 0.86;
+        const col = vein ? 0xb6f06a : tip ? 0x7ee85c : edge ? 0x157a30 : 0x2fbf48;
+        leafAt(x, y, col);
+      }
+    }
+  };
+  [
+    [0, 11.4, 1.55],
+    [0.72, 9.4, 1.35],
+    [-0.72, 9.4, 1.35],
+    [1.28, 7.3, 1.15],
+    [-1.28, 7.3, 1.15],
+    [1.9, 5.1, 0.95],
+    [-1.9, 5.1, 0.95],
+  ].forEach(([ang, len, girth]) => leaflet(ang, len, girth));
+  for (let y = -8; y <= 0; y++) leafAt(0, y, y < -5 ? 0x46d255 : 0x3dcf4c);
   return m;
 }
 export const WH = { x: 30, z: 0, hx: 7, hz: 5.5 };
