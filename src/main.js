@@ -9,7 +9,9 @@ import { VoxelModel, toMesh, voxelMaterial } from './voxel.js';
 import { buildMotaToken, buildNutrientBottle, buildRootCube, HOUSE, LOFT, MOTA_PER_G, SEED_PACK, SUPPLIES, UNLOCK, WAREHOUSE_PRICE } from './estate.js';
 import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace } from './strains.js';
-import { loadSave, writeSave } from './save.js';
+import { loadSave, writeSave, adoptAddress, unbindAddress } from './save.js';
+import { clearSession, inKleverHandoff, isMobile, launchKleverApp, markPrompt, promptIsCooling, readSession, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
+import { clearCloudToken, flushCloud, schedulePush, syncGarden } from './wallet/cloud.js';
 
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -289,9 +291,20 @@ function setTouchUI(on) {
   else if (!on) $('touch').classList.add('hidden');
 }
 
+let walletSession = null;
+let walletBusy = false;
+let walletNote = '';
+let cloudState = 'off';
+let cloudSyncing = false;
+let cloudPush = false;
+
+function walletReady() {
+  return !!walletSession?.address && !walletBusy && !cloudSyncing;
+}
+
 addEventListener('keydown', (e) => {
-  if ((e.code === 'Space' || e.code === 'Enter') && (state.mode === 'title' || state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress')) enterFullscreen();
-  if ((e.code === 'Space' || e.code === 'Enter') && state.mode === 'title') startGame();
+  if ((e.code === 'Space' || e.code === 'Enter') && (state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress')) enterFullscreen();
+  if ((e.code === 'Space' || e.code === 'Enter') && state.mode === 'title') onTitleConfirm();
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   if (!keys.has(e.code)) pressed.add(e.code);
   keys.add(e.code);
@@ -346,7 +359,7 @@ function forChanged(e, fn) {
 }
 
 function uiTarget(el) {
-  return !!el?.closest?.('#touch, #hud, #dress, #shop, #strains, .title-actions, button, .tbtn');
+  return !!el?.closest?.('#touch, #hud, #dress, #shop, #strains, .title-actions, .wallet-box, button, .tbtn');
 }
 
 function onCamDown(e) {
@@ -355,7 +368,7 @@ function onCamDown(e) {
   if (uiTarget(e.target)) return;
   if (state.mode === 'title') {
     if (e.touches || e.pointerType === 'touch') setTouchUI(true);
-    startGame();
+    onTitleConfirm();
     ignoreCam = true;
     return;
   }
@@ -410,7 +423,7 @@ function bindStart() {
     if (state.mode !== 'title') return;
     if (uiTarget(e.target) || e.target.closest?.('#help')) return;
     if (e.touches || e.pointerType === 'touch') setTouchUI(true);
-    startGame();
+    onTitleConfirm();
     ignoreCam = true;
   };
   $('title').addEventListener('touchstart', go, { passive: true });
@@ -2344,7 +2357,7 @@ function frame(now) {
   if (!world) return;
   const time = now / 1000;
 
-  if (state.mode === 'title' && (pressed.has('Space') || pressed.has('Enter'))) startGame();
+  if (state.mode === 'title' && (pressed.has('Space') || pressed.has('Enter'))) onTitleConfirm();
   if (pressed.has('Escape') && state.mode === 'dress') closeDress();
   if (pressed.has('Escape') && state.mode === 'shop') closeShop();
   if (pressed.has('KeyC') && state.mode !== 'dress' && state.mode !== 'shop' && state.mode !== 'loading') openDress();
@@ -2448,6 +2461,8 @@ function enterFullscreen() {
 
 function startGame() {
   if (state.mode === 'play' || state.mode === 'dress' || state.mode === 'loading') return;
+  if (!params.has('autostart') && !walletSession?.address) return;
+  enterFullscreen();
   state.mode = 'play';
   $('title').classList.add('gone');
   $('title').classList.remove('dressing');
@@ -2465,6 +2480,187 @@ function startGame() {
   canSave = true;
   flushSave();
   refreshTitle();
+}
+
+function onTitleConfirm() {
+  if (state.mode !== 'title' || walletBusy) return;
+  if (walletReady()) startGame();
+  else onWallet();
+}
+
+function refreshWalletUi() {
+  const status = $('wallet-status');
+  const sign = $('btn-wallet');
+  const swap = $('btn-wallet-switch');
+  const help = $('wallet-help');
+  const signed = !!walletSession?.address;
+  sign?.classList.toggle('hidden', signed);
+  swap?.classList.toggle('hidden', !signed);
+  $('press-line')?.classList.toggle('hidden', !signed || cloudSyncing);
+  if (!status) return;
+  if (!signed) {
+    help?.classList.add('hidden');
+    if (sign) sign.textContent = 'SIGN IN WITH KLEVER';
+    status.textContent = window.kleverWeb
+      ? 'Tap Sign in, then approve the signature. Klever keeps that window open until you do.'
+      : 'Sign in with your Klever wallet. Your garden is saved to that address.';
+    const dressNote = document.querySelector('#dress .dress-note');
+    if (dressNote) dressNote.textContent = 'SAVED ON THIS DEVICE';
+    return;
+  }
+  help?.classList.add('hidden');
+  status.replaceChildren();
+  const who = document.createElement('b');
+  who.textContent = shortAddress(walletSession.address);
+  const lead = walletNote === 'new'
+    ? 'New garden saved to '
+    : walletNote === 'claimed'
+      ? 'Your garden is now saved to '
+      : 'Welcome back. This garden belongs to ';
+  const tail = cloudSyncing
+    ? '. Opening the garden saved to this wallet…'
+    : cloudState === 'on'
+      ? '. It is saved to this wallet.'
+      : cloudState === 'error'
+        ? '. Saved on this browser. The garden record could not be reached.'
+        : '. It stays on this browser under that wallet.';
+  status.append(lead, who, tail);
+  const dressNote = document.querySelector('#dress .dress-note');
+  if (dressNote) dressNote.textContent = 'SAVED TO THIS WALLET';
+}
+
+function handOffToWallet() {
+  const sign = $('btn-wallet');
+  const status = $('wallet-status');
+  if (sign) sign.disabled = true;
+  if (status) status.textContent = 'Opening Klever Wallet…';
+  launchKleverApp();
+  const finish = () => {
+    walletBusy = false;
+    if (sign) sign.disabled = false;
+    if (walletSession?.address) return;
+    // Coming back from the wallet must not open it again. The grower taps Sign in to retry.
+    const help = $('wallet-help');
+    if (help) showWalletHelp(help, 'mobile-app');
+    if (status) status.textContent = 'Klever Wallet is open. Tap Sign in there, then approve the signature.';
+  };
+  window.setTimeout(() => {
+    if (!document.hidden) {
+      finish();
+      return;
+    }
+    const onBack = () => {
+      if (document.hidden) return;
+      document.removeEventListener('visibilitychange', onBack);
+      finish();
+    };
+    document.addEventListener('visibilitychange', onBack);
+  }, 1500);
+}
+
+async function onWallet(automatic = false) {
+  if (walletBusy || state.mode === 'play') return;
+  if (automatic && (walletSession?.address || promptIsCooling())) return;
+  if (isMobile() && !window.kleverWeb && !inKleverHandoff()) {
+    markPrompt();
+    walletBusy = true;
+    handOffToWallet();
+    return;
+  }
+  markPrompt();
+  walletBusy = true;
+  const sign = $('btn-wallet');
+  const status = $('wallet-status');
+  if (sign) sign.disabled = true;
+  if (status) status.textContent = isMobile()
+    ? 'Confirm the signature in the Klever Wallet app…'
+    : 'Confirm the signature in the Klever extension…';
+  try {
+    const session = await signIn();
+    await applyWallet(session);
+  } catch (err) {
+    const help = $('wallet-help');
+    if (help && (err.code === 'mobile-app' || err.code === 'extension')) showWalletHelp(help, err.code);
+    if (status) status.textContent = err.message || 'Klever sign-in failed.';
+  } finally {
+    walletBusy = false;
+    if (sign) sign.disabled = false;
+  }
+}
+
+async function applyWallet(session) {
+  walletSession = session;
+  cloudPush = false;
+  const adopted = adoptAddress(session.address);
+  walletNote = adopted.note;
+  if (adopted.note === 'new') resetWorld();
+  else if (adopted.save) applySave(adopted.save);
+  cloudSyncing = true;
+  cloudState = 'off';
+  refreshWalletUi();
+  const gate = { open: true };
+  try {
+    const result = await Promise.race([
+      syncGarden(session, loadSave(), gate).catch(() => ({ state: 'error', replaced: false, garden: null })),
+      new Promise((_, reject) => setTimeout(() => {
+        gate.open = false;
+        reject(new Error('timeout'));
+      }, 8000)),
+    ]);
+    cloudState = result.state;
+    if (result.replaced && result.garden) {
+      walletNote = 'loaded';
+      writeSave(result.garden, false);
+      const saved = loadSave();
+      if (saved) applySave(saved);
+    }
+    cloudPush = result.state === 'on';
+  } catch {
+    cloudState = 'error';
+  }
+  cloudSyncing = false;
+  refreshWalletUi();
+  refreshTitle();
+  watchAccount();
+}
+
+function watchAccount() {
+  const hub = window.kleverHub;
+  if (watchAccount.bound || !hub || typeof hub.onAccountChanged !== 'function') return;
+  watchAccount.bound = true;
+  hub.onAccountChanged((event) => {
+    const next = event?.address;
+    if (!next || next === walletSession?.address) return;
+    flushSave();
+    flushCloud();
+    clearSession();
+    clearCloudToken();
+    unbindAddress();
+    walletSession = null;
+    if (state.mode === 'play') location.reload();
+    else {
+      refreshWalletUi();
+      refreshTitle();
+    }
+  });
+}
+
+function bindWallet() {
+  $('btn-wallet')?.addEventListener('click', () => onWallet());
+  $('btn-wallet-switch')?.addEventListener('click', () => {
+    flushSave();
+    flushCloud();
+    clearSession();
+    clearCloudToken();
+    unbindAddress();
+    walletSession = null;
+    walletNote = '';
+    cloudState = 'off';
+    cloudPush = false;
+    refreshWalletUi();
+    refreshTitle();
+    onWallet();
+  });
 }
 
 const LEAF = ['...XX...', 'X..XX..X', 'XX.XX.XX', '.XXXXXX.', 'X.XXXX.X', '..XXXX..', '...XX...', '...XX...', '...XX...', '...XX...'];
@@ -2563,7 +2759,12 @@ function flushSave() {
   if (!canSave || !world || !player) return;
   saveDirty = false;
   saveWait = 0;
-  writeSave(snapshot());
+  const body = writeSave(snapshot());
+  if (body && cloudPush && walletSession) {
+    schedulePush(walletSession, body, (result) => {
+      if (result?.conflict) cloudPush = false;
+    });
+  }
 }
 
 function applyPlot(d, mesh, snap) {
@@ -2779,10 +2980,13 @@ function applySave(save) {
 }
 
 function refreshTitle() {
-  const saved = !!loadSave();
+  const signed = !!walletSession?.address;
+  const saved = signed && !!loadSave();
   $('press-desk').textContent = saved ? 'CLICK OR SPACE TO CONTINUE' : 'CLICK OR SPACE TO START';
   $('press-touch').textContent = saved ? 'TAP TO CONTINUE' : 'TAP TO START';
   $('btn-new').classList.toggle('hidden', !saved);
+  $('press-line')?.classList.toggle('hidden', !signed || cloudSyncing);
+  refreshWalletUi();
 }
 
 let dressFacing = 0;
@@ -3094,8 +3298,7 @@ function boot() {
   addEventListener('webkitfullscreenchange', resize);
   const askFullscreen = (e) => {
     const playing = state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress';
-    const starting = state.mode === 'title' && !uiTarget(e.target);
-    if (playing || starting) enterFullscreen();
+    if (playing) enterFullscreen();
   };
   addEventListener('pointerdown', askFullscreen, true);
   addEventListener('touchend', askFullscreen, true);
@@ -3103,15 +3306,26 @@ function boot() {
   bindTouch();
   bindDress();
   bindShop();
+  bindWallet();
   setTouchUI(shouldTouch());
   matchMedia('(max-width: 820px)').addEventListener('change', () => setTouchUI(shouldTouch() || touchUI));
   state.mode = 'title';
+  const session = readSession();
+  if (session) void applyWallet(session);
+  else refreshWalletUi();
   refreshTitle();
   updateHud();
-  addEventListener('pagehide', flushSave);
+  addEventListener('pagehide', () => {
+    flushSave();
+    flushCloud();
+  });
   $('loading').classList.add('gone');
   if (params.has('autostart')) startGame();
-  window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick, openDress, closeDress, openShop, closeShop, buySupply, newGrow, flushSave, loadSave };
+  else if (!session && params.get('klever') === '1' && !promptIsCooling()) {
+    // One ask. A reload while the sheet is up must not open a second one.
+    setTimeout(() => onWallet(true), 600);
+  }
+  window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick, openDress, closeDress, openShop, closeShop, buySupply, newGrow, flushSave, loadSave, onWallet };
 }
 
 requestAnimationFrame(() => setTimeout(boot, 30));

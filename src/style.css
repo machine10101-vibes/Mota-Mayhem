@@ -122,6 +122,14 @@ body.touch-ui .press-desk { display:none; }
 @keyframes blink { 50% { opacity:.15; } }
 #loading { position:fixed; inset:0; background:#10160c; display:flex; align-items:center; justify-content:center; font-size:clamp(10px,3.4vw,14px); color:var(--edge); z-index:10; padding:16px; text-align:center; }
 .title-actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; pointer-events:auto; }
+.wallet-box { width:min(520px, 100%); display:flex; flex-direction:column; align-items:center; gap:10px; pointer-events:auto; text-align:center; }
+.wallet-status { margin:0; max-width:460px; font-size:clamp(8px, 2.2vw, 11px); line-height:1.6; color:#f3f1df; text-shadow:3px 3px 0 #1b2412; }
+.wallet-status b { color:var(--gold); font-weight:normal; }
+.wallet-link { appearance:none; border:0; background:none; color:#fff3c4; font:inherit; font-size:8px; text-decoration:underline; cursor:pointer; min-height:32px; padding:8px; }
+.wallet-help { width:100%; padding:12px; background:var(--panel); box-shadow:var(--frame); text-align:left; }
+.wallet-help p { margin:0; font-size:8px; line-height:1.6; color:#d5e2c4; }
+.wallet-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.wallet-mini { display:inline-flex; align-items:center; justify-content:center; min-height:40px; padding:8px 10px; color:#f3f1df; background:#24301a; box-shadow:var(--frame); font:inherit; font-size:8px; text-decoration:none; cursor:pointer; }
 #title.dressing { opacity:0; pointer-events:none; }
 body:has(#title:not(.gone)) #help { display:none; }
 .title-actions .icon-btn { width:56px; height:56px; padding:8px; }
