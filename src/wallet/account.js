@@ -31,6 +31,7 @@ export function accountProblem(email, password) {
 function authMessage(json) {
   const raw = json?.msg || json?.error_description || json?.message || json?.error || '';
   const text = String(raw).replace(/\+/g, ' ').trim();
+  if (/rate limit/i.test(text)) return 'Wait a moment, then try the account again.';
   if (/already registered|already exists/i.test(text)) return 'That email already has an account. Sign in.';
   if (/invalid login/i.test(text)) return 'That email and password do not match.';
   if (/not confirmed/i.test(text)) return 'Confirm that email, then sign in.';

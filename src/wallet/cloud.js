@@ -18,21 +18,33 @@ function acceptUrl(url) {
   return /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(url);
 }
 
+async function readConfigFile(url) {
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const type = res.headers.get('content-type') || '';
+    if (type.includes('text/html')) return null;
+    const json = await res.json();
+    const fileUrl = String(json?.url || '').trim().replace(/\/$/, '');
+    const fileKey = String(json?.key || json?.anonKey || '').trim();
+    if (!fileUrl || !fileKey || !acceptUrl(fileUrl)) return null;
+    return { url: fileUrl, key: fileKey };
+  } catch {
+    return null;
+  }
+}
+
 async function readConfig() {
   const url = envValue('VITE_SUPABASE_URL').replace(/\/$/, '');
   const key = envValue('VITE_SUPABASE_ANON_KEY');
   if (url && key && acceptUrl(url)) return { url, key };
-  try {
-    const res = await fetch(new URL('supabase.json', document.baseURI), { cache: 'no-store' });
-    if (!res.ok) return { url: '', key: '' };
-    const json = await res.json();
-    const fileUrl = String(json.url || '').trim().replace(/\/$/, '');
-    const fileKey = String(json.key || json.anonKey || '').trim();
-    if (!fileUrl || !fileKey || !acceptUrl(fileUrl)) return { url: '', key: '' };
-    return { url: fileUrl, key: fileKey };
-  } catch {
-    return { url: '', key: '' };
+  const candidates = [new URL('supabase.json', document.baseURI).href];
+  if (typeof window !== 'undefined') candidates.push(new URL('/supabase.json', window.location.origin).href);
+  for (const candidate of candidates) {
+    const cfg = await readConfigFile(candidate);
+    if (cfg) return cfg;
   }
+  return { url: '', key: '' };
 }
 
 export function loadCloudConfig() {
