@@ -73,8 +73,40 @@ function plot(m, x, y, z, col, j = 0.02) {
   m.set(xi, yi, zi, col, j);
 }
 
+function cell(m, ix, iy, iz, col, j = 0.02) {
+  if (iy < 0) return;
+  m.set(ix, iy, iz, col, j);
+}
+
+function plotF(m, x, y, z, col, j = 0.02) {
+  if (K === 1) {
+    plot(m, x, y, z, col, j);
+    return;
+  }
+  cell(m, Math.round(x * K), Math.round(y * K), Math.round(z * K), col, j);
+}
+
 function stalk(m, h, col, dark, thick) {
   const light = mix(col, 0xead9a4, thick ? 0.2 : 0.4);
+  if (K !== 1) {
+    const hf = Math.round(h * K);
+    for (let y = 0; y <= hf; y++) {
+      const t = y / hf;
+      cell(m, 0, y, 0, y % 3 === 0 ? col : light, 0.02);
+      if (!thick) continue;
+      const ring = t < 0.9 || y % 2 === 0;
+      if (ring) {
+        cell(m, 1, y, 0, y % 4 < 2 ? dark : col, 0.02);
+        cell(m, -1, y, 0, col, 0.02);
+        cell(m, 0, y, 1, y % 4 < 2 ? col : dark, 0.02);
+        cell(m, 0, y, -1, dark, 0.02);
+      }
+      if (t < 0.12) {
+        for (const [ox, oz] of [[1, 1], [-1, -1], [1, -1], [-1, 1]]) cell(m, ox, y, oz, dark, 0.02);
+      }
+    }
+    return;
+  }
   for (let y = 0; y <= h; y++) {
     plot(m, 0, y, 0, light, 0.02);
     if (!thick) continue;
@@ -155,12 +187,15 @@ function fan(m, x, y, z, ang, size, fingers, droop, dark, light, stemCol, fade) 
   const petCol = mix(stemCol, light, 0.62);
   const pxn = -dz;
   const pzn = dx;
+  const per = K === 1 ? 1 : K * 1.6;
+  const steps = Math.max(2, Math.round(pet * per));
   let py = y;
-  for (let i = 1; i <= pet; i++) {
+  for (let k = 1; k <= steps; k++) {
+    const i = (k / steps) * pet;
     const lift = Math.sin((i / pet) * Math.PI) * Math.max(0.85, size * 0.13);
     py = y + lift + i * 0.06;
-    plot(m, x + dx * i, py, z + dz * i, i === pet ? light : petCol, 0.02);
-    if (size > 8) plot(m, x + dx * i + pxn * 0.7, py, z + dz * i + pzn * 0.7, petCol, 0.02);
+    plotF(m, x + dx * i, py, z + dz * i, i >= pet - 0.01 ? light : petCol, 0.02);
+    if (size > 8 && (K === 1 || k % 2 === 0)) plotF(m, x + dx * i + pxn * 0.7, py, z + dz * i + pzn * 0.7, petCol, 0.02);
   }
   const px = x + dx * pet;
   const pz = z + dz * pet;
@@ -178,16 +213,18 @@ function limb(m, x, y, z, ang, len, rise, col, dark) {
   const dx = Math.cos(ang);
   const dz = Math.sin(ang);
   const n = Math.max(2, Math.round(len));
+  const per = K === 1 ? 1 : K * 1.6;
+  const nf = Math.round(n * per);
   let ex = x;
   let ey = y;
   let ez = z;
-  for (let i = 1; i <= n; i++) {
-    const t = i / n;
-    ex = x + dx * i;
+  for (let i = 1; i <= nf; i++) {
+    const t = i / nf;
+    ex = x + dx * n * t;
     ey = y + rise * t;
-    ez = z + dz * i;
-    plot(m, ex, ey, ez, col, 0.02);
-    plot(m, ex, ey - 1, ez, dark, 0.02);
+    ez = z + dz * n * t;
+    plotF(m, ex, ey, ez, col, 0.02);
+    if (K === 1 || i % 2 === 0) plotF(m, ex, ey - (K === 1 ? 1 : 0.5), ez, dark, 0.02);
   }
   return { x: ex, y: ey, z: ez };
 }
@@ -207,12 +244,16 @@ function hair(m, x, y, z, ang, late, short, hairCol) {
   const col = late > 0.72 ? orange : late > 0.32 ? mix(cream, orange, (late - 0.32) / 0.4) : cream;
   const n = short ? 2 : 3;
   const step = short ? 1.0 : late > 0.55 ? 1.15 : 1.45;
+  const per = K === 1 ? 1 : K * 1.4;
+  const count = Math.max(1, Math.round(n * per));
   let a = ang;
-  for (let i = 1; i <= n; i++) {
-    a += short ? 0.22 : late > 0.65 ? 0.4 : 0.12;
+  for (let i = 1; i <= count; i++) {
+    const u = (i / count) * n;
+    a += (short ? 0.22 : late > 0.65 ? 0.4 : 0.12) / per;
     const lift = short ? 0.4 : late > 0.7 ? 0.28 : 0.48;
-    const tip = i === n && late > 0.78;
-    plot(m, x + Math.cos(a) * i * step, y + i * lift, z + Math.sin(a) * i * step, tip ? amber : col, 0);
+    const tip = i === count && late > 0.78;
+    const c = tip ? amber : i > count * 0.5 ? col : mix(cream, col, 0.5);
+    plotF(m, x + Math.cos(a) * u * step, y + u * lift, z + Math.sin(a) * u * step, c, 0);
   }
 }
 
@@ -286,6 +327,7 @@ function spear(m, cx, cy, cz, len, girth, pal, R, opt) {
 }
 
 function fleshyCotyledon(m, ang, y0, len, lift, yellow = 0) {
+  const f = K;
   const dx = Math.cos(ang);
   const dz = Math.sin(ang);
   const px = -dz;
@@ -294,20 +336,23 @@ function fleshyCotyledon(m, ang, y0, len, lift, yellow = 0) {
   const pale = mix(0xb6dc6c, 0xeadf9c, yellow);
   const rim = mix(0x5f9a36, 0x9a8a34, yellow);
   const vein = mix(0xd4eb98, 0xf5ecb0, yellow);
-  for (let i = 0; i <= len; i++) {
-    const t = i / len;
-    const width = Math.sin(Math.PI * Math.pow(Math.max(0.04, t), 0.7)) * (len * 0.64);
-    const y = y0 + lift * t;
-    const reach = 1.2 + i;
+  const L = len * f;
+  for (let i = 0; i <= L; i++) {
+    const t = i / L;
+    const width = Math.sin(Math.PI * Math.pow(Math.max(0.04, t), 0.7)) * (L * 0.64);
+    const y = (y0 + lift * t) * f - Math.sin(t * Math.PI) * 0.0;
+    const reach = 1.2 * f + i;
     const steps = Math.ceil(width);
     for (let s = -steps; s <= steps; s++) {
       if (Math.abs(s) > width + 0.05) continue;
       const x = dx * reach + px * s;
       const z = dz * reach + pz * s;
-      const edge = Math.abs(s) > width - 0.7;
+      const edge = Math.abs(s) > width - 0.9;
       const mid = Math.abs(s) < 0.6;
-      plot(m, x, y, z, edge ? rim : mid ? vein : body, 0.02);
-      if (t > 0.22 && t < 0.86 && !edge) plot(m, x, y + 1, z, pale, 0.015);
+      const iy = Math.round(y + (edge ? 0.6 : 0));
+      cell(m, Math.round(x), iy, Math.round(z), edge ? rim : mid ? vein : body, 0.02);
+      cell(m, Math.round(x), iy - 1, Math.round(z), edge ? rim : shade(body, 0.86), 0.02);
+      if (t > 0.2 && t < 0.88 && !edge) cell(m, Math.round(x), iy + 1, Math.round(z), pale, 0.015);
     }
   }
 }
@@ -326,6 +371,13 @@ function seedHusk(m, ang, y, reach) {
 }
 
 function knuckle(m, y, col, dark) {
+  if (K !== 1) {
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + 0.4;
+      cell(m, Math.round(Math.cos(a) * 2.1), Math.round(y * K), Math.round(Math.sin(a) * 2.1), i % 2 ? dark : col, 0.02);
+    }
+    return;
+  }
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2 + 0.4;
     plot(m, Math.cos(a) * 2.15, y, Math.sin(a) * 2.15, i % 2 ? dark : col, 0.02);
@@ -355,7 +407,11 @@ function sideBranch(m, y, ang, len, rise, dark, light, stemCol, stemDark, finger
 }
 
 function budBall(m, x, y, z, rad, pal, R, frost) {
-  const r = Math.max(1.35, rad);
+  const f = K;
+  const r = Math.max(1.35, rad) * f;
+  const cx = Math.round(x * f);
+  const cy = Math.round(y * f);
+  const cz = Math.round(z * f);
   const y0 = -Math.max(1, Math.round(r * 0.42));
   const y1 = Math.max(2, Math.round(r * 0.72));
   for (let dy = y0; dy <= y1; dy++) {
@@ -366,13 +422,18 @@ function budBall(m, x, y, z, rad, pal, R, frost) {
       for (let dz = -cr; dz <= cr; dz++) {
         const d = Math.hypot(dx, dz);
         if (d > slice) continue;
-        const rim = d > slice - 0.85;
+        const rim = d > slice - 0.85 * (f > 1 ? 1.2 : 1);
         let col = rim ? pal[2] : (dx + dy + dz) % 3 === 0 ? pal[1] : pal[0];
         if (rim && R() < frost) col = mix(pal[2], FROST, 0.62);
-        plot(m, x + dx, y + dy, z + dz, col, 0.02);
+        cell(m, cx + dx, cy + dy, cz + dz, col, 0.03);
       }
     }
   }
+}
+
+function colaProfile(t) {
+  if (t < 0.3) return 0.76 + 0.24 * (t / 0.3);
+  return 1 - 0.62 * Math.pow((t - 0.3) / 0.7, 1.15);
 }
 
 function stackCola(m, x, y, z, dx, dy, dz, count, girth, pal, R, opt) {
@@ -386,25 +447,33 @@ function stackCola(m, x, y, z, dx, dy, dz, count, girth, pal, R, opt) {
   px /= pLen;
   pz /= pLen;
   const n = Math.max(2, count | 0);
-  const step = Math.max(2.35, girth * 0.92);
+  const step = Math.max(2.1, girth * 0.82);
   for (let i = 0; i < n; i++) {
     const t = n === 1 ? 0 : i / (n - 1);
-    const rad = girth * (0.82 + 0.18 * Math.sin(Math.PI * Math.min(1, t + 0.05))) * (1 - t * 0.2);
+    const rad = girth * colaProfile(t);
     const spin = i * 2.15 + (opt.spin || 0);
-    const swirl = girth * 0.28;
+    const swirl = girth * 0.2;
     const bx = x + dx * i * step + Math.cos(spin) * px * swirl;
     const by = y + dy * i * step;
     const bz = z + dz * i * step + Math.sin(spin) * pz * swirl;
     budBall(m, bx, by, bz, rad, pal, R, opt.frost || 0);
+    if (rad > 1.6) {
+      for (let k = 0; k < 2; k++) {
+        const a = spin + k * Math.PI + 0.8;
+        const sr = rad * 0.58;
+        budBall(m, bx + Math.cos(a) * rad * 0.78, by - rad * 0.12, bz + Math.sin(a) * rad * 0.78, sr, pal, R, opt.frost || 0);
+      }
+    }
     const hairs = opt.hairs ?? 4;
     for (let h = 0; h < hairs; h++) {
       const a = spin + (h / hairs) * Math.PI * 2;
-      hair(m, bx + Math.cos(a) * rad * 0.45, by + rad * 0.35, bz + Math.sin(a) * rad * 0.45, a, opt.late, true, opt.hair);
+      hair(m, bx + Math.cos(a) * rad * 0.7, by + rad * 0.25, bz + Math.sin(a) * rad * 0.7, a, opt.late, true, opt.hair);
     }
-    if (i % 2 === 0 && opt.leafD != null) {
-      leaflet(m, bx, by + 0.4, bz, spin + 0.6, opt.sugarLen || 4, opt.leafD, opt.leafL, 0.18, !!opt.fade);
+    if (opt.leafD != null && (i % 2 === 0 || rad > 2)) {
+      leaflet(m, bx + Math.cos(spin + 0.6) * rad * 0.6, by + 0.4, bz + Math.sin(spin + 0.6) * rad * 0.6, spin + 0.6, (opt.sugarLen || 4) * (0.8 + 0.4 * (1 - t)), opt.leafD, opt.leafL, 0.3, !!opt.fade);
     }
   }
+  budBall(m, x + dx * n * step, y + dy * n * step, z + dz * n * step, Math.max(1.4, girth * 0.34), pal, R, opt.frost || 0);
 }
 
 function finishTree(m, spec, R, ready) {
