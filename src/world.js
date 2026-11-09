@@ -929,7 +929,7 @@ export function buildWorld() {
     place(group, potModel, 1 / 16, -16 + px, 17 / 16, -9 - 1.9 + 0.1);
     const pl = toMesh(buildPlant(1 + (i % 2), STRAIN_IDS[i % STRAIN_IDS.length]), PLANT_VS);
     pl.position.set(-16 + px, 17 / 16 + 9 / 16, -9 - 1.8);
-    pl.scale.setScalar(0.72);
+    pl.scale.setScalar(0.5);
     group.add(pl);
   });
 
