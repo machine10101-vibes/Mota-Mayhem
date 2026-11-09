@@ -4,7 +4,7 @@ import '@fontsource/press-start-2p';
 import './style.css';
 import { createPlayer, LOOK_KEYS, LOOK_OPTIONS, normalizeLook } from './character.js';
 import { BEDS, buildWorld, SLOT_OFFSETS } from './world.js';
-import { buildPlant, PVS } from './plants.js';
+import { buildCannabisSeed, buildPlant, PVS } from './plants.js';
 import { VoxelModel, toMesh, voxelMaterial } from './voxel.js';
 import { buildMotaToken, buildNutrientBottle, buildRootCube, HOUSE, LOFT, MOTA_PER_G, SEED_PACK, SUPPLIES, UNLOCK, WAREHOUSE_PRICE } from './estate.js';
 import { Particles, Butterflies } from './fx.js';
@@ -1666,8 +1666,19 @@ const bagIcons = [];
 let bagView = null;
 const feedGeo = buildNutrientBottle().build(0.08);
 const cubeGeo = buildRootCube().build(0.08);
+const seedIconGeo = new Map();
 feedGeo.computeBoundingBox();
 cubeGeo.computeBoundingBox();
+
+function cannabisSeedGeo(id) {
+  let geo = seedIconGeo.get(id);
+  if (!geo) {
+    geo = buildCannabisSeed(id).build(0.05);
+    geo.computeBoundingBox();
+    seedIconGeo.set(id, geo);
+  }
+  return geo;
+}
 
 function ensureBagView() {
   if (bagView) return bagView;
@@ -1760,7 +1771,7 @@ function paintBag(pick) {
   for (const id of STRAIN_IDS) {
     const n = state.seeds[id] | 0;
     if (!n) continue;
-    addBagSlot(grid, { select: true, id, label: strainOf(id).short, count: n, geo: plantGeo(0, id), on: id === pick });
+    addBagSlot(grid, { select: true, id, label: strainOf(id).short, count: n, geo: cannabisSeedGeo(id), on: id === pick });
   }
   const clones = new Map();
   for (const c of state.clones) clones.set(c.strain, (clones.get(c.strain) || 0) + 1);
