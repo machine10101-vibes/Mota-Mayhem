@@ -520,10 +520,35 @@ function buildDoorLeaf(dir) {
 
 function buildCureJar() {
   const m = new VoxelModel();
-  m.box(-2, 0, -2, 3, 1, 3, 0x6e5034, 0.02);
-  m.box(-2, 1, -2, 3, 7, 3, (x, y) => (y % 3 === 0 ? 0xd7f3ee : 0x9fd8cf), 0.01);
-  m.box(-1, 7, -1, 2, 8, 2, 0xe7c56a, 0.02);
-  m.box(-2, 8, -2, 3, 9, 3, 0xc9a24a, 0.02);
+  const glass = (x, y, z, edge) => (edge ? ((x + y + z) % 3 === 0 ? 0xeef8f6 : 0xc5ebe4) : null);
+  const bud = (x, y, z) => ((x + y * 2 + z) % 5 === 0 ? 0xd7a24a : (x + z) % 2 === 0 ? 0x7fbf45 : 0x5c9a32);
+  for (let y = 0; y <= 11; y++) {
+    let rx = 3.15;
+    if (y <= 1) rx = 2.7;
+    else if (y === 8) rx = 2.45;
+    else if (y === 9) rx = 1.85;
+    else if (y >= 10) rx = 2.55;
+    for (let x = -4; x <= 4; x++) {
+      for (let z = -4; z <= 4; z++) {
+        const d = Math.hypot(x, z);
+        if (d > rx) continue;
+        if (y === 0) {
+          m.set(x, y, z, 0x6e5034, 0.02);
+          continue;
+        }
+        if (y >= 10) {
+          m.set(x, y, z, y === 11 ? 0xc9a24a : 0xe7c56a, 0.02);
+          continue;
+        }
+        const edge = d > rx - 1.05;
+        if (edge) m.set(x, y, z, glass(x, y, z, true), 0.015);
+        else if (y < 8) {
+          const col = y === 7 && d < 1.2 ? 0xe37820 : bud(x, y, z);
+          m.set(x, y, z, col, 0.03);
+        }
+      }
+    }
+  }
   return m;
 }
 
