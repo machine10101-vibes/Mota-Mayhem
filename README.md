@@ -59,4 +59,4 @@ this browser.
 - `src/plants.js` - procedural cannabis plants for 5 growth stages. Blue Dream stays green; Granddaddy Purple flowers purple.
 - `src/strains.js` - the two starter strains. `src/save.js` writes the grow to local storage.
 - `src/world.js` - backyard: ground, fence, house, porch, beds, shed, greenhouse, props, trees.
-- `src/main.js` - full-resolution picture with multisampled edges, a soft sky gradient, and depth outlines. `[` and `]` switch back to the chunky pixel scale. Entering the grow requests fullscreen so the browser bar stays hidden.
+- `src/main.js` - full-resolution picture with multisampled edges, a soft sky gradient, and depth outlines. `[` and `]` switch back to the chunky pixel scale. Entering the grow calls the browser's fullscreen mode on the tap or key that starts play, with no extra options the browser might reject. A later tap asks again if the bar is still up.

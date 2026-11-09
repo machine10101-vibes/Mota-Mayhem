@@ -63,7 +63,7 @@ function leaflet(m, bx, by, bz, ang, len, dark, light, droop, fade) {
   const px = -dz;
   const pz = dx;
   const L = Math.max(4, len);
-  const maxHalf = L >= 11 ? 2.55 : L >= 7 ? 2.2 : 1.75;
+  const maxHalf = L >= 11 ? 3.15 : L >= 7 ? 2.55 : 1.85;
   const vein = mix(light, 0xe7f6a4, 0.5);
   const blade = mix(dark, light, 0.38);
   const pad = Math.ceil(L + maxHalf + 2);
@@ -75,16 +75,19 @@ function leaflet(m, bx, by, bz, ang, len, dark, light, droop, fade) {
       const across = (ix - bx) * px + (iz - bz) * pz;
       if (along < 0.15 || along > L + 0.35) continue;
       const t = Math.min(1, along / L);
-      const envelope = Math.sin(Math.PI * Math.pow(t, 0.55)) * maxHalf;
-      const tooth = Math.floor(along / 2) % 2 === 0;
-      const half = tooth ? envelope : Math.min(0.4, envelope);
-      if (envelope < 0.25 || Math.abs(across) > half) continue;
-      const y = by + Math.sin(t * Math.PI) * 0.3 - droop * t * t * 1.15;
+      const belly = Math.sin(Math.PI * Math.pow(t, 0.62));
+      const envelope = belly * maxHalf;
+      const seg = 2.35;
+      const toothT = ((along % seg) + seg) % seg / seg;
+      const half = t > 0.9 ? 0.45 : envelope * (0.22 + 0.78 * toothT);
+      if (envelope < 0.2 || Math.abs(across) > half) continue;
+      const y = by + Math.sin(t * Math.PI) * 0.45 - droop * t * t * 1.15;
       const onVein = Math.abs(across) <= 0.45;
-      const onTooth = Math.abs(across) >= half - 0.55;
+      const onTooth = Math.abs(across) >= half - 0.45;
       let col = onVein ? vein : onTooth ? dark : blade;
       if (fade && t > 0.62) col = mix(col, SUGAR_TIP, (t - 0.62) / 0.38);
       plot(m, ix, y, iz, col, 0.012);
+      if (onVein && t > 0.08 && t < 0.92) plot(m, ix, y + 1, iz, vein, 0.01);
     }
   }
   plot(m, bx + dx * (L + 0.7), by - droop, bz + dz * (L + 0.7), fade ? SUGAR_TIP : dark, 0.01);
@@ -179,7 +182,7 @@ function spear(m, cx, cy, cz, len, girth, pal, R, opt) {
     const rad = Math.max(1, girth * spearProfile(t) * 0.65);
     leaflet(m, cx + Math.cos(a) * rad, y, cz + Math.sin(a) * rad, a, sugarLen, opt.leafD, opt.leafL, 0.28 + t * 0.25, !!opt.fade);
   }
-  const stride = opt.shortHair ? 3 : 5;
+  const stride = opt.shortHair ? 2 : 3;
   for (let i = 0; i < edge.length; i += stride) {
     if (R() > opt.pistil * 0.65) continue;
     const [x, y, z, a] = edge[i];

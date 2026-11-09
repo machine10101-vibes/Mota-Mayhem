@@ -290,6 +290,8 @@ function setTouchUI(on) {
 }
 
 addEventListener('keydown', (e) => {
+  if ((e.code === 'Space' || e.code === 'Enter') && (state.mode === 'title' || state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress')) enterFullscreen();
+  if ((e.code === 'Space' || e.code === 'Enter') && state.mode === 'title') startGame();
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   if (!keys.has(e.code)) pressed.add(e.code);
   keys.add(e.code);
@@ -2407,19 +2409,40 @@ function frame(now) {
 }
 
 function inFullscreen() {
+  try {
+    const doc = window.top && window.top.document;
+    if (doc && (doc.fullscreenElement || doc.webkitFullscreenElement)) return true;
+  } catch {
+    /* the page is embedded on another site */
+  }
   return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
 }
 
+let fsAskedAt = 0;
 function enterFullscreen() {
   if (inFullscreen()) return;
-  const el = document.documentElement;
-  const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-  if (!req) return;
+  if (performance.now() - fsAskedAt < 900) return;
+  fsAskedAt = performance.now();
+  const roots = [];
   try {
-    const pending = req.call(el, { navigationUI: 'hide' });
-    if (pending && typeof pending.catch === 'function') pending.catch(() => {});
+    if (window.top && window.top.document && window.top.document.documentElement) roots.push(window.top.document.documentElement);
   } catch {
-    /* the browser only allows this from a tap or a key */
+    /* cross-origin frame */
+  }
+  roots.push(document.documentElement, document.body, renderer.domElement);
+  const seen = new Set();
+  for (const el of roots) {
+    if (!el || seen.has(el)) continue;
+    seen.add(el);
+    const fn = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+    if (typeof fn !== 'function') continue;
+    try {
+      const out = fn.call(el);
+      if (out && typeof out.catch === 'function') out.catch(() => {});
+      return;
+    } catch {
+      /* this browser wants a different element or a bare call */
+    }
   }
 }
 
@@ -2442,7 +2465,6 @@ function startGame() {
   canSave = true;
   flushSave();
   refreshTitle();
-  enterFullscreen();
 }
 
 const LEAF = ['...XX...', 'X..XX..X', 'XX.XX.XX', '.XXXXXX.', 'X.XXXX.X', '..XXXX..', '...XX...', '...XX...', '...XX...', '...XX...'];
@@ -3070,9 +3092,13 @@ function boot() {
   visualViewport?.addEventListener('resize', resize);
   addEventListener('fullscreenchange', resize);
   addEventListener('webkitfullscreenchange', resize);
-  addEventListener('pointerdown', () => {
-    if (state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress') enterFullscreen();
-  }, true);
+  const askFullscreen = (e) => {
+    const playing = state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress';
+    const starting = state.mode === 'title' && !uiTarget(e.target);
+    if (playing || starting) enterFullscreen();
+  };
+  addEventListener('pointerdown', askFullscreen, true);
+  addEventListener('touchend', askFullscreen, true);
   addEventListener('orientationchange', () => setTimeout(resize, 120));
   bindTouch();
   bindDress();
