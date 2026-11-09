@@ -529,7 +529,7 @@ function bindTouch() {
   bindTap($('btn-act'), () => {
     if (state.mode === 'play') act();
   });
-  bindTap($('btn-help'), () => $('help').classList.toggle('hidden'));
+  bindTap($('btn-help'), () => toggleHelp());
   bindPrompt();
 }
 
@@ -1504,18 +1504,53 @@ function updateShed(dt) {
 }
 
 /* --------------------------------------------------------------------- HUD */
+function budHex(n) {
+  return '#' + (n >>> 0).toString(16).padStart(6, '0');
+}
+
 function updateHud() {
-  $('seeds').textContent = STRAIN_IDS.map((id) => `${strainOf(id).short} ${state.seeds[id] | 0}`).join('  ');
+  const pick = STRAINS[state.strainPick] ? state.strainPick : 'bd';
+  const held = strainOf(pick);
+  $('mota').textContent = state.mota;
+  $('strain-label').textContent = held.short;
+  $('strain-count').textContent = state.seeds[pick] | 0;
+  $('strain-swatch').style.background = budHex(held.bud[0]);
   $('clones').textContent = state.clones.length;
   $('nuts').textContent = state.nutrients | 0;
   $('cubes').textContent = state.cubes | 0;
-  $('mota').textContent = state.mota;
   $('grams').textContent = state.grams;
   $('wet').textContent = state.wet.length;
   const shed = world?.shed;
   const busy = shed ? shed.hooks.filter((h) => h.item).length + shed.cureJars.filter((j) => j.item).length : 0;
   $('shed-count').textContent = busy;
   for (const g of ['AAAA', 'AAA', 'AA', 'A']) $('jar-' + g).textContent = state.jars[g];
+  const seeds = $('seeds');
+  const sig = STRAIN_IDS.map((id) => state.seeds[id] | 0).join(',') + '|' + pick;
+  if (seeds.dataset.sig !== sig) {
+    seeds.dataset.sig = sig;
+    seeds.replaceChildren();
+    for (const id of STRAIN_IDS) {
+      const spec = strainOf(id);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'seed-tile' + (id === pick ? ' on' : '');
+      const sw = document.createElement('i');
+      sw.style.background = budHex(spec.bud[0]);
+      const name = document.createElement('span');
+      name.textContent = spec.short;
+      const count = document.createElement('b');
+      count.textContent = String(state.seeds[id] | 0);
+      b.append(sw, name, count);
+      b.addEventListener('pointerdown', (e) => {
+        swallow(e);
+        state.strainPick = id;
+        seeds.dataset.sig = '';
+        markDirty();
+        updateHud();
+      });
+      seeds.append(b);
+    }
+  }
 }
 
 const tip = $('tip');
@@ -1529,6 +1564,20 @@ const soilHit = new THREE.Vector3();
 function setActLabel(text) {
   const btn = $('btn-act');
   if (btn && btn.textContent !== text) btn.textContent = text;
+}
+
+function setPrompt(text) {
+  const key = text.startsWith('SPACE  ') ? 'SPACE' : text.startsWith('TAP  ') ? 'TAP' : '';
+  $('prompt-key').textContent = key;
+  $('prompt-label').textContent = key ? text.slice(key.length).trim() : text;
+  prompt.style.display = 'flex';
+}
+
+function toggleHelp(force) {
+  const help = $('help');
+  const open = typeof force === 'boolean' ? force : help.classList.contains('hidden');
+  help.classList.toggle('hidden', !open);
+  setIcon($('btn-help-hud'), open);
 }
 
 function slotAtScreen(x, y) {
@@ -1634,8 +1683,7 @@ function updateTarget() {
     text = 'WELL WATERED';
   }
   setActLabel(btn);
-  prompt.textContent = text;
-  prompt.style.display = 'block';
+  setPrompt(text);
   if (d.state === 'empty' || d.locked) {
     tip.style.display = 'none';
   } else {
@@ -1662,8 +1710,7 @@ function showStation(st) {
   const actLbl = touchUI ? 'TAP' : 'SPACE';
   const ui = stationUi(st, actLbl);
   setActLabel(ui.btn);
-  prompt.textContent = ui.text;
-  prompt.style.display = 'block';
+  setPrompt(ui.text);
   if (!ui.tip) {
     tip.style.display = 'none';
     return;
@@ -1859,8 +1906,9 @@ function frame(now) {
     const i = Math.max(0, STRAIN_IDS.indexOf(state.strainPick));
     state.strainPick = STRAIN_IDS[(i + dir + STRAIN_IDS.length) % STRAIN_IDS.length];
     markDirty();
+    updateHud();
   }
-  if (pressed.has('KeyH') && state.mode !== 'dress') $('help').classList.toggle('hidden');
+  if (pressed.has('KeyH') && state.mode === 'play') toggleHelp();
   if (pressed.has('BracketLeft') || pressed.has('BracketRight')) {
     const cur = pixelScale || autoScale();
     pixelScale = THREE.MathUtils.clamp(cur + (pressed.has('BracketRight') ? 1 : -1), 1, 5);
@@ -2293,7 +2341,7 @@ function openDress() {
   P.facing = 0.62;
   $('dress').classList.remove('hidden');
   $('title').classList.add('dressing');
-  $('help').classList.add('hidden');
+  toggleHelp(false);
   setInv(false);
   setIcon($('btn-character'), true);
   if (state.returnMode === 'play') {
@@ -2365,6 +2413,15 @@ function armReset(btn) {
   }, 4000);
 }
 
+function fillChip(b, id, on) {
+  const spec = strainOf(id);
+  b.className = 'chip' + (on ? ' on' : '');
+  b.replaceChildren();
+  const sw = document.createElement('i');
+  sw.style.background = budHex(spec.bud[0]);
+  b.append(sw, document.createTextNode(`${spec.short} ${state.seeds[id] | 0}`));
+}
+
 function setStrainBar(on) {
   const el = $('strains');
   if (!on) {
@@ -2374,11 +2431,7 @@ function setStrainBar(on) {
   el.classList.remove('hidden');
   const pick = STRAINS[state.strainPick] ? state.strainPick : 'bd';
   if (el.dataset.pick === pick && el.childElementCount === STRAIN_IDS.length) {
-    STRAIN_IDS.forEach((id, i) => {
-      const b = el.children[i];
-      b.textContent = `${strainOf(id).short} ${state.seeds[id] | 0}`;
-      b.classList.toggle('on', id === pick);
-    });
+    STRAIN_IDS.forEach((id, i) => fillChip(el.children[i], id, id === pick));
     return;
   }
   el.dataset.pick = pick;
@@ -2386,15 +2439,15 @@ function setStrainBar(on) {
   for (const id of STRAIN_IDS) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'chip' + (id === pick ? ' on' : '');
+    fillChip(b, id, id === pick);
     b.dataset.strain = id;
-    b.textContent = `${strainOf(id).short} ${state.seeds[id] | 0}`;
     b.addEventListener('pointerdown', (e) => {
       swallow(e);
       state.strainPick = id;
       el.dataset.pick = '';
       setStrainBar(true);
       markDirty();
+      updateHud();
     });
     el.append(b);
   }
@@ -2485,6 +2538,21 @@ function bindDress() {
     if (state.mode !== 'play') return;
     setInv($('inv').classList.contains('hidden'));
   });
+  $('strain-now').addEventListener('pointerdown', (e) => {
+    swallow(e);
+    if (state.mode !== 'play') return;
+    const i = Math.max(0, STRAIN_IDS.indexOf(state.strainPick));
+    state.strainPick = STRAIN_IDS[(i + 1) % STRAIN_IDS.length];
+    markDirty();
+    updateHud();
+  });
+  const helpBtn = (e) => {
+    swallow(e);
+    if (state.mode !== 'play') return;
+    toggleHelp();
+  };
+  $('btn-help-hud').addEventListener('pointerdown', helpBtn);
+  $('btn-help-close').addEventListener('pointerdown', helpBtn);
   $('btn-dress-done').addEventListener('pointerdown', (e) => {
     swallow(e);
     closeDress();
