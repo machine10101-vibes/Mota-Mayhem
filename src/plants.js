@@ -71,7 +71,7 @@ function leaflet(m, bx, by, bz, ang, len, dark, light, droop, fade) {
   const px = -dz;
   const pz = dx;
   const L = Math.max(4, len);
-  const maxHalf = L >= 16 ? 2.9 : L >= 11 ? 2.35 : L >= 7 ? 1.95 : 1.6;
+  const maxHalf = L >= 18 ? 1.85 : L >= 12 ? 1.95 : L >= 7 ? 1.75 : 1.5;
   const vein = mix(light, 0xe7f6a4, 0.55);
   const blade = mix(dark, light, 0.42);
   const pad = Math.ceil(L + maxHalf + 2);
@@ -123,7 +123,7 @@ function fan(m, x, y, z, ang, size, fingers, droop, dark, light, stemCol, fade) 
   const px = x + dx * pet;
   const pz = z + dz * pet;
   for (const f of FAN[fingers] || FAN[5]) {
-    leaflet(m, px, py, pz, ang + f.a, Math.max(3, size * f.l), dark, light, droop + Math.abs(f.a) * 0.06, fade);
+    leaflet(m, px, py, pz, ang + f.a, Math.max(3, size * f.l), dark, light, droop + Math.abs(f.a) * 0.32, fade);
   }
 }
 
@@ -214,7 +214,7 @@ function spear(m, cx, cy, cz, len, girth, pal, R, opt) {
       }
     }
   }
-  const bumps = Math.max(5, Math.round(L * 0.4));
+  const bumps = Math.max(5, Math.round(L * 0.7));
   for (let i = 0; i < bumps; i++) {
     const t = (i + 0.35) / bumps;
     const y = cy + t * (L - 1);
@@ -223,11 +223,14 @@ function spear(m, cx, cy, cz, len, girth, pal, R, opt) {
     const ox = cx + (opt.leanX || 0) * t * 3 + Math.cos(a) * rad;
     const oz = cz + (opt.leanZ || 0) * t * 3 + Math.sin(a) * rad;
     const tip = calyx(m, ox, y, oz, a, pal, opt.frost || 0, R);
-    hair(m, tip.x, tip.y, tip.z, a + 0.5, opt.late, !!opt.shortHair, opt.hair);
-    hair(m, tip.x, tip.y, tip.z, a - 0.5, opt.late, !!opt.shortHair, opt.hair);
+    const density = opt.pistil ?? 1;
+    if (density > 0.2) hair(m, tip.x, tip.y, tip.z, a + 0.5, opt.late, !!opt.shortHair, opt.hair);
+    if (density > 0.45) hair(m, tip.x, tip.y, tip.z, a - 0.5, opt.late, !!opt.shortHair, opt.hair);
   }
-  for (let k = 0; k < 5; k++) {
-    hair(m, cx, cy + L - 1, cz, k * 0.785 + (opt.spin || 0), opt.late, !!opt.shortHair, opt.hair);
+  if (opt.crown !== false) {
+    for (let k = 0; k < 5; k++) {
+      hair(m, cx, cy + L - 1, cz, k * 1.256 + (opt.spin || 0), opt.late, !!opt.shortHair, opt.hair);
+    }
   }
   const sugarLen = opt.sugarLen || 5;
   const sugars = opt.sugars | 0;
@@ -309,69 +312,90 @@ function sideBranch(m, y, ang, len, rise, dark, light, stemCol, stemDark, finger
   return end;
 }
 
-function flowering(m, stage, spec, R) {
-  const ready = stage === 4;
-  const stemCol = ready ? mix(0x8d7344, spec.stem, 0.4) : mix(spec.stem, 0xd5e7a4, 0.22);
-  const stemDark = ready ? 0x64502e : spec.stemD;
+function finishTree(m, spec, R, ready) {
+  const stemCol = ready ? mix(0x6a4a24, spec.stem, 0.2) : mix(spec.stem, 0xd7e7a8, 0.16);
+  const stemDark = ready ? 0x3a2814 : spec.stemD;
   const dark = spec.leafDark;
   const light = spec.leafLight;
-  const late = ready ? 0.9 : 0.08;
-  const pistil = ready ? 0.4 : 0.7;
-  const frost = (ready ? 0.62 : 0.08) * (spec.frost || 1);
-  stalk(m, (ready ? 14 : 17) * U, stemCol, stemDark, true);
-
-  const nodes = ready
+  const gold = [0xf0d15a, 0xc9a43a, 0xfff0a0];
+  const bud = ready ? spec.bud.map((c, i) => mix(c, gold[i], 0.78)) : spec.bud;
+  const late = ready ? 0.88 : 0.05;
+  const frost = (ready ? 0.16 : 0.02) * (spec.frost || 1);
+  const hairCol = ready
+    ? { cream: 0xf8e9a4, orange: 0xe8c44a, amber: 0xd4ae3a }
+    : spec.hair || { cream: 0xf4f1e2, orange: 0xf7f3e6, amber: 0xe7f0cc };
+  const tiers = ready
     ? [
-        { y: 3 * U, fingers: 7, size: 12 * U, droop: 1.7 },
-        { y: 6 * U, fingers: 5, size: 9 * U, droop: 0.85 },
-        { y: 9 * U, fingers: 3, size: 6 * U, droop: 0.25 },
+        { y: 8, fan: 18, fingers: 7, droop: 0.5, arms: 4, reach: 16, rise: 6, cola: 6, girth: 2.2 },
+        { y: 15, fan: 16, fingers: 7, droop: 0.36, arms: 4, reach: 13, rise: 6, cola: 6, girth: 2.1 },
+        { y: 22, fan: 13, fingers: 7, droop: 0.22, arms: 4, reach: 10, rise: 5, cola: 5, girth: 1.95 },
+        { y: 28, fan: 10, fingers: 5, droop: 0.12, arms: 4, reach: 7, rise: 4, cola: 4, girth: 1.8 },
+        { y: 33, fan: 7, fingers: 5, droop: 0.06, arms: 0 },
       ]
     : [
-        { y: 3 * U, fingers: 5, size: 10 * U, droop: 1.45 },
-        { y: 7 * U, fingers: 7, size: 12 * U, droop: 0.9 },
-        { y: 11 * U, fingers: 7, size: 10 * U, droop: 0.4 },
-        { y: 14 * U, fingers: 5, size: 7 * U, droop: 0.08 },
+        { y: 7, fan: 13, fingers: 7, droop: 0.5, arms: 4, reach: 9, rise: 4, cola: 4, girth: 1.55 },
+        { y: 13, fan: 11, fingers: 7, droop: 0.28, arms: 4, reach: 7, rise: 4, cola: 4, girth: 1.45 },
+        { y: 19, fan: 8, fingers: 5, droop: 0.12, arms: 4, reach: 5, rise: 3, cola: 3, girth: 1.3 },
+        { y: 24, fan: 6, fingers: 5, droop: 0.04, arms: 0 },
       ];
-  let ang = 0.22 + (spec.seed % 6) * 0.15;
-  for (const n of nodes) {
-    knuckle(m, n.y, stemCol, stemDark);
-    pair(m, n.y, ang, n.size, n.fingers, n.droop, dark, light, stemCol);
-    ang += Math.PI / 2;
+  const top = tiers[tiers.length - 1].y;
+  stalk(m, top + (ready ? 18 : 8), stemCol, stemDark, true);
+  for (let y = 0; y <= 7; y++) {
+    const rad = 2.35 - y * 0.16;
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2 + 0.2;
+      plot(m, Math.cos(a) * rad, y, Math.sin(a) * rad, k % 2 ? stemDark : stemCol, 0.02);
+    }
   }
-
-  const sides = ready
-    ? [
-        { y: 6 * U, len: 5 * U, rise: 3.6 * U, cola: 9 * U, girth: 4.6, sugars: 4 },
-        { y: 9 * U, len: 4 * U, rise: 3.1 * U, cola: 8 * U, girth: 4.2, sugars: 3 },
-      ]
-    : [
-        { y: 11 * U, len: 5 * U, rise: 2.8 * U, cola: 6 * U, girth: 3.3, sugars: 3 },
-        { y: 14 * U, len: 4.2 * U, rise: 2.6 * U, cola: 5.5 * U, girth: 3.0, sugars: 3 },
-      ];
-  for (const s of sides) {
-    for (const side of [0, Math.PI]) {
-      const a = ang + side;
-      const end = limb(m, Math.cos(a) * 1.6, s.y, Math.sin(a) * 1.6, a, s.len, s.rise, stemCol, stemDark);
-      spear(m, end.x, end.y, end.z, s.cola, s.girth, spec.bud, R, {
-        ...colaOpt(spec, stemCol, late, pistil, frost, s.sugars, ready ? 6 : 4.4, ready, a),
-        leanX: Math.cos(a) * 0.14,
-        leanZ: Math.sin(a) * 0.14,
-      });
+  const colaAt = (x, y, z, len, girth, a, sugars) => {
+    spear(m, x, y, z, len, girth, bud, R, {
+      ...colaOpt(spec, stemCol, late, ready ? 0.7 : 0.28, frost, sugars, ready ? 4.2 : 3.2, false, a),
+      hair: hairCol,
+      shortHair: !ready,
+      crown: false,
+      leanX: Math.cos(a) * (ready ? 0.7 : 0.25),
+      leanZ: Math.sin(a) * (ready ? 0.7 : 0.25),
+    });
+  };
+  let ang = 0.22 + (spec.seed % 5) * 0.18;
+  for (const n of tiers) {
+    knuckle(m, n.y, stemCol, stemDark);
+    pair(m, n.y, ang, n.fan, n.fingers, n.droop, dark, light, stemCol);
+    if (n.fan >= 11) pair(m, n.y + 1, ang + Math.PI / 4, n.fan * 0.72, n.fingers, n.droop + 0.08, dark, light, stemCol);
+    if (ready && n.fan >= 16) pair(m, n.y + 2, ang + Math.PI / 8, n.fan * 0.62, 5, n.droop + 0.16, dark, light, stemCol);
+    if (n.arms) {
+      for (let i = 0; i < n.arms; i++) {
+        const a = ang + 0.4 + (i * Math.PI * 2) / n.arms;
+        const end = limb(m, Math.cos(a) * 1.6, n.y + 0.5, Math.sin(a) * 1.6, a, n.reach, n.rise, stemCol, stemDark);
+        fan(
+          m,
+          Math.cos(a) * (1.6 + n.reach * 0.42),
+          n.y + 0.5 + n.rise * 0.42,
+          Math.sin(a) * (1.6 + n.reach * 0.42),
+          a + 0.6,
+          Math.max(5, n.fan * 0.5),
+          n.fan > 11 ? 7 : 5,
+          n.droop + 0.12,
+          dark,
+          light,
+          stemCol,
+          false,
+        );
+        colaAt(end.x, end.y, end.z, n.cola, n.girth, a, ready ? 2 : 1);
+      }
     }
     ang += Math.PI / 2;
   }
+  spear(m, 0, top + 1, 0, ready ? 14 : 7, ready ? 2.55 : 1.7, bud, R, {
+    ...colaOpt(spec, stemCol, late, ready ? 0.7 : 0.28, frost, ready ? 6 : 2, ready ? 4.6 : 3.2, ready, 0.4),
+    hair: hairCol,
+    shortHair: !ready,
+    crown: true,
+  });
+}
 
-  spear(
-    m,
-    0,
-    (ready ? 10 : 14) * U,
-    0,
-    (ready ? 16 : 11) * U,
-    ready ? 6.4 : 4.4,
-    spec.bud,
-    R,
-    colaOpt(spec, stemCol, late, pistil, frost, ready ? 5 : 4, ready ? 7 : 5.2, ready, 0.35),
-  );
+function flowering(m, stage, spec, R) {
+  finishTree(m, spec, R, stage === 4);
 }
 
 function vegetative(m, spec) {
