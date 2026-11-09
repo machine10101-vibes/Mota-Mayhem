@@ -14,8 +14,23 @@
     <div id="stage"></div>
 
     <div id="hud" class="hidden">
-      <div class="hud-row">
-        <div class="panel brand" id="brand"><canvas id="leaf-icon" width="8" height="10"></canvas><span>MOTA MAYHEM</span></div>
+      <div class="topbar">
+        <div id="brand" class="status">
+          <div class="stat mota-stat">
+            <canvas id="leaf-icon" width="8" height="10"></canvas>
+            <span class="stat-copy"><span class="k">MOTA</span><b id="mota">0</b></span>
+          </div>
+          <button type="button" class="stat strain-stat" id="strain-now" aria-label="Cycle strain">
+            <i id="strain-swatch"></i>
+            <span class="stat-copy"><span class="k" id="strain-label">BD</span><b id="strain-count">10</b></span>
+          </button>
+          <div class="vitals">
+            <div><span>WET</span><b id="wet">0</b></div>
+            <div><span>CLONE</span><b id="clones">0</b></div>
+            <div><span>FEED</span><b id="nuts">0</b></div>
+            <div><span>GRAMS</span><b id="grams">0</b></div>
+          </div>
+        </div>
         <div class="icon-row">
           <button type="button" id="btn-you" class="icon-btn" aria-label="Character" aria-pressed="false">
             <svg class="pix" viewBox="0 0 16 16" aria-hidden="true">
@@ -49,54 +64,47 @@
               <rect x="9" y="9" width="1" height="2" fill="#93c85a"/>
             </svg>
           </button>
+          <button type="button" id="btn-help-hud" class="icon-btn help-ico" aria-label="Help" aria-pressed="false">?</button>
         </div>
       </div>
-      <div id="inv" class="panel inv hidden">
-        <div class="row mota"><span class="lbl">MOTA</span><b id="mota">0</b></div>
-        <div class="row seeds"><span class="lbl">SEEDS</span><b id="seeds">BD 10  GDP 10  GC 4  GG4 4  LIS 4  UW 4  BB 4</b></div>
-        <div class="row"><span class="lbl">CLONES</span><b id="clones">0</b></div>
-        <div class="row"><span class="lbl">FEED</span><b id="nuts">0</b></div>
-        <div class="row"><span class="lbl">CUBES</span><b id="cubes">0</b></div>
-        <div class="row"><span class="lbl">WET</span><b id="wet">0</b></div>
-        <div class="row"><span class="lbl">SHED</span><b id="shed-count">0</b></div>
-        <div class="row"><span class="lbl">GRAMS</span><b id="grams">0</b></div>
+      <div id="inv" class="panel pack hidden">
+        <div class="pack-title">PACK</div>
+        <div class="pack-label">SEEDS · TAP TO SELECT</div>
+        <div id="seeds" class="seed-grid"></div>
+        <div class="pack-label">JARS</div>
         <div class="jars">
           <div class="jar g4"><i>AAAA</i><b id="jar-AAAA">0</b></div>
           <div class="jar g3"><i>AAA</i><b id="jar-AAA">0</b></div>
           <div class="jar g2"><i>AA</i><b id="jar-AA">0</b></div>
           <div class="jar g1"><i>A</i><b id="jar-A">0</b></div>
         </div>
+        <div class="pack-foot"><span>CUBES <b id="cubes">0</b></span><span>SHED <b id="shed-count">0</b></span></div>
       </div>
     </div>
 
-    <div id="tip"><div id="tip-name"></div><div class="bar"><div id="tip-water"></div></div><div class="bar grow"><div id="tip-grow"></div></div><div id="tip-grade"></div></div>
-    <div id="prompt"></div>
+    <div id="tip"><div id="tip-name"></div><div class="meter"><span>H2O</span><div class="bar"><div id="tip-water"></div></div></div><div class="meter"><span>GROW</span><div class="bar grow"><div id="tip-grow"></div></div></div><div id="tip-grade"></div></div>
+    <div id="prompt" role="button" tabindex="-1"><kbd id="prompt-key"></kbd><span id="prompt-label"></span></div>
     <div id="toasts"></div>
 
-    <div id="help" class="panel">
-      <span class="help-desk">
-        <b>MOVE</b> WASD / ARROWS &nbsp; <b>RUN</b> SHIFT<br />
-        <b>ACT</b> SPACE &nbsp; <b>1 / 2</b> CYCLE STRAIN<br />
-        <b>FARMER</b> CHARACTER &nbsp; <b>PACK</b> INVENTORY &nbsp; <b>C</b> CHARACTER<br />
-        <b>YARD</b> 1 GROW BOX &nbsp; <b>HOUSE</b> 1 MOTHER / 1 TUBE / 4 VEG<br />
-        <b>MOTA</b> FLOATS OVER LOCKED BEDS, MOTHERS, TUBES, AND UPSTAIRS VEG<br />
-        <b>HARVEST</b> CLOUDY + AMBER &nbsp; <b>SHED</b> TRIM / DRY / CURE<br />
-        <b>WAREHOUSE</b> 18/6 TO 12/12 &nbsp; <b>FEED</b> BLOOM<br />
-        <b>MOTA</b> SELL JARS &nbsp; <b>COMPUTER</b> SEEDS<br />
-        <b>CAMERA</b> Q / E / DRAG / WHEEL &nbsp; <b>PIXELS</b> [ ] &nbsp; <b>HELP</b> H<br />
-        SAVED ON THIS DEVICE
-      </span>
-      <span class="help-touch">
-        <b>MOVE</b> STICK &nbsp; <b>RUN</b> HOLD RUN<br />
-        <b>ACT</b> TAP PROMPT, SOIL, HOUSE, OR SHED<br />
-        <b>FARMER</b> CHARACTER &nbsp; <b>PACK</b> INVENTORY<br />
-        <b>SEEDS</b> TAP A STRAIN<br />
-        <b>YARD</b> ONE GROW BOX &nbsp; <b>MOTA COINS</b> MARK LOCKS<br />
-        <b>HARVEST</b> CLOUDY + AMBER &nbsp; <b>SHED</b> TRIM THEN HANG<br />
-        <b>MOTA</b> SELL JARS &nbsp; <b>WAREHOUSE</b> FLIP 12/12<br />
-        <b>CAMERA</b> DRAG / PINCH &nbsp; <b>HELP</b> ?<br />
-        SAVED ON THIS DEVICE
-      </span>
+    <div id="help" class="panel hidden">
+      <div class="help-head"><span class="help-title">FIELD NOTES</span><button type="button" id="btn-help-close" class="tbtn tiny">CLOSE</button></div>
+      <div class="help-grid help-desk">
+        <b>MOVE</b><span>WASD / ARROWS</span>
+        <b>RUN</b><span>SHIFT</span>
+        <b>ACT</b><span>SPACE</span>
+        <b>STRAIN</b><span>1 / 2 OR THE SEED PILL</span>
+        <b>FARMER</b><span>C</span>
+        <b>CAMERA</b><span>Q / E / DRAG / WHEEL</span>
+        <b>PIXELS</b><span>[ ]</span>
+      </div>
+      <div class="help-grid help-touch">
+        <b>MOVE</b><span>STICK</span>
+        <b>RUN</b><span>HOLD RUN</span>
+        <b>ACT</b><span>TAP THE PROMPT OR THE SOIL</span>
+        <b>STRAIN</b><span>TAP THE SEED PILL</span>
+        <b>CAMERA</b><span>DRAG / PINCH</span>
+      </div>
+      <p class="help-note">ONE GROW BOX IS OPEN. GOLD COINS MARK LOCKS. HARVEST ON CLOUDY TRICHOMES, TRIM IN THE SHED, THEN BURP THE JAR. SELL JARS FOR MOTA.</p>
     </div>
 
     <div id="touch" class="hidden">
