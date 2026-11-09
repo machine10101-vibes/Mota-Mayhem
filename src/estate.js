@@ -300,7 +300,7 @@ function buildShelf() {
   m.box(-12, 0, -3, 12, 2, 3, 0x6b4428, 0.03);
   m.box(-12, 10, -3, 12, 12, 3, 0x6b4428, 0.03);
   m.box(-12, 20, -3, 12, 22, 3, 0x6b4428, 0.03);
-  m.box(-10, 2, -2, -4, 8, 2, 0x3d8f6a, 0.02);
+  addNutrientBottle(m, -10, 2, -2);
   m.box(-3, 2, -2, 3, 7, 2, 0xe9ba3e, 0.02);
   m.box(4, 2, -2, 10, 8, 2, 0x3a6ea8, 0.02);
   m.box(-8, 12, -2, -1, 18, 2, 0xc6f56a, 0.02);
@@ -310,6 +310,28 @@ function buildShelf() {
 
 const TUBE_CUPS = 4;
 const TUBE_SP = 22;
+
+export function addRootCube(m, ox, oy, oz) {
+  m.box(ox - 2, oy, oz - 2, ox + 3, oy + 3, oz + 3, 0x6a8f45, 0.02);
+  m.delBox(ox - 1, oy + 1, oz - 1, ox + 2, oy + 3, oz + 2);
+}
+
+export function buildRootCube() {
+  const m = new VoxelModel();
+  addRootCube(m, 0, 0, 0);
+  return m;
+}
+
+export function addNutrientBottle(m, ox, oy, oz) {
+  m.box(ox, oy, oz, ox + 6, oy + 6, oz + 4, 0x3d8f6a, 0.02);
+  m.box(ox + 2, oy + 6, oz + 1, ox + 4, oy + 8, oz + 3, 0x2f7f4a, 0.02);
+}
+
+export function buildNutrientBottle() {
+  const m = new VoxelModel();
+  addNutrientBottle(m, 0, 0, 0);
+  return m;
+}
 
 function buildReservoir() {
   const m = new VoxelModel();
@@ -350,8 +372,7 @@ function buildNftTube() {
   m.box(x1 - 2, 1, -3, x1 + 1, R * 2 - 1, 4, 0xc5cbc6, 0.02);
   for (const cx of centers) {
     m.box(cx - 3, R * 2 - 1, -3, cx + 4, R * 2 + 2, 4, 0x1c2918, 0.03);
-    m.box(cx - 2, R * 2 + 1, -2, cx + 3, R * 2 + 4, 3, 0x6a8f45, 0.02);
-    m.delBox(cx - 1, R * 2 + 2, -1, cx + 2, R * 2 + 4, 2);
+    addRootCube(m, cx, R * 2 + 1, 0);
   }
   for (const lx of [x0 + 8, -2, x1 - 10]) m.box(lx, -5, -1, lx + 2, 1, 2, 0x8d9398, 0.03);
   return { model: m, centers };
