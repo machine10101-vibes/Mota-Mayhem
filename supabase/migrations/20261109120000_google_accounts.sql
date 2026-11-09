@@ -1,4 +1,4 @@
--- Google accounts use g:<supabase user uuid>. Klever wallets stay klv1 addresses.
+-- Email accounts use g:<supabase user uuid>. Klever wallets stay klv1 addresses.
 -- The grower function is still the only writer.
 
 alter table public.growers drop constraint growers_address_chk;

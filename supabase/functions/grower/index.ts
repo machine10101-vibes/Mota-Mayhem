@@ -3,7 +3,7 @@ import { withSupabase } from "@supabase/server";
 import { loginMessageOk, verifyKleverSignature } from "./verify.ts";
 
 const ADDRESS_RE = /^klv1[02-9ac-hj-np-z]{58}$/;
-const GOOGLE_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const USER_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const TOKEN_RE = /^[0-9a-f]{64}$/;
 const TOKEN_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_BODY = 300_000;
@@ -68,9 +68,9 @@ async function issueSession(admin: Admin, address: string): Promise<Response> {
   return json({ token, expiresAt });
 }
 
-async function googleAccount(accessToken: unknown): Promise<string | Response> {
+async function accountFromToken(accessToken: unknown): Promise<string | Response> {
   if (typeof accessToken !== "string" || accessToken.length < 20 || accessToken.length > 8192) {
-    return json({ error: "Sign in with Google again." }, 401);
+    return json({ error: "Sign in again." }, 401);
   }
   const url = Deno.env.get("SUPABASE_URL") || "";
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || "";
@@ -78,16 +78,16 @@ async function googleAccount(accessToken: unknown): Promise<string | Response> {
   const res = await fetch(`${url}/auth/v1/user`, {
     headers: { authorization: `Bearer ${accessToken}`, apikey: key },
   });
-  if (!res.ok) return json({ error: "Sign in with Google again." }, 401);
+  if (!res.ok) return json({ error: "Sign in again." }, 401);
   const user = await res.json().catch(() => null) as { id?: unknown } | null;
   const id = typeof user?.id === "string" ? user.id.toLowerCase() : "";
-  if (!GOOGLE_RE.test(id)) return json({ error: "Sign in with Google again." }, 401);
+  if (!USER_RE.test(id)) return json({ error: "Sign in again." }, 401);
   return `g:${id}`;
 }
 
 async function auth(admin: Admin, body: Record<string, unknown>): Promise<Response> {
-  if (body.provider === "google") {
-    const account = await googleAccount(body.accessToken);
+  if (body.provider === "email" || body.provider === "google") {
+    const account = await accountFromToken(body.accessToken);
     if (account instanceof Response) return account;
     return issueSession(admin, account);
   }

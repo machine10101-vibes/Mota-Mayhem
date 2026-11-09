@@ -11,7 +11,7 @@ import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace } from './strains.js';
 import { loadSave, writeSave, adoptAddress, unbindAddress } from './save.js';
 import { clearSession, inKleverHandoff, isMobile, launchKleverApp, markPrompt, promptIsCooling, readSession, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
-import { accountLabel, clearGoogleSession, finishGoogleSignIn, googleCodePending, googleRedirectError, readGoogleSession, startGoogleSignIn } from './wallet/google.js';
+import { accountLabel, accountProblem, clearAccountSession, createAccount, readAccountSession, signInAccount } from './wallet/account.js';
 import { clearCloudToken, flushCloud, schedulePush, syncGarden } from './wallet/cloud.js';
 
 const $ = (id) => document.getElementById(id);
@@ -304,6 +304,7 @@ function walletReady() {
 }
 
 addEventListener('keydown', (e) => {
+  if (e.target?.closest?.('input, textarea')) return;
   if ((e.code === 'Space' || e.code === 'Enter') && (state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress')) enterFullscreen();
   if ((e.code === 'Space' || e.code === 'Enter') && state.mode === 'title') onTitleConfirm();
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
@@ -2491,24 +2492,23 @@ function onTitleConfirm() {
 function refreshWalletUi() {
   const status = $('wallet-status');
   const sign = $('btn-wallet');
-  const google = $('btn-google');
+  const form = $('account-form');
   const swap = $('btn-wallet-switch');
   const help = $('wallet-help');
   const signed = !!walletSession?.address;
-  const googleAccount = walletSession?.provider === 'google';
-  const place = googleAccount ? 'account' : 'wallet';
+  const emailAccount = walletSession?.provider === 'email';
+  const place = emailAccount ? 'account' : 'wallet';
   sign?.classList.toggle('hidden', signed);
-  google?.classList.toggle('hidden', signed);
+  form?.classList.toggle('hidden', signed);
   swap?.classList.toggle('hidden', !signed);
   $('press-line')?.classList.toggle('hidden', !signed || cloudSyncing);
   if (!status) return;
   if (!signed) {
     help?.classList.add('hidden');
     if (sign) sign.textContent = 'SIGN IN WITH KLEVER';
-    if (google) google.textContent = 'SIGN IN WITH GOOGLE';
     status.textContent = window.kleverWeb
-      ? 'Tap Sign in, then approve the signature. Klever keeps that window open until you do. Google is here too.'
-      : 'Sign in with Klever or Google. Your garden is saved to that account.';
+      ? 'Tap Sign in, then approve the signature. Klever keeps that window open until you do. Email is here too.'
+      : 'Sign in with Klever, or create an account with email. Your garden is saved to that account.';
     const dressNote = document.querySelector('#dress .dress-note');
     if (dressNote) dressNote.textContent = 'SAVED ON THIS DEVICE';
     return;
@@ -2516,7 +2516,7 @@ function refreshWalletUi() {
   help?.classList.add('hidden');
   status.replaceChildren();
   const who = document.createElement('b');
-  who.textContent = googleAccount ? accountLabel(walletSession) : shortAddress(walletSession.address);
+  who.textContent = emailAccount ? accountLabel(walletSession) : shortAddress(walletSession.address);
   const lead = walletNote === 'new'
     ? 'New garden saved to '
     : walletNote === 'claimed'
@@ -2582,7 +2582,7 @@ async function onWallet(automatic = false) {
     : 'Confirm the signature in the Klever extension…';
   try {
     const session = await signIn();
-    clearGoogleSession();
+    clearAccountSession();
     await applyWallet(session);
   } catch (err) {
     const help = $('wallet-help');
@@ -2595,8 +2595,8 @@ async function onWallet(automatic = false) {
 }
 
 async function applyWallet(session) {
-  if (session.provider === 'google') clearSession();
-  else clearGoogleSession();
+  if (session.provider === 'email') clearSession();
+  else clearAccountSession();
   walletSession = session;
   cloudPush = false;
   const adopted = adoptAddress(session.address);
@@ -2653,19 +2653,36 @@ function watchAccount() {
   });
 }
 
-async function onGoogle() {
+async function onAccount(kind) {
   if (walletBusy || state.mode === 'play') return;
-  walletBusy = true;
-  const button = $('btn-google');
+  const email = $('account-email')?.value || '';
+  const password = $('account-password')?.value || '';
   const status = $('wallet-status');
-  if (button) button.disabled = true;
-  if (status) status.textContent = 'Opening Google…';
+  const problem = accountProblem(email, password);
+  if (problem) {
+    if (status) status.textContent = problem;
+    return;
+  }
+  walletBusy = true;
+  const buttons = [$('btn-email-in'), $('btn-email-new'), $('account-email'), $('account-password')];
+  for (const el of buttons) if (el) el.disabled = true;
+  if (status) status.textContent = kind === 'new' ? 'Creating the account…' : 'Signing in…';
   try {
-    await startGoogleSignIn();
+    const session = kind === 'new'
+      ? await createAccount(email, password)
+      : await signInAccount(email, password);
+    const pass = $('account-password');
+    if (pass) pass.value = '';
+    if (!session) {
+      if (status) status.textContent = 'Check that email for a confirmation, then sign in.';
+      return;
+    }
+    await applyWallet(session);
   } catch (err) {
-    if (status) status.textContent = err.message || 'Google sign-in failed.';
+    if (status) status.textContent = err.message || 'The account could not be opened.';
+  } finally {
     walletBusy = false;
-    if (button) button.disabled = false;
+    for (const el of buttons) if (el) el.disabled = false;
   }
 }
 
@@ -2673,20 +2690,26 @@ function signOutAccount() {
   flushSave();
   flushCloud();
   clearSession();
-  clearGoogleSession();
+  clearAccountSession();
   clearCloudToken();
   unbindAddress();
   walletSession = null;
   walletNote = '';
   cloudState = 'off';
   cloudPush = false;
+  const pass = $('account-password');
+  if (pass) pass.value = '';
   refreshWalletUi();
   refreshTitle();
 }
 
 function bindWallet() {
   $('btn-wallet')?.addEventListener('click', () => onWallet());
-  $('btn-google')?.addEventListener('click', () => onGoogle());
+  $('account-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    onAccount('in');
+  });
+  $('btn-email-new')?.addEventListener('click', () => onAccount('new'));
   $('btn-wallet-switch')?.addEventListener('click', () => signOutAccount());
 }
 
@@ -3346,30 +3369,7 @@ function boot() {
 }
 
 async function openAccount() {
-  let session = null;
-  const googleError = googleRedirectError();
-  if (googleCodePending()) {
-    try {
-      session = await finishGoogleSignIn();
-    } catch (err) {
-      refreshWalletUi();
-      refreshTitle();
-      updateHud();
-      const status = $('wallet-status');
-      if (status) status.textContent = err.message || 'Google sign-in failed.';
-      $('loading').classList.add('gone');
-      return;
-    }
-  } else if (googleError) {
-    refreshWalletUi();
-    refreshTitle();
-    updateHud();
-    const status = $('wallet-status');
-    if (status) status.textContent = googleError;
-    $('loading').classList.add('gone');
-    return;
-  }
-  if (!session) session = readSession() || readGoogleSession();
+  const session = readSession() || readAccountSession();
   if (session) await applyWallet(session);
   else refreshWalletUi();
   refreshTitle();

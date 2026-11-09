@@ -94,9 +94,9 @@ async function ensureToken(session) {
   const existing = readToken(session.address);
   if (existing) return existing;
   let body;
-  if (session.provider === 'google') {
-    const { freshAccessToken } = await import('./google.js');
-    body = { op: 'auth', provider: 'google', accessToken: await freshAccessToken(session) };
+  if (session.provider === 'email') {
+    const { freshAccessToken } = await import('./account.js');
+    body = { op: 'auth', provider: 'email', accessToken: await freshAccessToken(session) };
   } else {
     body = {
       op: 'auth',
