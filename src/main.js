@@ -748,9 +748,13 @@ function presentPlant(mesh, d, i, time, dt) {
   d.pop = Math.min(1, d.pop + dt * 2.4);
   const back = 1 + 1.70158;
   const e = 1 + back * Math.pow(d.pop - 1, 3) + 1.70158 * Math.pow(d.pop - 1, 2);
-  const sc2 = (0.2 + 0.8 * e) * (strainOf(d.strain).stature || 1);
-  mesh.scale.set(sc2, sc2, sc2);
-  mesh.rotation.z = Math.sin(time * 1.4 + i * 1.7) * 0.022 * (0.4 + d.stage * 0.3);
+  const sc = (0.2 + 0.8 * e) * (strainOf(d.strain).stature || 1);
+  const wide = d.topped ? 1.16 : 1;
+  const tall = d.topped ? 0.82 : 1;
+  const trim = d.lollipop ? 0.9 : 1;
+  mesh.scale.set(sc * wide * trim, sc * tall * trim, sc * wide * trim);
+  const sway = Math.sin(time * 1.4 + i * 1.7) * 0.022 * (0.4 + d.stage * 0.3);
+  mesh.rotation.z = sway + (d.trained ? 0.28 : 0);
   mesh.rotation.x = Math.cos(time * 1.1 + i) * 0.015 * (0.4 + d.stage * 0.3);
 }
 
@@ -807,10 +811,12 @@ function updatePlants(dt, time) {
           burst(s, 0xd7b4ff);
         }
       } else if (d.state === 'ripening') {
-        d.water = Math.max(0, d.water - dt / THIRST);
-        d.age += dt;
-        if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
-        if (flower) d.ripe = Math.min(1.25, (d.ripe || 0) + dt / ((RIPE_TIME / 1.15) * strainPace(d.strain, 4)));
+        if (flower) {
+          d.water = Math.max(0, d.water - dt / THIRST);
+          d.age += dt;
+          if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
+          d.ripe = Math.min(1.25, (d.ripe || 0) + dt / ((RIPE_TIME / 1.15) * strainPace(d.strain, 4)));
+        }
       } else if (d.state === 'growing' && d.stage >= 3 && !flower) {
         d.water = Math.max(0, d.water - dt / THIRST);
         d.age += dt;
@@ -875,6 +881,9 @@ function beginGrow(plot, stage, fromClone, strain) {
   d.age = 0;
   d.ripe = 0;
   d.holdVeg = false;
+  d.topped = false;
+  d.trained = false;
+  d.lollipop = false;
   if (where === 'yard') setStage(i, stage);
   else {
     d.stage = stage;
@@ -885,6 +894,22 @@ function beginGrow(plot, stage, fromClone, strain) {
     mesh.visible = true;
   }
   markDirty();
+}
+
+function nextTrain(d) {
+  if (d.stage === 2 && !d.topped) return 'top';
+  if ((d.stage === 2 || d.stage === 3) && d.topped && !d.trained) return 'train';
+  if (d.stage === 3 && !d.lollipop) return 'lolli';
+  return '';
+}
+
+function canopyDone(d) {
+  return !!(d.topped && d.trained && d.lollipop);
+}
+
+function liftGrade(g) {
+  const i = GRADES.indexOf(g);
+  return GRADES[Math.min(GRADES.length - 1, Math.max(0, i) + 1)] || g;
 }
 
 function actPlot(plot) {
@@ -920,7 +945,35 @@ function actPlot(plot) {
         later(0.2 + k * 0.016, () => particles.emit({ x: P.x + Math.sin(P.facing) * 0.95 + (Math.random() - 0.5) * 0.15, y: 1.25, z: P.z + Math.cos(P.facing) * 0.95 + (Math.random() - 0.5) * 0.15, vx: Math.sin(P.facing) * 0.5, vy: -0.5, vz: Math.cos(P.facing) * 0.5, life: 0.5, size: 0.065, color: 0x7ec8f2, color2: 0x3f86c8, g: -9 }));
       return;
     }
-    if (d.holdVeg) return toast('FLIP THE WAREHOUSE TO 12/12');
+    if (d.holdVeg && !nextTrain(d)) return toast('FLIP THE WAREHOUSE TO 12/12');
+    const step = nextTrain(d);
+    if (step === 'top') {
+      d.topped = true;
+      d.pop = 0.3;
+      P.cool = 0.45;
+      player.playAction('harvest');
+      toast('TOPPED — THE CANOPY BUSHES OUT', 'good');
+      markDirty();
+      return;
+    }
+    if (step === 'train') {
+      d.trained = true;
+      d.pop = 0.3;
+      P.cool = 0.45;
+      player.playAction('plant');
+      toast('TRAINED — BRANCHES TIED OUT', 'good');
+      markDirty();
+      return;
+    }
+    if (step === 'lolli') {
+      d.lollipop = true;
+      d.pop = 0.3;
+      P.cool = 0.45;
+      player.playAction('harvest');
+      toast('LOLLIPOPPED — LOW GROWTH CLEARED', 'good');
+      markDirty();
+      return;
+    }
     if (d.stage >= 3 && state.nutrients > 0) {
       state.nutrients--;
       d.water = 1;
@@ -932,17 +985,22 @@ function actPlot(plot) {
       markDirty();
       return;
     }
-    return toast('PLANT IS WELL WATERED');
+    return toast(canopyDone(d) ? 'CANOPY SET' : 'PLANT IS WELL WATERED');
   } else if (d.state === 'ready' || d.state === 'ripening') {
     let grade = gradeOf(d);
-    let call = '';
+    const notes = [];
+    if (canopyDone(d)) {
+      const up = liftGrade(grade);
+      if (up !== grade) grade = up;
+      notes.push('CANOPY');
+    }
     if (d.state === 'ripening') {
       const band = trichomeBand(d.ripe || 0);
       const next = band.pick ? grade : dropGrade(grade);
-      call = ` — ${band.label}`;
+      notes.push(band.label);
       if (next !== grade) {
         grade = next;
-        call += ' — GRADE DROPPED';
+        notes.push('GRADE DROPPED');
       }
     }
     const grams = gramsFor(grade);
@@ -959,10 +1017,14 @@ function actPlot(plot) {
     d.ripe = 0;
     d.holdVeg = false;
     d.fromClone = false;
+    d.topped = false;
+    d.trained = false;
+    d.lollipop = false;
     mesh.visible = false;
     later(0.3, () => {
       for (let k = 0; k < 34; k++) particles.emit({ x: s.x, y: s.y + 0.7, z: s.z, vx: (Math.random() - 0.5) * 3, vy: 2 + Math.random() * 3, vz: (Math.random() - 0.5) * 3, life: 1, size: 0.08, color: k % 3 === 0 ? 0xf08a2e : 0xf4fbe6, g: -5 });
-      toast(`${strainOf(id).short} ${grade} WET FLOWER${call} — TRIM IT IN THE SHED`, call.includes('DROPPED') ? '' : 'good');
+      const note = notes.length ? ` — ${notes.join(' — ')}` : '';
+      toast(`${strainOf(id).short} ${grade} WET FLOWER${note} — TRIM IT IN THE SHED`, notes.includes('GRADE DROPPED') ? '' : 'good');
     });
     updateHud();
   }
@@ -1673,14 +1735,23 @@ function updateTarget() {
   } else if (d.water <= 0.7) {
     text = `${actLbl}  WATER`;
     btn = 'WATER';
+  } else if (nextTrain(d) === 'top') {
+    text = `${actLbl}  TOP`;
+    btn = 'TOP';
+  } else if (nextTrain(d) === 'train') {
+    text = `${actLbl}  TRAIN BRANCHES`;
+    btn = 'TRAIN';
+  } else if (nextTrain(d) === 'lolli') {
+    text = `${actLbl}  LOLLIPOP`;
+    btn = 'LOLLI';
   } else if (d.holdVeg) {
     text = 'WAITING FOR 12/12';
     btn = 'ACT';
   } else if (d.stage >= 3 && state.nutrients > 0) {
     text = `${actLbl}  BLOOM FEED`;
     btn = 'FEED';
-  } else {
-    text = 'WELL WATERED';
+    } else {
+    text = canopyDone(d) ? 'CANOPY SET' : 'WELL WATERED';
   }
   setActLabel(btn);
   setPrompt(text);
@@ -1697,7 +1768,7 @@ function updateTarget() {
     $('tip-water').style.width = Math.round(d.water * 100) + '%';
     $('tip-water').style.background = d.water > 0 ? '#58b4ee' : '#d9534f';
     $('tip-grow').style.width = Math.round((d.state === 'ready' ? 1 : d.state === 'ripening' ? Math.min(1, d.ripe || 0) : d.holdVeg ? 0.5 : (d.stage + d.prog) / 4) * 100) + '%';
-    $('tip-grade').textContent = band ? band.label : d.holdVeg ? '18/6' : d.state === 'ready' ? gradeOf(d) : `${spec.kind} ${spec.weeks}WK`;
+    $('tip-grade').textContent = band ? band.label : d.holdVeg && !nextTrain(d) ? '18/6' : d.state === 'ready' ? gradeOf(d) : nextTrain(d) === 'top' ? 'TOP THE VEG' : nextTrain(d) === 'train' ? 'TRAIN THE VEG' : nextTrain(d) === 'lolli' ? 'LOLLIPOP' : canopyDone(d) ? 'CANOPY SET' : `${spec.kind} ${spec.weeks}WK`;
   }
   return plot.i;
 }
@@ -1970,8 +2041,9 @@ function startGame() {
   setIcon($('btn-you'), false);
   if (touchUI) {
     $('touch').classList.remove('hidden');
-    $('help').classList.add('hidden');
+    toggleHelp(false);
   }
+  updateHud();
   cam.yawT = 0;
   cam.distT = 27;
   canSave = true;
@@ -2005,6 +2077,9 @@ function plotSnap(d) {
     fromClone: !!d.fromClone,
     ripe: d.ripe || 0,
     holdVeg: !!d.holdVeg,
+    topped: !!d.topped,
+    trained: !!d.trained,
+    lollipop: !!d.lollipop,
   };
 }
 
@@ -2087,6 +2162,9 @@ function applyPlot(d, mesh, snap) {
   d.holdVeg = !!snap.holdVeg && d.state === 'growing';
   d.strain = strainOf(snap.strain).id;
   d.fromClone = !!snap.fromClone;
+  d.topped = !!snap.topped;
+  d.trained = !!snap.trained;
+  d.lollipop = !!snap.lollipop;
   d.pop = 0;
   mesh.geometry = plantGeo(d.state === 'empty' ? 0 : d.stage, d.strain);
   mesh.visible = d.state !== 'empty';
@@ -2153,6 +2231,9 @@ function blankPlots(list, meshes) {
     d.ripe = 0;
     d.holdVeg = false;
     d.fromClone = false;
+    d.topped = false;
+    d.trained = false;
+    d.lollipop = false;
     d.pop = 0;
     meshes[i].visible = false;
     meshes[i].geometry = plantGeo(0, 'bd');
