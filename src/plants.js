@@ -28,6 +28,17 @@ const FAN = {
     { a: 1.12, l: 0.54 },
     { a: 1.62, l: 0.34 },
   ],
+  9: [
+    { a: -1.86, l: 0.26 },
+    { a: -1.46, l: 0.4 },
+    { a: -1.04, l: 0.58 },
+    { a: -0.52, l: 0.8 },
+    { a: 0, l: 1 },
+    { a: 0.52, l: 0.8 },
+    { a: 1.04, l: 0.58 },
+    { a: 1.46, l: 0.4 },
+    { a: 1.86, l: 0.26 },
+  ],
 };
 
 const PISTIL_CREAM = 0xf4efe0;
@@ -71,7 +82,7 @@ function leaflet(m, bx, by, bz, ang, len, dark, light, droop, fade) {
   const px = -dz;
   const pz = dx;
   const L = Math.max(4, len);
-  const maxHalf = L >= 18 ? 1.85 : L >= 12 ? 1.95 : L >= 7 ? 1.75 : 1.5;
+  const maxHalf = L >= 18 ? 1.6 : L >= 12 ? 1.7 : L >= 7 ? 1.5 : 1.3;
   const vein = mix(light, 0xe7f6a4, 0.55);
   const blade = mix(dark, light, 0.42);
   const pad = Math.ceil(L + maxHalf + 2);
@@ -83,12 +94,12 @@ function leaflet(m, bx, by, bz, ang, len, dark, light, droop, fade) {
       const across = (ix - bx) * px + (iz - bz) * pz;
       if (along < 0.15 || along > L + 0.35) continue;
       const t = Math.min(1, along / L);
-      const belly = Math.sin(Math.PI * Math.pow(t, 0.78));
+      const belly = Math.sin(Math.PI * Math.pow(t, 0.7));
       const envelope = belly * maxHalf;
       const seg = 3.05;
       const segPos = ((along % seg) + seg) % seg;
       const toothT = segPos / seg;
-      const half = t > 0.9 ? Math.max(0.42, envelope * 0.32) : envelope * (0.2 + 0.8 * toothT);
+      const half = t > 0.9 ? Math.max(0.42, envelope * 0.32) : envelope * (0.12 + 0.88 * toothT);
       if (envelope < 0.2 || Math.abs(across) > half) continue;
       const arc = Math.max(1.15, L * 0.11);
       const y = by + Math.sin(t * Math.PI) * arc * 0.62 - droop * t * t * arc;
@@ -248,10 +259,10 @@ function fleshyCotyledon(m, ang, y0, len, lift, yellow = 0) {
   const dz = Math.sin(ang);
   const px = -dz;
   const pz = dx;
-  const body = mix(0xc6e06e, 0xd2c25a, yellow);
-  const pale = mix(0xe8f4a8, 0xf0e4a4, yellow);
-  const rim = mix(0x7eac46, 0xa09038, yellow);
-  const vein = mix(0xf3f7c4, 0xf7efb8, yellow);
+  const body = mix(0x92c44c, 0xcdbb55, yellow);
+  const pale = mix(0xb6dc6c, 0xeadf9c, yellow);
+  const rim = mix(0x5f9a36, 0x9a8a34, yellow);
+  const vein = mix(0xd4eb98, 0xf5ecb0, yellow);
   for (let i = 0; i <= len; i++) {
     const t = i / len;
     const width = Math.sin(Math.PI * Math.pow(Math.max(0.04, t), 0.7)) * (len * 0.64);
@@ -371,22 +382,22 @@ function finishTree(m, spec, R, ready) {
   const dark = spec.leafDark;
   const light = spec.leafLight;
   const gold = [0xe8b84a, 0xb88828, 0xf2d56a];
-  const bud = spec.bud.map((c, i) => mix(c, gold[i], ready ? 0.86 : 0.58));
+  const bud = spec.bud.map((c, i) => mix(c, gold[i], ready ? 0.46 : 0.14));
   const late = ready ? 0.88 : 0.05;
   const frost = (ready ? 0.16 : 0.02) * (spec.frost || 1);
   const hairCol = ready
-    ? { cream: 0xf8e9a4, orange: 0xe8c44a, amber: 0xd4ae3a }
+    ? { cream: 0xf3e2b0, orange: 0xe28a2a, amber: 0xc4601c }
     : spec.hair || { cream: 0xf4f1e2, orange: 0xf7f3e6, amber: 0xe7f0cc };
   const tiers = ready
     ? [
-        { y: 8, fan: 18, fingers: 7, droop: 0.5, arms: 4, reach: 14, rise: 6, buds: 6, girth: 3.15 },
-        { y: 15, fan: 16, fingers: 7, droop: 0.36, arms: 4, reach: 11, rise: 6, buds: 5, girth: 2.9 },
+        { y: 8, fan: 18, fingers: 9, droop: 0.5, arms: 4, reach: 14, rise: 6, buds: 6, girth: 3.15 },
+        { y: 15, fan: 16, fingers: 9, droop: 0.36, arms: 4, reach: 11, rise: 6, buds: 5, girth: 2.9 },
         { y: 22, fan: 13, fingers: 7, droop: 0.22, arms: 4, reach: 8, rise: 5, buds: 5, girth: 2.65 },
         { y: 28, fan: 10, fingers: 5, droop: 0.12, arms: 4, reach: 6, rise: 4, buds: 4, girth: 2.4 },
         { y: 33, fan: 7, fingers: 5, droop: 0.06, arms: 0 },
       ]
     : [
-        { y: 7, fan: 13, fingers: 7, droop: 0.5, arms: 4, reach: 8, rise: 4, buds: 5, girth: 2.55 },
+        { y: 7, fan: 13, fingers: 9, droop: 0.5, arms: 4, reach: 8, rise: 4, buds: 5, girth: 2.55 },
         { y: 13, fan: 11, fingers: 7, droop: 0.28, arms: 4, reach: 6, rise: 4, buds: 4, girth: 2.35 },
         { y: 19, fan: 8, fingers: 5, droop: 0.12, arms: 4, reach: 5, rise: 3, buds: 4, girth: 2.15 },
         { y: 24, fan: 6, fingers: 5, droop: 0.04, arms: 0 },
@@ -464,12 +475,14 @@ function vegetative(m, spec) {
   const stemDark = spec.stemD;
   const dark = spec.leafDark;
   const light = spec.leafLight;
-  stalk(m, 16 * U, stemCol, stemDark, true);
+  stalk(m, 21 * U, stemCol, stemDark, true);
   const nodes = [
-    { y: 3 * U, fingers: 5, size: 9 * U, droop: 1.45, ax: 3 * U },
-    { y: 7 * U, fingers: 7, size: 12 * U, droop: 0.85, ax: 0 },
-    { y: 11 * U, fingers: 7, size: 11 * U, droop: 0.35, ax: 0 },
-    { y: 14 * U, fingers: 5, size: 8 * U, droop: 0.05, ax: 0 },
+    { y: 3 * U, fingers: 5, size: 9 * U, droop: 0.95, ax: 4 * U },
+    { y: 6.5 * U, fingers: 7, size: 12 * U, droop: 0.7, ax: 3.4 * U },
+    { y: 10 * U, fingers: 9, size: 13 * U, droop: 0.5, ax: 2.6 * U },
+    { y: 13.5 * U, fingers: 9, size: 12 * U, droop: 0.34, ax: 0 },
+    { y: 17 * U, fingers: 7, size: 9.5 * U, droop: 0.18, ax: 0 },
+    { y: 19.6 * U, fingers: 5, size: 7 * U, droop: 0.06, ax: 0 },
   ];
   let ang = 0.2 + (spec.seed % 5) * 0.18;
   for (const n of nodes) {
@@ -477,12 +490,13 @@ function vegetative(m, spec) {
     pair(m, n.y, ang, n.size, n.fingers, n.droop, dark, light, stemCol);
     if (n.ax) {
       for (const side of [0, Math.PI]) {
-        sideBranch(m, n.y, ang + side + 0.42, n.ax, n.ax * 0.72, dark, light, stemCol, stemDark, Math.min(5, n.fingers), Math.max(5, n.size * 0.5), 0.55, false);
+        sideBranch(m, n.y, ang + side + 1.2, n.ax, n.ax * 0.6, dark, light, stemCol, stemDark, 5, Math.max(6, n.size * 0.55), 0.42, false);
       }
     }
-    ang += Math.PI / 2;
+    ang += Math.PI / 2 + 0.18;
   }
-  pair(m, 16.4 * U, ang, 4.4 * U, 3, -0.7, dark, light, stemCol);
+  pair(m, 21.4 * U, ang, 4.6 * U, 3, -0.5, dark, light, stemCol);
+  fan(m, 0, 22 * U, 0, ang + Math.PI / 2, 3.4 * U, 3, -0.8, dark, light, stemCol, false);
 }
 
 function seedling(m, spec) {
@@ -491,8 +505,8 @@ function seedling(m, spec) {
   const dark = spec.leafDark;
   const light = spec.leafLight;
   stalk(m, 12 * U, stemCol, stemDark, true);
-  fleshyCotyledon(m, 0.12, 2.3 * U, 4.4 * U, -0.7 * U, 0.7);
-  fleshyCotyledon(m, Math.PI + 0.04, 2.3 * U, 3.5 * U, -0.9 * U, 0.82);
+  fleshyCotyledon(m, 0.12, 2.3 * U, 4.4 * U, -0.7 * U, 0.16);
+  fleshyCotyledon(m, Math.PI + 0.04, 2.3 * U, 3.5 * U, -0.9 * U, 0.26);
   knuckle(m, 6 * U, stemCol, stemDark);
   fan(m, 0, 6 * U, 0, Math.PI / 2, 7.2 * U, 1, 0.35, dark, light, stemCol, false);
   fan(m, 0, 6 * U, 0, -Math.PI / 2, 6.2 * U, 1, 0.45, dark, light, stemCol, false);
