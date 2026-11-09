@@ -49,7 +49,7 @@ sells a warehouse for 520 MOTA. Buying it opens the gate. Inside are nine indoor
 The farmer icon on the title screen and while you play, and the C key, open the character menu: skin, hair, hat,
 shirt, overalls, and boots, with a live preview. The backpack icon opens the bag. Each pocket shows the same model used in the yard, at a small size: a flat cannabis seed for each pack, a vegetative plant for a clone, the shed bud for wet flower, the cure jar, the green feed bottle, and the root cube. Tap a seed pocket to choose that strain. Both panels stay closed until that icon is clicked. **NEW GROW** resets the farm to the starter seeds and keeps
 the look. Sign in with a Klever wallet, or create an account with email and a password, before the grow starts. The character, MOTA, seeds, nutrients, root cubes, clones, beds, mothers, hydro tubes, veg pots, shed, and warehouse are saved in
-this browser under that account. With the Supabase URL and publishable key set, the same garden is stored for that account. Creating an email account signs the player in.
+this browser under that account. With the Supabase URL and publishable key set, creating an email account signs the player in and writes that account's email plus the whole garden to the connected database. Later progress is saved to the same row.
 
 ## How the look is built
 

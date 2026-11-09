@@ -164,7 +164,7 @@ export async function pushGarden(session, data, keepalive = false) {
  * `replaced` means the wallet's remote garden should replace this browser's copy.
  * `gate.open` lets the title screen abandon a slow record without it landing mid-grow.
  */
-export async function syncGarden(session, localGarden, gate = { open: true }) {
+export async function syncGarden(session, localGarden, gate = { open: true }, seed = null) {
   const cfg = await loadCloudConfig();
   if (!cfg.url || !cfg.key) return { state: 'off', replaced: false, garden: null };
   const remote = await pullGarden(session);
@@ -174,13 +174,21 @@ export async function syncGarden(session, localGarden, gate = { open: true }) {
   if (remote && remoteAt > localAt) {
     return { state: 'on', replaced: true, garden: remote.garden, revision: remote.revision || 0, savedAt: remoteAt };
   }
-  if (!localGarden) return { state: 'on', replaced: false, garden: null, revision: remote?.revision || 0, savedAt: remoteAt };
-  const pushed = await pushGarden(session, localGarden);
+  const toPush = localGarden || (!remote ? seed : null);
+  if (!toPush) return { state: 'on', replaced: false, garden: null, revision: remote?.revision || 0, savedAt: remoteAt };
+  const pushed = await pushGarden(session, toPush);
   if (!gate.open) return { state: 'error', replaced: false, garden: null };
   if (pushed.conflict && pushed.garden) {
     return { state: 'on', replaced: true, garden: pushed.garden, revision: pushed.revision || 0, savedAt: Number(pushed.savedAt) || 0 };
   }
-  return { state: 'on', replaced: false, garden: null, revision: pushed.revision || 0, savedAt: Number(pushed.savedAt) || localAt };
+  return {
+    state: 'on',
+    replaced: false,
+    seeded: !localGarden,
+    garden: toPush,
+    revision: pushed.revision || 0,
+    savedAt: Number(pushed.savedAt) || Number(toPush.savedAt) || localAt,
+  };
 }
 
 /** Debounce gameplay saves so a harvest does not write the garden on every tick. */

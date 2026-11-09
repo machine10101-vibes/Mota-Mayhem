@@ -27,20 +27,20 @@ type Admin = {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message?: string } | null }>;
 };
 
-async function sessionAddress(admin: Admin, token: unknown): Promise<string | Response> {
+async function sessionRecord(admin: Admin, token: unknown): Promise<{ address: string; email: string } | Response> {
   if (typeof token !== "string" || !TOKEN_RE.test(token)) return json({ error: "Sign in again." }, 401);
   const tokenHash = await sha256Hex(token);
   const { data, error } = await admin
     .from("grower_sessions")
-    .select("address, expires_at")
+    .select("address, email, expires_at")
     .eq("token_hash", tokenHash)
     .maybeSingle();
   if (error) return json({ error: "The garden could not be opened." }, 503);
-  const row = data as { address?: string; expires_at?: string } | null;
+  const row = data as { address?: string; email?: string; expires_at?: string } | null;
   if (!row?.address || !row.expires_at || Date.parse(row.expires_at) <= Date.now()) {
     return json({ error: "Sign in again." }, 401);
   }
-  return row.address;
+  return { address: row.address, email: typeof row.email === "string" ? row.email : "" };
 }
 
 function sanitizeGarden(value: unknown, now: number): Record<string, unknown> | null {
@@ -55,20 +55,22 @@ function sanitizeGarden(value: unknown, now: number): Record<string, unknown> | 
   return garden;
 }
 
-async function issueSession(admin: Admin, address: string): Promise<Response> {
+async function issueSession(admin: Admin, address: string, email = ""): Promise<Response> {
   await admin.from("grower_sessions").delete().lt("expires_at", new Date().toISOString());
   const token = hex(crypto.getRandomValues(new Uint8Array(32)));
   const expiresAt = new Date(Date.now() + TOKEN_MS).toISOString();
-  const { error } = await admin.from("grower_sessions").insert({
+  const row: Record<string, string> = {
     token_hash: await sha256Hex(token),
     address,
     expires_at: expiresAt,
-  });
+  };
+  if (email) row.email = email;
+  const { error } = await admin.from("grower_sessions").insert(row);
   if (error) return json({ error: "The garden could not be opened." }, 503);
   return json({ token, expiresAt });
 }
 
-async function accountFromToken(accessToken: unknown): Promise<string | Response> {
+async function accountFromToken(accessToken: unknown): Promise<{ address: string; email: string } | Response> {
   if (typeof accessToken !== "string" || accessToken.length < 20 || accessToken.length > 8192) {
     return json({ error: "Sign in again." }, 401);
   }
@@ -79,17 +81,20 @@ async function accountFromToken(accessToken: unknown): Promise<string | Response
     headers: { authorization: `Bearer ${accessToken}`, apikey: key },
   });
   if (!res.ok) return json({ error: "Sign in again." }, 401);
-  const user = await res.json().catch(() => null) as { id?: unknown } | null;
+  const user = await res.json().catch(() => null) as { id?: unknown; email?: unknown } | null;
   const id = typeof user?.id === "string" ? user.id.toLowerCase() : "";
-  if (!USER_RE.test(id)) return json({ error: "Sign in again." }, 401);
-  return `g:${id}`;
+  const email = typeof user?.email === "string" ? user.email.trim().toLowerCase() : "";
+  if (!USER_RE.test(id) || email.length < 3 || email.length > 254 || !email.includes("@")) {
+    return json({ error: "Sign in again." }, 401);
+  }
+  return { address: `g:${id}`, email };
 }
 
 async function auth(admin: Admin, body: Record<string, unknown>): Promise<Response> {
   if (body.provider === "email" || body.provider === "google") {
     const account = await accountFromToken(body.accessToken);
     if (account instanceof Response) return account;
-    return issueSession(admin, account);
+    return issueSession(admin, account.address, account.email);
   }
   const address = typeof body.address === "string" ? body.address : "";
   const message = typeof body.message === "string" ? body.message : "";
@@ -101,12 +106,12 @@ async function auth(admin: Admin, body: Record<string, unknown>): Promise<Respon
 }
 
 async function load(admin: Admin, body: Record<string, unknown>): Promise<Response> {
-  const address = await sessionAddress(admin, body.token);
-  if (address instanceof Response) return address;
+  const session = await sessionRecord(admin, body.token);
+  if (session instanceof Response) return session;
   const { data, error } = await admin
     .from("growers")
     .select("garden, revision")
-    .eq("address", address)
+    .eq("address", session.address)
     .maybeSingle();
   if (error) return json({ error: "The garden could not be opened." }, 503);
   const row = data as { garden?: Record<string, unknown>; revision?: number | string } | null;
@@ -119,11 +124,13 @@ async function load(admin: Admin, body: Record<string, unknown>): Promise<Respon
 }
 
 async function save(admin: Admin, body: Record<string, unknown>): Promise<Response> {
-  const address = await sessionAddress(admin, body.token);
-  if (address instanceof Response) return address;
+  const session = await sessionRecord(admin, body.token);
+  if (session instanceof Response) return session;
   const garden = sanitizeGarden(body.garden, Date.now());
   if (!garden) return json({ error: "That garden cannot be stored." }, 400);
-  const { data, error } = await admin.rpc("save_garden", { p_address: address, p_garden: garden });
+  const { data, error } = session.email
+    ? await admin.rpc("save_account_garden", { p_address: session.address, p_garden: garden, p_email: session.email })
+    : await admin.rpc("save_garden", { p_address: session.address, p_garden: garden });
   if (error || !data || typeof data !== "object") return json({ error: "The garden could not be saved." }, 503);
   const result = data as { ok?: boolean; revision?: number | string; savedAt?: number | string; garden?: unknown };
   const savedAt = Number(result.savedAt) || 0;

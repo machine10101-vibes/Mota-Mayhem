@@ -2607,9 +2607,13 @@ async function applyWallet(session) {
   cloudState = 'off';
   refreshWalletUi();
   const gate = { open: true };
+  const localGarden = loadSave();
+  const seed = !localGarden && session.provider === 'email' && world && player
+    ? { v: 1, ...snapshot() }
+    : null;
   try {
     const result = await Promise.race([
-      syncGarden(session, loadSave(), gate).catch(() => ({ state: 'error', replaced: false, garden: null })),
+      syncGarden(session, localGarden, gate, seed).catch(() => ({ state: 'error', replaced: false, garden: null })),
       new Promise((_, reject) => setTimeout(() => {
         gate.open = false;
         reject(new Error('timeout'));
@@ -2621,6 +2625,8 @@ async function applyWallet(session) {
       writeSave(result.garden, false);
       const saved = loadSave();
       if (saved) applySave(saved);
+    } else if (result.seeded && result.garden) {
+      writeSave(result.garden, false);
     }
     cloudPush = result.state === 'on';
   } catch {
@@ -2802,6 +2808,7 @@ function snapshot() {
       vegCenter: !!world.house.vegCenter,
       beds: BEDS.map((_, bed) => !slotsData[bed * 4]?.locked),
     },
+    ...(walletSession?.provider === 'email' && walletSession.email ? { accountEmail: walletSession.email } : {}),
   };
 }
 
