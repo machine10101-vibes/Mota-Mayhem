@@ -682,6 +682,7 @@ function initSlots() {
     mesh.rotation.y = d.rot;
     mesh.visible = false;
     scene.add(mesh);
+    rigPlant(mesh);
     plantMeshes.push(mesh);
   });
 }
@@ -696,6 +697,7 @@ function initWarehouse() {
     mesh.position.set(s.x, s.y, s.z);
     mesh.visible = false;
     scene.add(mesh);
+    rigPlant(mesh);
     whMeshes.push(mesh);
   });
 }
@@ -744,18 +746,100 @@ function gramsFor(grade) {
   return grade === 'AAAA' ? 9 : grade === 'AAA' ? 7 : grade === 'AA' ? 5 : 3;
 }
 
-function presentPlant(mesh, d, i, time, dt) {
+const PLANT_TOP = [0.42, 0.68, 0.98, 1.22, 1.42];
+const plantBits = {
+  frostGeo: new THREE.SphereGeometry(0.07, 6, 4),
+  ringGeo: new THREE.RingGeometry(0.18, 0.36, 6),
+  ringMat: new THREE.MeshBasicMaterial({ color: 0xe7c27a, side: THREE.DoubleSide }),
+  postGeo: new THREE.BoxGeometry(0.07, 0.58, 0.07),
+  woodMat: new THREE.MeshBasicMaterial({ color: 0x8d5a32 }),
+};
+
+function rigPlant(mesh) {
+  mesh.material = voxelMaterial.clone();
+  const frostMat = new THREE.MeshBasicMaterial({ color: 0xf7fbee });
+  const frost = new THREE.Group();
+  for (const [x, z] of [[0.16, 0], [-0.12, 0.12], [0.02, -0.16], [0.14, 0.14]]) {
+    const dot = new THREE.Mesh(plantBits.frostGeo, frostMat);
+    dot.position.set(x, 0, z);
+    frost.add(dot);
+  }
+  frost.visible = false;
+  mesh.add(frost);
+  const ring = new THREE.Mesh(plantBits.ringGeo, plantBits.ringMat);
+  ring.rotation.x = -Math.PI / 2;
+  ring.visible = false;
+  scene.add(ring);
+  const posts = [-0.5, 0.5].map((x) => {
+    const post = new THREE.Mesh(plantBits.postGeo, plantBits.woodMat);
+    post.visible = false;
+    post.userData.ox = x;
+    scene.add(post);
+    return post;
+  });
+  mesh.userData.rig = { frost, frostMat, ring, posts };
+}
+
+function hideRig(mesh) {
+  const rig = mesh.userData.rig;
+  if (!rig) return;
+  rig.frost.visible = false;
+  rig.ring.visible = false;
+  for (const post of rig.posts) post.visible = false;
+}
+
+function plantTint(d) {
+  const dry = d.water <= 0;
+  const thirst = d.water <= 0.7;
+  const stressQ = d.stress / Math.max(1, d.age);
+  if (dry) return 0xb08958;
+  if (thirst) return 0xe7d3a2;
+  if (d.state === 'ripening') {
+    const band = trichomeBand(d.ripe || 0);
+    if (band.id === 'clear') return 0xf4fff8;
+    if (band.id === 'cloudy') return 0xf7f4ea;
+    if (band.id === 'milky') return 0xffefc2;
+    return 0xffc07a;
+  }
+  if (stressQ > 0.45) return 0xf0d48a;
+  return 0xffffff;
+}
+
+function presentPlant(mesh, d, i, time, dt, anchor) {
   d.pop = Math.min(1, d.pop + dt * 2.4);
   const back = 1 + 1.70158;
   const e = 1 + back * Math.pow(d.pop - 1, 3) + 1.70158 * Math.pow(d.pop - 1, 2);
   const sc = (0.2 + 0.8 * e) * (strainOf(d.strain).stature || 1);
-  const wide = d.topped ? 1.16 : 1;
-  const tall = d.topped ? 0.82 : 1;
-  const trim = d.lollipop ? 0.9 : 1;
-  mesh.scale.set(sc * wide * trim, sc * tall * trim, sc * wide * trim);
+  const wide = d.topped ? 1.5 : 1;
+  const tall = d.topped ? 0.6 : 1;
+  const trim = d.lollipop ? 0.76 : 1;
+  mesh.scale.set(sc * wide * trim, sc * tall, sc * wide * trim);
   const sway = Math.sin(time * 1.4 + i * 1.7) * 0.022 * (0.4 + d.stage * 0.3);
-  mesh.rotation.z = sway + (d.trained ? 0.28 : 0);
-  mesh.rotation.x = Math.cos(time * 1.1 + i) * 0.015 * (0.4 + d.stage * 0.3);
+  const dry = d.water <= 0;
+  const thirst = d.water <= 0.7;
+  mesh.rotation.z = sway + (d.trained ? 0.62 : 0);
+  mesh.rotation.x = Math.cos(time * 1.1 + i) * 0.015 * (0.4 + d.stage * 0.3) + (dry ? 0.58 : thirst ? 0.24 : 0);
+  mesh.material.color.setHex(plantTint(d));
+  const rig = mesh.userData.rig;
+  if (!rig) return;
+  const top = PLANT_TOP[d.stage] || 0.8;
+  const ripe = d.state === 'ripening';
+  rig.frost.visible = ripe;
+  if (ripe) {
+    const band = trichomeBand(d.ripe || 0);
+    const frostCol = band.id === 'clear' ? 0xe8fff4 : band.id === 'cloudy' ? 0xf7fbee : band.id === 'milky' ? 0xffe08a : 0xe07020;
+    rig.frostMat.color.setHex(frostCol);
+    const pulse = 1 + Math.sin(time * 3 + i) * 0.15;
+    rig.frost.position.set(0, top + 0.06, 0);
+    rig.frost.scale.setScalar(pulse);
+  }
+  rig.ring.visible = !!d.lollipop;
+  rig.ring.position.set(anchor.x, anchor.y + 0.08, anchor.z);
+  const trained = !!d.trained;
+  for (const post of rig.posts) {
+    post.visible = trained;
+    if (trained) post.position.set(anchor.x + post.userData.ox * 0.7, anchor.y + 0.29, anchor.z);
+  }
 }
 
 function growTick(d, dt, speed) {
@@ -772,8 +856,10 @@ function updatePlants(dt, time) {
   slotsData.forEach((d, i) => {
     const mesh = plantMeshes[i];
     const s = world.slots[i];
-    if (d.state === 'empty') mesh.visible = false;
-    else {
+    if (d.state === 'empty') {
+      mesh.visible = false;
+      hideRig(mesh);
+    } else {
       mesh.visible = true;
       if (d.state === 'ripening') {
         d.water = Math.max(0, d.water - dt / THIRST);
@@ -784,18 +870,24 @@ function updatePlants(dt, time) {
         finishStage(d, mesh, false);
         burst(s, d.state === 'ripening' ? 0xfff3a0 : 0xbfe88a);
       }
-      presentPlant(mesh, d, i, time, dt);
+      presentPlant(mesh, d, i, time, dt, s);
     }
     d.waterVis += (Math.min(1, d.water * 3) - d.waterVis) * Math.min(1, dt * 4);
-    const v = 1.05 - 0.5 * d.waterVis;
-    s.patchMat.color.setRGB(v, v * 0.98, v * 0.96);
+    if (d.state === 'empty') s.patchMat.color.setRGB(1, 1, 1);
+    else if (d.water <= 0) s.patchMat.color.setHex(0xd7b07a);
+    else {
+      const t = d.waterVis;
+      s.patchMat.color.setRGB(1 - 0.62 * t, 1 - 0.48 * t, 1 - 0.22 * t);
+    }
   });
   if (!world.warehouse.owned) return;
   whData.forEach((d, i) => {
     const mesh = whMeshes[i];
     const s = world.warehouse.slots[i];
-    if (d.state === 'empty') mesh.visible = false;
-    else {
+    if (d.state === 'empty') {
+      mesh.visible = false;
+      hideRig(mesh);
+    } else {
       mesh.visible = true;
       const flower = world.warehouse.lights === 'flower';
       if (d.holdVeg) {
@@ -825,7 +917,7 @@ function updatePlants(dt, time) {
         finishStage(d, mesh, true);
         burst(s, d.state === 'ripening' ? 0xfff3a0 : 0xd7b4ff);
       }
-      presentPlant(mesh, d, i + 40, time, dt);
+      presentPlant(mesh, d, i + 40, time, dt, s);
     }
   });
 }
@@ -1675,7 +1767,133 @@ function tryPlotTap(x, y) {
   act(plot);
 }
 
+const badges = [];
+let badgeFocus = '';
+
+function growAmount(d) {
+  if (d.state === 'ready') return 1;
+  if (d.state === 'ripening') return Math.min(1, (d.ripe || 0) / 0.88);
+  if (d.holdVeg) return 0.5;
+  return Math.min(1, (d.stage + d.prog) / 4);
+}
+
+function statusWord(d, indoor) {
+  const step = nextTrain(d);
+  const paused = indoor && d.state === 'ripening' && world.warehouse.lights !== 'flower';
+  let label = '';
+  let kind = '';
+  if (d.water <= 0) {
+    label = 'DRY';
+    kind = 'dry';
+  } else if (d.state === 'ripening') {
+    const band = trichomeBand(d.ripe || 0);
+    label = band.id === 'clear' ? 'CLEAR' : band.id === 'cloudy' ? 'CLOUDY' : band.id === 'milky' ? 'PEAK' : 'LATE';
+    kind = band.id;
+  } else if (step === 'top') {
+    label = 'TOP';
+    kind = 'next';
+  } else if (step === 'train') {
+    label = 'TIE';
+    kind = 'next';
+  } else if (step === 'lolli') {
+    label = 'LOLLI';
+    kind = 'next';
+  } else if (canopyDone(d)) {
+    label = 'SET';
+    kind = 'set';
+  }
+  const extra = paused ? 'HOLD' : d.holdVeg ? '18/6' : '';
+  const extraKind = paused || d.holdVeg ? 'hold' : '';
+  return { label, kind, extra, extraKind, step };
+}
+
+function paintMarks(root, d) {
+  const row = root.querySelector('.badge-row');
+  if (row) row.classList.toggle('hide-marks', d.stage < 2);
+  const step = nextTrain(d);
+  for (const key of ['top', 'train', 'lolli']) {
+    const el = root.querySelector('.mark.' + key);
+    if (!el) continue;
+    const done = key === 'top' ? !!d.topped : key === 'train' ? !!d.trained : !!d.lollipop;
+    el.classList.toggle('on', done);
+    el.classList.toggle('next', !done && step === key);
+  }
+}
+
+function paintBadge(entry, d, indoor) {
+  const { el } = entry;
+  const word = statusWord(d, indoor);
+  el.querySelector('.h2o i').style.width = Math.round(Math.max(0, d.water) * 100) + '%';
+  el.querySelector('.h2o').classList.toggle('dry', d.water <= 0);
+  el.querySelector('.h2o').classList.toggle('thirst', d.water > 0 && d.water <= 0.7);
+  const grow = el.querySelector('.grow');
+  grow.querySelector('i').style.width = Math.round(growAmount(d) * 100) + '%';
+  const band = d.state === 'ripening' ? trichomeBand(d.ripe || 0).id : '';
+  grow.className = 'grow ' + band;
+  const grade = el.querySelector('.grade');
+  const showGrade = d.stage >= 3 || d.state === 'ripening' || d.state === 'ready';
+  grade.textContent = showGrade ? gradeOf(d) : '';
+  grade.className = 'grade ' + (showGrade ? gradeOf(d) : '');
+  paintMarks(el, d);
+  const tag = el.querySelector('.tag');
+  tag.textContent = word.label;
+  tag.className = 'tag ' + word.kind;
+  const extra = el.querySelector('.extra');
+  extra.textContent = word.extra && word.extra !== word.label ? word.extra : '';
+  extra.className = 'tag extra ' + word.extraKind;
+}
+
+function makeBadge() {
+  const el = document.createElement('div');
+  el.className = 'plant-badge';
+  el.innerHTML = '<div class="badge-top"><span class="h2o"><i></i></span><span class="grow"><i></i></span><b class="grade"></b></div><div class="badge-row"><span class="pair"><b>T</b><i class="mark top"></i></span><span class="pair"><b>R</b><i class="mark train"></i></span><span class="pair"><b>L</b><i class="mark lolli"></i></span><span class="tag"></span><span class="tag extra"></span></div>';
+  el.style.display = 'none';
+  $('badges').appendChild(el);
+  return el;
+}
+
+function buildBadges() {
+  world.slots.forEach((s, i) => badges.push({ el: makeBadge(), where: 'yard', i, s, data: slotsData }));
+  world.warehouse.slots.forEach((s, i) => badges.push({ el: makeBadge(), where: 'wh', i, s, data: whData }));
+}
+
+function placeBadge(el, x, y, z) {
+  v3.set(x, y, z).project(camera);
+  if (v3.z > 1) {
+    el.style.display = 'none';
+    return;
+  }
+  const w = viewSize().w;
+  const h = viewSize().h;
+  const sx = (v3.x * 0.5 + 0.5) * w;
+  const sy = (-v3.y * 0.5 + 0.5) * h;
+  if (sx < -80 || sy < -40 || sx > w + 80 || sy > h + 40) {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = 'flex';
+  el.style.transform = `translate(${sx}px, ${sy}px) translate(-50%, -120%)`;
+}
+
+function updateBadges() {
+  const playing = state.mode === 'play';
+  const inWh = world.warehouse.contains(P.x, P.z);
+  const indoors = inWh || world.house.contains(P.x, P.z);
+  for (const entry of badges) {
+    const d = entry.data[entry.i];
+    const show = playing && d && d.state !== 'empty' && badgeFocus !== entry.where + ':' + entry.i && (entry.where === 'wh' ? inWh : !indoors);
+    if (!show) {
+      entry.el.style.display = 'none';
+      continue;
+    }
+    paintBadge(entry, d, entry.where === 'wh');
+    const top = (PLANT_TOP[d.stage] || 0.7) + 0.55;
+    placeBadge(entry.el, entry.s.x, entry.s.y + top, entry.s.z);
+  }
+}
+
 function updateTarget() {
+  badgeFocus = '';
   if (state.mode !== 'play') {
     marker.visible = false;
     tip.style.display = 'none';
@@ -1764,11 +1982,16 @@ function updateTarget() {
     tip.style.top = ((-v3.y * 0.5 + 0.5) * 100).toFixed(2) + '%';
     const band = d.state === 'ripening' ? trichomeBand(d.ripe || 0) : null;
     const spec = strainOf(d.strain);
+    const word = statusWord(d, plot.where === 'wh');
     $('tip-name').textContent = `${spec.short} ${d.holdVeg ? 'VEGETATIVE' : STAGE_NAMES[d.stage]}`;
     $('tip-water').style.width = Math.round(d.water * 100) + '%';
     $('tip-water').style.background = d.water > 0 ? '#58b4ee' : '#d9534f';
-    $('tip-grow').style.width = Math.round((d.state === 'ready' ? 1 : d.state === 'ripening' ? Math.min(1, d.ripe || 0) : d.holdVeg ? 0.5 : (d.stage + d.prog) / 4) * 100) + '%';
-    $('tip-grade').textContent = band ? band.label : d.holdVeg && !nextTrain(d) ? '18/6' : d.state === 'ready' ? gradeOf(d) : nextTrain(d) === 'top' ? 'TOP THE VEG' : nextTrain(d) === 'train' ? 'TRAIN THE VEG' : nextTrain(d) === 'lolli' ? 'LOLLIPOP' : canopyDone(d) ? 'CANOPY SET' : `${spec.kind} ${spec.weeks}WK`;
+    $('tip-grow').style.width = Math.round(growAmount(d) * 100) + '%';
+    const gradeLine = band ? band.label : d.holdVeg && !nextTrain(d) ? '18/6' : d.state === 'ready' ? gradeOf(d) : nextTrain(d) === 'top' ? 'TOP THE VEG' : nextTrain(d) === 'train' ? 'TRAIN THE VEG' : nextTrain(d) === 'lolli' ? 'LOLLIPOP' : canopyDone(d) ? 'CANOPY SET' : `${spec.kind} ${spec.weeks}WK`;
+    $('tip-grade').textContent = word.extra && !gradeLine.includes(word.extra) ? `${gradeLine} · ${word.extra}` : gradeLine;
+    paintMarks($('tip-marks'), d);
+    $('tip-marks').style.display = d.stage >= 2 ? 'flex' : 'none';
+    badgeFocus = plot.where + ':' + plot.i;
   }
   return plot.i;
 }
@@ -2012,6 +2235,7 @@ function frame(now) {
   updateCamera(dt);
   updateTokens(time);
   updateTarget();
+  updateBadges();
   saveClock += dt;
   if ((state.mode === 'play' || state.mode === 'dress' || state.mode === 'shop') && saveClock > 4) {
     saveClock = 0;
@@ -2668,6 +2892,7 @@ function boot() {
   buildMarker();
   initSlots();
   initWarehouse();
+  buildBadges();
   spawnTokens();
   if (save) applySave(save);
   resize();

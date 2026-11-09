@@ -53,6 +53,42 @@ canvas#leaf-icon, canvas#leaf-logo { image-rendering:pixelated; }
 #tip-name { color:#f3f1df; }
 #tip-grade { color:var(--gold); margin-top:6px; }
 #tip-grade:empty { display:none; }
+#tip-marks { display:none; align-items:center; gap:8px; margin-top:6px; }
+#badges { position:fixed; inset:0; pointer-events:none; z-index:2; }
+.plant-badge { position:absolute; left:0; top:0; display:none; flex-direction:column; gap:3px; padding:4px 5px; background:rgba(12,18,10,.9); box-shadow:0 0 0 2px var(--ink), 0 0 0 4px rgba(147,200,90,.85); }
+.badge-top { display:flex; align-items:center; gap:3px; }
+.plant-badge .h2o, .plant-badge .grow { display:block; width:46px; height:5px; background:#10160c; box-shadow:inset 0 0 0 1px #1b2412; }
+.plant-badge .h2o i, .plant-badge .grow i { display:block; height:100%; width:0; background:#58b4ee; }
+.plant-badge .h2o.thirst i { background:#e0a040; }
+.plant-badge .h2o.dry i { background:#d9534f; width:100% !important; }
+.plant-badge .grow i { background:#93c85a; }
+.plant-badge .grow.clear i { background:#d7fff0; }
+.plant-badge .grow.cloudy i { background:#f7fbee; }
+.plant-badge .grow.milky i { background:#ffe08a; }
+.plant-badge .grow.amber i { background:#e07020; }
+.plant-badge .grade { margin-left:2px; color:var(--gold); font-weight:normal; font-size:7px; }
+.plant-badge .grade.A { color:#c9d6b5; }
+.plant-badge .grade.AA { color:#e9ba3e; }
+.plant-badge .grade.AAA { color:#93c85a; }
+.plant-badge .grade.AAAA { color:#d7b4ff; }
+.badge-row { display:flex; align-items:center; gap:4px; }
+.badge-row.hide-marks .pair { display:none; }
+.pair { display:flex; align-items:center; gap:2px; }
+.pair b { font-weight:normal; font-size:6px; color:#c9d6b5; }
+.mark { width:8px; height:8px; box-shadow:inset 0 0 0 2px #3d4a30; background:transparent; }
+.mark.on { background:#ffe66a; box-shadow:none; }
+.mark.next { box-shadow:inset 0 0 0 2px #c6f56a; animation:pip .8s steps(2) infinite; }
+.plant-badge .tag { font-size:6px; color:#f3f1df; }
+.tag.clear { color:#d7fff0; }
+.tag.cloudy { color:#f4f1e4; }
+.tag.milky { color:#ffe08a; }
+.tag.amber { color:#ff9a4a; }
+.tag.dry { color:#ff8d88; }
+.tag.hold { color:#d7b4ff; }
+.tag.next { color:#c6f56a; }
+.tag.set { color:#ffe66a; }
+.tag:empty { display:none; }
+@keyframes pip { 50% { background:#c6f56a; } }
 #prompt { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); display:none; align-items:center; gap:10px; padding:8px 16px 8px 8px; background:var(--panel); font-size:11px; color:var(--gold); box-shadow:var(--frame-gold); pointer-events:auto; cursor:pointer; z-index:8; max-width:min(92vw, 480px); text-align:left; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
 #prompt kbd { font-family:inherit; font-size:8px; color:var(--ink); background:var(--gold); padding:7px 8px; box-shadow:3px 3px 0 var(--ink); }
 #prompt kbd:empty { display:none; }
