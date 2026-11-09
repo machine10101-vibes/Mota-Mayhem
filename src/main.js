@@ -4,7 +4,7 @@ import '@fontsource/press-start-2p';
 import './style.css';
 import { createPlayer, LOOK_KEYS, LOOK_OPTIONS, normalizeLook } from './character.js';
 import { BEDS, buildWorld, SLOT_OFFSETS } from './world.js';
-import { buildCannabisSeed, buildPlant, PVS } from './plants.js';
+import { buildCannabisSeed, buildPlant, PLANT_VS, PVS } from './plants.js';
 import { VoxelModel, toMesh, voxelMaterial } from './voxel.js';
 import { buildMotaToken, buildNutrientBottle, buildRootCube, HOUSE, LOFT, MOTA_PER_G, SEED_PACK, SUPPLIES, UNLOCK, WAREHOUSE_PRICE } from './estate.js';
 import { Particles, Butterflies } from './fx.js';
@@ -181,7 +181,7 @@ function plantGeo(stage, strain) {
   const k = stage + ':' + id;
   let g = geoCache.get(k);
   if (!g) {
-    g = buildPlant(stage, id).build(PVS, [0, 0, 0]);
+    g = buildPlant(stage, id).build(PLANT_VS, [0, 0, 0]);
     geoCache.set(k, g);
   }
   return g;
@@ -206,7 +206,7 @@ function seedChoice() {
 
 function buildMarker() {
   const m = new VoxelModel();
-  const r = 17;
+  const r = 26;
   const L = 6;
   for (const sx of [-1, 1])
     for (const sz of [-1, 1]) {
@@ -767,7 +767,7 @@ function gramsFor(grade) {
   return grade === 'AAAA' ? 9 : grade === 'AAA' ? 7 : grade === 'AA' ? 5 : 3;
 }
 
-const PLANT_TOP = [0.5, 0.8, 1.0, 1.15, 1.15];
+const PLANT_TOP = [0.58, 0.96, 1.24, 1.55, 1.5];
 const plantBits = {
   frostGeo: new THREE.SphereGeometry(0.07, 6, 4),
   ringGeo: new THREE.RingGeometry(0.18, 0.36, 6),
