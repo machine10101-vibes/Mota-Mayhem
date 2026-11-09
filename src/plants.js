@@ -63,7 +63,7 @@ function leaflet(m, bx, by, bz, ang, len, dark, light, droop, fade) {
   const px = -dz;
   const pz = dx;
   const L = Math.max(4, len);
-  const maxHalf = L >= 11 ? 2.55 : L >= 7 ? 2.05 : 1.45;
+  const maxHalf = L >= 11 ? 2.55 : L >= 7 ? 2.2 : 1.75;
   const vein = mix(light, 0xe7f6a4, 0.5);
   const blade = mix(dark, light, 0.38);
   const pad = Math.ceil(L + maxHalf + 2);
@@ -187,26 +187,44 @@ function spear(m, cx, cy, cz, len, girth, pal, R, opt) {
   }
 }
 
-function cotyledon(m, ang, y0, len, light, dark) {
+function fleshyCotyledon(m, ang, y0, len, lift) {
   const dx = Math.cos(ang);
   const dz = Math.sin(ang);
   const px = -dz;
   const pz = dx;
-  const col = mix(light, 0xe7f0a4, 0.5);
-  const edge = shade(dark, 1.08);
-  const a = len * 0.5;
-  const b = 3.1;
-  const pad = Math.ceil(len + 2);
-  for (let ix = -pad; ix <= pad; ix++) {
-    for (let iz = -pad; iz <= pad; iz++) {
-      const along = ix * dx + iz * dz;
-      const across = ix * px + iz * pz;
-      const u = (along - a) / a;
-      const v = across / b;
-      const d = u * u + v * v;
-      if (d > 1) continue;
-      plot(m, ix, y0 - along * 0.04, iz, d > 0.72 ? edge : col, 0.02);
+  const body = 0xc6e06e;
+  const pale = 0xe8f4a8;
+  const rim = 0x7eac46;
+  const vein = 0xf3f7c4;
+  for (let i = 0; i <= len; i++) {
+    const t = i / len;
+    const width = Math.sin(Math.PI * Math.pow(Math.max(0.04, t), 0.78)) * (len * 0.4);
+    const y = y0 + lift * t;
+    const reach = 1.2 + i;
+    const steps = Math.ceil(width);
+    for (let s = -steps; s <= steps; s++) {
+      if (Math.abs(s) > width + 0.05) continue;
+      const x = dx * reach + px * s;
+      const z = dz * reach + pz * s;
+      const edge = Math.abs(s) > width - 0.7;
+      const mid = Math.abs(s) < 0.6;
+      plot(m, x, y, z, edge ? rim : mid ? vein : body, 0.02);
+      if (t > 0.22 && t < 0.86 && !edge) plot(m, x, y + 1, z, pale, 0.015);
     }
+  }
+}
+
+function seedHusk(m, ang, y, reach) {
+  const dx = Math.cos(ang);
+  const dz = Math.sin(ang);
+  const px = -dz;
+  const pz = dx;
+  for (let i = 0; i < 3; i++) {
+    const x = dx * (reach + i * 0.85);
+    const z = dz * (reach + i * 0.85);
+    plot(m, x, y + 1.1 - i * 0.25, z, i === 1 ? 0x3a291f : 0x8a6244, 0.02);
+    plot(m, x + px * 0.8, y + 1.5, z + pz * 0.8, 0xa67c52, 0.02);
+    plot(m, x - px * 0.8, y + 1.3, z - pz * 0.8, 0x6b4b34, 0.02);
   }
 }
 
@@ -287,26 +305,30 @@ function vegetative(m, spec) {
 }
 
 function seedling(m, spec) {
-  const stemCol = mix(spec.leafLight, 0xd7eeae, 0.4);
+  const stemCol = mix(0xd7eeae, spec.leafLight, 0.35);
   const dark = spec.leafDark;
   const light = spec.leafLight;
-  stalk(m, 12, stemCol, shade(stemCol, 0.78), false);
-  cotyledon(m, 0.1, 2.2, 5, light, dark);
-  cotyledon(m, Math.PI + 0.1, 2.2, 5, light, dark);
-  pair(m, 6, Math.PI / 2, 7, 1, 0.35, dark, light, stemCol);
-  pair(m, 10, 0.15, 6.5, 3, 0.28, dark, light, stemCol);
-  fan(m, 0, 12, 0, 0.3, 4.5, 5, 0.15, dark, light, stemCol, false);
+  stalk(m, 8, stemCol, shade(stemCol, 0.78), true);
+  fleshyCotyledon(m, 0.08, 2.1, 8, 0.7);
+  fleshyCotyledon(m, Math.PI + 0.04, 2.1, 6.6, 0.55);
+  leaflet(m, 0, 4.6, 0, Math.PI / 2, 5.5, dark, light, -1.6, false);
+  leaflet(m, 0, 4.6, 0, -Math.PI / 2, 5, dark, light, -1.4, false);
+  pair(m, 7.4, 0.1, 3.5, 3, -2.4, dark, light, stemCol);
 }
 
 function sprout(m, spec) {
-  const stemCol = mix(spec.leafLight, 0xe8f4c4, 0.5);
-  const dark = spec.leafDark;
-  const light = spec.leafLight;
-  stalk(m, 5, stemCol, shade(stemCol, 0.8), false);
-  cotyledon(m, 0, 2, 5, light, dark);
-  cotyledon(m, Math.PI, 2, 5, light, dark);
-  leaflet(m, 0, 5, 0, Math.PI / 2, 9, dark, light, 0.18, false);
-  leaflet(m, 0, 5, 0, -Math.PI / 2, 9, dark, light, 0.18, false);
+  const hypo = mix(0xe7f6c4, spec.leafLight, 0.2);
+  const hypoD = shade(hypo, 0.8);
+  for (let y = 0; y <= 4; y++) {
+    plot(m, 0, y, 0, hypo, 0.02);
+    plot(m, 1, y, 0, hypoD, 0.02);
+    plot(m, 0, y, 1, y % 2 ? hypoD : hypo, 0.02);
+  }
+  fleshyCotyledon(m, 0.16, 3, 7, 2.1);
+  fleshyCotyledon(m, Math.PI - 0.06, 3, 5.6, 1.7);
+  leaflet(m, 0, 5.1, 0, Math.PI / 2 + 0.08, 4.2, spec.leafDark, spec.leafLight, 0.12, false);
+  leaflet(m, 0, 5.1, 0, -Math.PI / 2 + 0.08, 3.6, spec.leafDark, spec.leafLight, 0.16, false);
+  seedHusk(m, 0.16, 5.2, 7.2);
 }
 
 export function buildPlant(stage, strain) {
@@ -323,58 +345,44 @@ export function buildPlant(stage, strain) {
 export function buildCannabisSeed(strain) {
   const spec = strainOf(strain);
   const m = new VoxelModel();
-  const H = 15;
-  const RX = 4.6;
-  const RZ = 3.05;
-  const BASE = 5;
-  const phase = spec.seed * 0.73;
-  const radius = (y) => {
-    if (y < BASE) {
-      const dy = (BASE - y) / BASE;
-      return Math.sqrt(Math.max(0, 1 - dy * dy));
-    }
-    const t = (y - BASE) / (H - BASE);
-    return Math.pow(Math.cos((t * Math.PI) / 2), 0.7);
-  };
-  const SHELL = 0xb48962;
-  const SHELL_GRAY = 0xc8b79a;
-  const SHELL_LT = 0xe4d2b4;
-  const STRIPE = 0x3a291f;
-  const STRIPE_SOFT = 0x6b4b34;
-  for (let y = 1; y < H; y++) {
-    const s = radius(y);
-    const rx = RX * s;
-    const rz = RZ * s;
-    for (let x = Math.floor(-rx - 0.2); x <= Math.ceil(rx + 0.2); x++) {
-      for (let z = Math.floor(-rz - 0.2); z <= Math.ceil(rz + 0.2); z++) {
-        if (rx < 0.35 || rz < 0.35) continue;
-        const nx = x / rx;
-        const nz = z / rz;
-        if (nx * nx + nz * nz > 1) continue;
-        const wave = Math.sin(y * 0.92 + phase + x * 0.28);
-        const stripe = wave > 0.58;
-        const soft = !stripe && wave > 0.34;
-        const gloss = !stripe && z < 0 && x <= 0 && nx * nx + nz * nz > 0.62;
-        const fleck = hash3(x, y, z, spec.seed + 3);
-        let col = gloss ? SHELL_LT : SHELL;
-        if (fleck > 0.9) col = 0x2c2118;
-        else if (!stripe && fleck < 0.07) col = SHELL_GRAY;
-        if (soft) col = gloss ? 0xc4a078 : STRIPE_SOFT;
-        if (stripe) col = STRIPE;
-        m.set(x, y, z, col, 0.035);
+  const x0 = -8;
+  const x1 = 8;
+  const span = x1 - x0;
+  const phase = spec.seed * 0.85;
+  for (let x = x0; x <= x1; x++) {
+    const t = (x - x0) / span;
+    let s;
+    if (t < 0.28) s = Math.sqrt(Math.max(0, 1 - Math.pow((0.28 - t) / 0.28, 2)));
+    else s = Math.pow(Math.cos((((t - 0.28) / 0.72) * Math.PI) / 2), 0.62);
+    const wz = 5.4 * s;
+    const hy = 3.15 * s;
+    for (let z = Math.floor(-wz - 0.2); z <= Math.ceil(wz + 0.2); z++) {
+      for (let y = Math.floor(-hy - 0.2); y <= Math.ceil(hy + 0.2); y++) {
+        if (wz < 0.45 || hy < 0.45) continue;
+        const nz = z / wz;
+        const ny = y / hy;
+        if (nz * nz + ny * ny > 1) continue;
+        const top = y >= hy * 0.35;
+        const wave = Math.sin(x * 0.72 + phase);
+        const stripe = wave > 0.38;
+        const soft = !stripe && wave > 0.12;
+        let col = top ? 0xdcc4a2 : 0xa67c52;
+        if (soft) col = top ? 0x8d6844 : 0x6a4a32;
+        if (stripe) col = 0x3a291f;
+        if (!stripe && hash3(x, y, z, spec.seed + 5) > 0.93) col = 0x241812;
+        if (top && !stripe && y > hy * 0.55 && z < 0) col = 0xf0e2c6;
+        m.set(x, y, z, col, 0.03);
       }
     }
+    if (t > 0.14 && t < 0.9 && wz > 1.2) {
+      const z = Math.round(wz);
+      m.set(x, 1, z, 0x241812, 0.02);
+      m.set(x, 2, z + 1, 0xc4a078, 0.02);
+    }
   }
-  m.set(0, H, 0, 0x241810, 0.02);
-  m.set(0, H - 1, 0, 0x3a291f, 0.02);
-  for (let y = 3; y <= H - 2; y++) {
-    const z = Math.round(RZ * radius(y));
-    m.set(0, y, z, 0x241812, 0.02);
-    m.set(0, y, z + 1, 0x8d6a48, 0.02);
-  }
-  m.set(0, 1, 0, 0x3a2a20, 0.02);
-  m.set(-1, 1, 0, 0x5a4030, 0.02);
-  m.set(1, 1, 0, 0x5a4030, 0.02);
+  m.set(x1 + 1, 0, 0, 0x2a1c14, 0.02);
+  m.set(x0, -1, 0, 0x4a3828, 0.02);
+  m.set(x0 + 1, -1, 0, 0x5c4636, 0.02);
   return m;
 }
 

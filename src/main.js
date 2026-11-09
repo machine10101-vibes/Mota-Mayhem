@@ -746,7 +746,7 @@ function gramsFor(grade) {
   return grade === 'AAAA' ? 9 : grade === 'AAA' ? 7 : grade === 'AA' ? 5 : 3;
 }
 
-const PLANT_TOP = [0.42, 0.68, 0.98, 1.22, 1.42];
+const PLANT_TOP = [0.42, 0.58, 0.98, 1.22, 1.42];
 const plantBits = {
   frostGeo: new THREE.SphereGeometry(0.07, 6, 4),
   ringGeo: new THREE.RingGeometry(0.18, 0.36, 6),
@@ -1701,7 +1701,7 @@ function ensureBagView() {
   return bagView;
 }
 
-function iconFrame(geo) {
+function iconFrame(geo, pad = 1.16) {
   if (!geo.boundingBox) geo.computeBoundingBox();
   const box = geo.boundingBox;
   const center = box.getCenter(new THREE.Vector3());
@@ -1723,7 +1723,7 @@ function iconFrame(geo) {
       }
     }
   }
-  return { center, cam, half: half * 1.16 };
+  return { center, cam, half: half * pad };
 }
 
 function bagSignature(pick) {
@@ -1756,8 +1756,8 @@ function addBagSlot(grid, item) {
     });
   }
   grid.append(el);
-  const frame = iconFrame(item.geo);
-  bagIcons.push({ canvas, ctx: canvas.getContext('2d'), geo: item.geo, frame, phase: bagIcons.length * 0.7 });
+  const frame = iconFrame(item.geo, item.pad);
+  bagIcons.push({ canvas, ctx: canvas.getContext('2d'), geo: item.geo, frame, phase: bagIcons.length * 0.7, rock: !!item.rock });
 }
 
 function paintBag(pick) {
@@ -1771,7 +1771,7 @@ function paintBag(pick) {
   for (const id of STRAIN_IDS) {
     const n = state.seeds[id] | 0;
     if (!n) continue;
-    addBagSlot(grid, { select: true, id, label: strainOf(id).short, count: n, geo: cannabisSeedGeo(id), on: id === pick });
+    addBagSlot(grid, { select: true, id, label: strainOf(id).short, count: n, geo: cannabisSeedGeo(id), on: id === pick, rock: true, pad: 1.04 });
   }
   const clones = new Map();
   for (const c of state.clones) clones.set(c.strain, (clones.get(c.strain) || 0) + 1);
@@ -1810,7 +1810,7 @@ function renderBagIcons(time) {
   for (const icon of bagIcons) {
     view.mesh.geometry = icon.geo;
     view.mesh.position.copy(icon.frame.center).multiplyScalar(-1);
-    view.pivot.rotation.y = time * 0.55 + icon.phase;
+    view.pivot.rotation.y = icon.rock ? Math.sin(time * 0.7 + icon.phase) * 0.4 : time * 0.55 + icon.phase;
     view.camera.position.copy(icon.frame.cam);
     const half = icon.frame.half;
     view.camera.left = -half;
