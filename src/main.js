@@ -206,7 +206,7 @@ function seedChoice() {
 
 function buildMarker() {
   const m = new VoxelModel();
-  const r = 26;
+  const r = 38;
   const L = 6;
   for (const sx of [-1, 1])
     for (const sz of [-1, 1]) {
@@ -767,7 +767,7 @@ function gramsFor(grade) {
   return grade === 'AAAA' ? 9 : grade === 'AAA' ? 7 : grade === 'AA' ? 5 : 3;
 }
 
-const PLANT_TOP = [0.58, 0.96, 1.24, 1.55, 1.5];
+const PLANT_TOP = [0.82, 1.36, 1.78, 2.5, 2.56];
 const plantBits = {
   frostGeo: new THREE.SphereGeometry(0.07, 6, 4),
   ringGeo: new THREE.RingGeometry(0.18, 0.36, 6),

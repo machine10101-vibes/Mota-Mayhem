@@ -2,8 +2,8 @@ import { VoxelModel, hash3, mix, mulberry, shade } from './voxel.js';
 import { strainOf } from './strains.js';
 
 export const PVS = 0.05;
-export const PLANT_VS = 0.046;
-const U = 1.4;
+export const PLANT_VS = 0.06;
+const U = 1.55;
 
 const FAN = {
   1: [{ a: 0, l: 1 }],
@@ -163,19 +163,39 @@ function hair(m, x, y, z, ang, late, short, hairCol) {
   const orange = hairCol?.orange ?? PISTIL_ORANGE;
   const amber = hairCol?.amber ?? PISTIL_AMBER;
   const col = late > 0.72 ? orange : late > 0.32 ? mix(cream, orange, (late - 0.32) / 0.4) : cream;
-  const n = short ? 2 : 4;
+  const n = short ? 2 : 3;
+  const step = short ? 1.0 : late > 0.55 ? 1.15 : 1.45;
   let a = ang;
   for (let i = 1; i <= n; i++) {
-    a += short ? 0.18 : late > 0.65 ? 0.42 : 0.1;
-    const lift = short ? 0.4 : late > 0.72 ? 0.32 : 0.72;
+    a += short ? 0.22 : late > 0.65 ? 0.4 : 0.12;
+    const lift = short ? 0.4 : late > 0.7 ? 0.28 : 0.48;
     const tip = i === n && late > 0.78;
-    plot(m, x + Math.cos(a) * i * 1.15, y + i * lift, z + Math.sin(a) * i * 1.15, tip ? amber : col, 0);
+    plot(m, x + Math.cos(a) * i * step, y + i * lift, z + Math.sin(a) * i * step, tip ? amber : col, 0);
   }
+}
+
+function calyx(m, x, y, z, ang, pal, frostChance, R) {
+  const dx = Math.cos(ang);
+  const dz = Math.sin(ang);
+  const px = -dz;
+  const pz = dx;
+  const frosty = R() < frostChance;
+  plot(m, x, y, z, pal[0], 0.03);
+  plot(m, x + px, y + 0.4, z + pz, pal[1], 0.03);
+  plot(m, x - px, y + 0.35, z - pz, pal[1], 0.03);
+  plot(m, x + dx, y + 0.8, z + dz, pal[0], 0.03);
+  plot(m, x + dx * 1.5 + px * 0.65, y + 1.2, z + dz * 1.5 + pz * 0.65, pal[2], 0.02);
+  plot(m, x + dx * 1.5 - px * 0.65, y + 1.1, z + dz * 1.5 - pz * 0.65, pal[0], 0.02);
+  plot(m, x + dx * 1.7, y + 1.45, z + dz * 1.7, pal[0], 0.02);
+  const tipX = x + dx * 2.35;
+  const tipY = y + 2.05;
+  const tipZ = z + dz * 2.35;
+  plot(m, tipX, tipY, tipZ, frosty ? mix(pal[2], FROST, 0.88) : pal[2], 0.02);
+  return { x: tipX, y: tipY, z: tipZ };
 }
 
 function spear(m, cx, cy, cz, len, girth, pal, R, opt) {
   const L = Math.max(4, Math.round(len));
-  const edge = [];
   for (let y = 0; y < L; y++) {
     const t = y / (L - 1);
     const r = Math.max(0.75, girth * spearProfile(t));
@@ -191,23 +211,23 @@ function spear(m, cx, cy, cz, len, girth, pal, R, opt) {
         let col = rim ? pal[2] : (dx + y + dz) % 4 === 0 ? pal[1] : pal[0];
         if (rim && R() < opt.frost) col = mix(pal[2], FROST, 0.8);
         plot(m, ox + dx, oy, oz + dz, col, 0.03);
-        if (rim) edge.push([Math.round(ox + dx), Math.round(oy), Math.round(oz + dz), Math.atan2(dz, dx)]);
       }
     }
   }
-  const bumps = Math.max(3, Math.round(L * 0.42));
+  const bumps = Math.max(5, Math.round(L * 0.4));
   for (let i = 0; i < bumps; i++) {
-    const t = (i + 0.45) / bumps;
+    const t = (i + 0.35) / bumps;
     const y = cy + t * (L - 1);
-    const a = i * 2.399 + (opt.spin || 0);
-    const rad = Math.max(0.85, girth * spearProfile(t));
+    const a = i * 2.513 + (opt.spin || 0);
+    const rad = Math.max(1.1, girth * spearProfile(t) * 0.85);
     const ox = cx + (opt.leanX || 0) * t * 3 + Math.cos(a) * rad;
     const oz = cz + (opt.leanZ || 0) * t * 3 + Math.sin(a) * rad;
-    let col = i % 2 === 0 ? pal[0] : pal[1];
-    if (R() < opt.frost) col = mix(pal[2], FROST, 0.72);
-    plot(m, ox, y, oz, col, 0.03);
-    plot(m, ox + Math.cos(a) * 0.85, y + 0.75, oz + Math.sin(a) * 0.85, pal[2], 0.02);
-    if (R() < (opt.late > 0.5 ? 0.42 : 0.72)) hair(m, ox, y + 0.6, oz, a, opt.late, !!opt.shortHair, opt.hair);
+    const tip = calyx(m, ox, y, oz, a, pal, opt.frost || 0, R);
+    hair(m, tip.x, tip.y, tip.z, a + 0.5, opt.late, !!opt.shortHair, opt.hair);
+    hair(m, tip.x, tip.y, tip.z, a - 0.5, opt.late, !!opt.shortHair, opt.hair);
+  }
+  for (let k = 0; k < 5; k++) {
+    hair(m, cx, cy + L - 1, cz, k * 0.785 + (opt.spin || 0), opt.late, !!opt.shortHair, opt.hair);
   }
   const sugarLen = opt.sugarLen || 5;
   const sugars = opt.sugars | 0;
@@ -217,12 +237,6 @@ function spear(m, cx, cy, cz, len, girth, pal, R, opt) {
     const a = i * 2.513 + (opt.spin || 0);
     const rad = Math.max(1, girth * spearProfile(t) * 0.65);
     leaflet(m, cx + Math.cos(a) * rad, y, cz + Math.sin(a) * rad, a, sugarLen, opt.leafD, opt.leafL, 0.28 + t * 0.25, !!opt.fade);
-  }
-  const stride = opt.shortHair ? 4 : 6;
-  for (let i = 0; i < edge.length; i += stride) {
-    if (R() > opt.pistil * 0.65) continue;
-    const [x, y, z, a] = edge[i];
-    hair(m, x, y, z, a, opt.late, !!opt.shortHair, opt.hair);
   }
 }
 
@@ -303,7 +317,7 @@ function flowering(m, stage, spec, R) {
   const light = spec.leafLight;
   const late = ready ? 0.9 : 0.08;
   const pistil = ready ? 0.4 : 0.7;
-  const frost = (ready ? 0.38 : 0.03) * (spec.frost || 1);
+  const frost = (ready ? 0.62 : 0.08) * (spec.frost || 1);
   stalk(m, (ready ? 14 : 17) * U, stemCol, stemDark, true);
 
   const nodes = ready
@@ -327,12 +341,12 @@ function flowering(m, stage, spec, R) {
 
   const sides = ready
     ? [
-        { y: 6 * U, len: 5 * U, rise: 3.4 * U, cola: 7 * U, girth: 2.7, sugars: 4 },
-        { y: 9 * U, len: 4 * U, rise: 2.8 * U, cola: 6 * U, girth: 2.45, sugars: 3 },
+        { y: 6 * U, len: 5 * U, rise: 3.6 * U, cola: 9 * U, girth: 4.6, sugars: 4 },
+        { y: 9 * U, len: 4 * U, rise: 3.1 * U, cola: 8 * U, girth: 4.2, sugars: 3 },
       ]
     : [
-        { y: 11 * U, len: 5 * U, rise: 2.6 * U, cola: 4 * U, girth: 1.8, sugars: 3 },
-        { y: 14 * U, len: 4 * U, rise: 2.3 * U, cola: 4 * U, girth: 1.65, sugars: 2 },
+        { y: 11 * U, len: 5 * U, rise: 2.8 * U, cola: 6 * U, girth: 3.3, sugars: 3 },
+        { y: 14 * U, len: 4.2 * U, rise: 2.6 * U, cola: 5.5 * U, girth: 3.0, sugars: 3 },
       ];
   for (const s of sides) {
     for (const side of [0, Math.PI]) {
@@ -350,13 +364,13 @@ function flowering(m, stage, spec, R) {
   spear(
     m,
     0,
-    (ready ? 11 : 15) * U,
+    (ready ? 10 : 14) * U,
     0,
-    (ready ? 12 : 7) * U,
-    ready ? 4.1 : 2.5,
+    (ready ? 16 : 11) * U,
+    ready ? 6.4 : 4.4,
     spec.bud,
     R,
-    colaOpt(spec, stemCol, late, pistil, frost, ready ? 6 : 4, ready ? 6.2 : 4.6, ready, 0.35),
+    colaOpt(spec, stemCol, late, pistil, frost, ready ? 5 : 4, ready ? 7 : 5.2, ready, 0.35),
   );
 }
 
