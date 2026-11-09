@@ -1,4 +1,4 @@
-import { VoxelModel, mix, mulberry, shade } from './voxel.js';
+import { VoxelModel, hash3, mix, mulberry, shade } from './voxel.js';
 import { strainOf } from './strains.js';
 
 export const PVS = 0.05;
@@ -317,6 +317,64 @@ export function buildPlant(stage, strain) {
   else if (stage === 1) seedling(m, spec);
   else if (stage === 2) vegetative(m, spec);
   else flowering(m, stage, spec, R);
+  return m;
+}
+
+export function buildCannabisSeed(strain) {
+  const spec = strainOf(strain);
+  const m = new VoxelModel();
+  const H = 15;
+  const RX = 4.6;
+  const RZ = 3.05;
+  const BASE = 5;
+  const phase = spec.seed * 0.73;
+  const radius = (y) => {
+    if (y < BASE) {
+      const dy = (BASE - y) / BASE;
+      return Math.sqrt(Math.max(0, 1 - dy * dy));
+    }
+    const t = (y - BASE) / (H - BASE);
+    return Math.pow(Math.cos((t * Math.PI) / 2), 0.7);
+  };
+  const SHELL = 0xb48962;
+  const SHELL_GRAY = 0xc8b79a;
+  const SHELL_LT = 0xe4d2b4;
+  const STRIPE = 0x3a291f;
+  const STRIPE_SOFT = 0x6b4b34;
+  for (let y = 1; y < H; y++) {
+    const s = radius(y);
+    const rx = RX * s;
+    const rz = RZ * s;
+    for (let x = Math.floor(-rx - 0.2); x <= Math.ceil(rx + 0.2); x++) {
+      for (let z = Math.floor(-rz - 0.2); z <= Math.ceil(rz + 0.2); z++) {
+        if (rx < 0.35 || rz < 0.35) continue;
+        const nx = x / rx;
+        const nz = z / rz;
+        if (nx * nx + nz * nz > 1) continue;
+        const wave = Math.sin(y * 0.92 + phase + x * 0.28);
+        const stripe = wave > 0.58;
+        const soft = !stripe && wave > 0.34;
+        const gloss = !stripe && z < 0 && x <= 0 && nx * nx + nz * nz > 0.62;
+        const fleck = hash3(x, y, z, spec.seed + 3);
+        let col = gloss ? SHELL_LT : SHELL;
+        if (fleck > 0.9) col = 0x2c2118;
+        else if (!stripe && fleck < 0.07) col = SHELL_GRAY;
+        if (soft) col = gloss ? 0xc4a078 : STRIPE_SOFT;
+        if (stripe) col = STRIPE;
+        m.set(x, y, z, col, 0.035);
+      }
+    }
+  }
+  m.set(0, H, 0, 0x241810, 0.02);
+  m.set(0, H - 1, 0, 0x3a291f, 0.02);
+  for (let y = 3; y <= H - 2; y++) {
+    const z = Math.round(RZ * radius(y));
+    m.set(0, y, z, 0x241812, 0.02);
+    m.set(0, y, z + 1, 0x8d6a48, 0.02);
+  }
+  m.set(0, 1, 0, 0x3a2a20, 0.02);
+  m.set(-1, 1, 0, 0x5a4030, 0.02);
+  m.set(1, 1, 0, 0x5a4030, 0.02);
   return m;
 }
 
