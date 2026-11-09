@@ -18,21 +18,33 @@ function acceptUrl(url) {
   return /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(url);
 }
 
+async function readConfigFile(url) {
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const type = res.headers.get('content-type') || '';
+    if (type.includes('text/html')) return null;
+    const json = await res.json();
+    const fileUrl = String(json?.url || '').trim().replace(/\/$/, '');
+    const fileKey = String(json?.key || json?.anonKey || '').trim();
+    if (!fileUrl || !fileKey || !acceptUrl(fileUrl)) return null;
+    return { url: fileUrl, key: fileKey };
+  } catch {
+    return null;
+  }
+}
+
 async function readConfig() {
   const url = envValue('VITE_SUPABASE_URL').replace(/\/$/, '');
   const key = envValue('VITE_SUPABASE_ANON_KEY');
   if (url && key && acceptUrl(url)) return { url, key };
-  try {
-    const res = await fetch(new URL('supabase.json', document.baseURI), { cache: 'no-store' });
-    if (!res.ok) return { url: '', key: '' };
-    const json = await res.json();
-    const fileUrl = String(json.url || '').trim().replace(/\/$/, '');
-    const fileKey = String(json.key || json.anonKey || '').trim();
-    if (!fileUrl || !fileKey || !acceptUrl(fileUrl)) return { url: '', key: '' };
-    return { url: fileUrl, key: fileKey };
-  } catch {
-    return { url: '', key: '' };
+  const candidates = [new URL('supabase.json', document.baseURI).href];
+  if (typeof window !== 'undefined') candidates.push(new URL('/supabase.json', window.location.origin).href);
+  for (const candidate of candidates) {
+    const cfg = await readConfigFile(candidate);
+    if (cfg) return cfg;
   }
+  return { url: '', key: '' };
 }
 
 export function loadCloudConfig() {
@@ -94,9 +106,9 @@ async function ensureToken(session) {
   const existing = readToken(session.address);
   if (existing) return existing;
   let body;
-  if (session.provider === 'google') {
-    const { freshAccessToken } = await import('./google.js');
-    body = { op: 'auth', provider: 'google', accessToken: await freshAccessToken(session) };
+  if (session.provider === 'email') {
+    const { freshAccessToken } = await import('./account.js');
+    body = { op: 'auth', provider: 'email', accessToken: await freshAccessToken(session) };
   } else {
     body = {
       op: 'auth',
@@ -164,7 +176,7 @@ export async function pushGarden(session, data, keepalive = false) {
  * `replaced` means the wallet's remote garden should replace this browser's copy.
  * `gate.open` lets the title screen abandon a slow record without it landing mid-grow.
  */
-export async function syncGarden(session, localGarden, gate = { open: true }) {
+export async function syncGarden(session, localGarden, gate = { open: true }, seed = null) {
   const cfg = await loadCloudConfig();
   if (!cfg.url || !cfg.key) return { state: 'off', replaced: false, garden: null };
   const remote = await pullGarden(session);
@@ -174,13 +186,21 @@ export async function syncGarden(session, localGarden, gate = { open: true }) {
   if (remote && remoteAt > localAt) {
     return { state: 'on', replaced: true, garden: remote.garden, revision: remote.revision || 0, savedAt: remoteAt };
   }
-  if (!localGarden) return { state: 'on', replaced: false, garden: null, revision: remote?.revision || 0, savedAt: remoteAt };
-  const pushed = await pushGarden(session, localGarden);
+  const toPush = localGarden || (!remote ? seed : null);
+  if (!toPush) return { state: 'on', replaced: false, garden: null, revision: remote?.revision || 0, savedAt: remoteAt };
+  const pushed = await pushGarden(session, toPush);
   if (!gate.open) return { state: 'error', replaced: false, garden: null };
   if (pushed.conflict && pushed.garden) {
     return { state: 'on', replaced: true, garden: pushed.garden, revision: pushed.revision || 0, savedAt: Number(pushed.savedAt) || 0 };
   }
-  return { state: 'on', replaced: false, garden: null, revision: pushed.revision || 0, savedAt: Number(pushed.savedAt) || localAt };
+  return {
+    state: 'on',
+    replaced: false,
+    seeded: !localGarden,
+    garden: toPush,
+    revision: pushed.revision || 0,
+    savedAt: Number(pushed.savedAt) || Number(toPush.savedAt) || localAt,
+  };
 }
 
 /** Debounce gameplay saves so a harvest does not write the garden on every tick. */
