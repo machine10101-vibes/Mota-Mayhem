@@ -11,6 +11,7 @@ import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace } from './strains.js';
 import { loadSave, writeSave, adoptAddress, unbindAddress } from './save.js';
 import { clearSession, inKleverHandoff, isMobile, launchKleverApp, markPrompt, promptIsCooling, readSession, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
+import { accountLabel, clearGoogleSession, finishGoogleSignIn, googleCodePending, googleRedirectError, readGoogleSession, startGoogleSignIn } from './wallet/google.js';
 import { clearCloudToken, flushCloud, schedulePush, syncGarden } from './wallet/cloud.js';
 
 const $ = (id) => document.getElementById(id);
@@ -2485,25 +2486,29 @@ function startGame() {
 function onTitleConfirm() {
   if (state.mode !== 'title' || walletBusy) return;
   if (walletReady()) startGame();
-  else onWallet();
 }
 
 function refreshWalletUi() {
   const status = $('wallet-status');
   const sign = $('btn-wallet');
+  const google = $('btn-google');
   const swap = $('btn-wallet-switch');
   const help = $('wallet-help');
   const signed = !!walletSession?.address;
+  const googleAccount = walletSession?.provider === 'google';
+  const place = googleAccount ? 'account' : 'wallet';
   sign?.classList.toggle('hidden', signed);
+  google?.classList.toggle('hidden', signed);
   swap?.classList.toggle('hidden', !signed);
   $('press-line')?.classList.toggle('hidden', !signed || cloudSyncing);
   if (!status) return;
   if (!signed) {
     help?.classList.add('hidden');
     if (sign) sign.textContent = 'SIGN IN WITH KLEVER';
+    if (google) google.textContent = 'SIGN IN WITH GOOGLE';
     status.textContent = window.kleverWeb
-      ? 'Tap Sign in, then approve the signature. Klever keeps that window open until you do.'
-      : 'Sign in with your Klever wallet. Your garden is saved to that address.';
+      ? 'Tap Sign in, then approve the signature. Klever keeps that window open until you do. Google is here too.'
+      : 'Sign in with Klever or Google. Your garden is saved to that account.';
     const dressNote = document.querySelector('#dress .dress-note');
     if (dressNote) dressNote.textContent = 'SAVED ON THIS DEVICE';
     return;
@@ -2511,22 +2516,22 @@ function refreshWalletUi() {
   help?.classList.add('hidden');
   status.replaceChildren();
   const who = document.createElement('b');
-  who.textContent = shortAddress(walletSession.address);
+  who.textContent = googleAccount ? accountLabel(walletSession) : shortAddress(walletSession.address);
   const lead = walletNote === 'new'
     ? 'New garden saved to '
     : walletNote === 'claimed'
       ? 'Your garden is now saved to '
       : 'Welcome back. This garden belongs to ';
   const tail = cloudSyncing
-    ? '. Opening the garden saved to this wallet…'
+    ? `. Opening the garden saved to this ${place}…`
     : cloudState === 'on'
-      ? '. It is saved to this wallet.'
+      ? `. It is saved to this ${place}.`
       : cloudState === 'error'
         ? '. Saved on this browser. The garden record could not be reached.'
-        : '. It stays on this browser under that wallet.';
+        : `. It stays on this browser under that ${place}.`;
   status.append(lead, who, tail);
   const dressNote = document.querySelector('#dress .dress-note');
-  if (dressNote) dressNote.textContent = 'SAVED TO THIS WALLET';
+  if (dressNote) dressNote.textContent = 'SAVED TO THIS ACCOUNT';
 }
 
 function handOffToWallet() {
@@ -2577,6 +2582,7 @@ async function onWallet(automatic = false) {
     : 'Confirm the signature in the Klever extension…';
   try {
     const session = await signIn();
+    clearGoogleSession();
     await applyWallet(session);
   } catch (err) {
     const help = $('wallet-help');
@@ -2589,6 +2595,8 @@ async function onWallet(automatic = false) {
 }
 
 async function applyWallet(session) {
+  if (session.provider === 'google') clearSession();
+  else clearGoogleSession();
   walletSession = session;
   cloudPush = false;
   const adopted = adoptAddress(session.address);
@@ -2645,22 +2653,41 @@ function watchAccount() {
   });
 }
 
+async function onGoogle() {
+  if (walletBusy || state.mode === 'play') return;
+  walletBusy = true;
+  const button = $('btn-google');
+  const status = $('wallet-status');
+  if (button) button.disabled = true;
+  if (status) status.textContent = 'Opening Google…';
+  try {
+    await startGoogleSignIn();
+  } catch (err) {
+    if (status) status.textContent = err.message || 'Google sign-in failed.';
+    walletBusy = false;
+    if (button) button.disabled = false;
+  }
+}
+
+function signOutAccount() {
+  flushSave();
+  flushCloud();
+  clearSession();
+  clearGoogleSession();
+  clearCloudToken();
+  unbindAddress();
+  walletSession = null;
+  walletNote = '';
+  cloudState = 'off';
+  cloudPush = false;
+  refreshWalletUi();
+  refreshTitle();
+}
+
 function bindWallet() {
   $('btn-wallet')?.addEventListener('click', () => onWallet());
-  $('btn-wallet-switch')?.addEventListener('click', () => {
-    flushSave();
-    flushCloud();
-    clearSession();
-    clearCloudToken();
-    unbindAddress();
-    walletSession = null;
-    walletNote = '';
-    cloudState = 'off';
-    cloudPush = false;
-    refreshWalletUi();
-    refreshTitle();
-    onWallet();
-  });
+  $('btn-google')?.addEventListener('click', () => onGoogle());
+  $('btn-wallet-switch')?.addEventListener('click', () => signOutAccount());
 }
 
 const LEAF = ['...XX...', 'X..XX..X', 'XX.XX.XX', '.XXXXXX.', 'X.XXXX.X', '..XXXX..', '...XX...', '...XX...', '...XX...', '...XX...'];
@@ -3310,22 +3337,49 @@ function boot() {
   setTouchUI(shouldTouch());
   matchMedia('(max-width: 820px)').addEventListener('change', () => setTouchUI(shouldTouch() || touchUI));
   state.mode = 'title';
-  const session = readSession();
-  if (session) void applyWallet(session);
-  else refreshWalletUi();
-  refreshTitle();
-  updateHud();
   addEventListener('pagehide', () => {
     flushSave();
     flushCloud();
   });
+  window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick, openDress, closeDress, openShop, closeShop, buySupply, newGrow, flushSave, loadSave, onWallet };
+  void openAccount();
+}
+
+async function openAccount() {
+  let session = null;
+  const googleError = googleRedirectError();
+  if (googleCodePending()) {
+    try {
+      session = await finishGoogleSignIn();
+    } catch (err) {
+      refreshWalletUi();
+      refreshTitle();
+      updateHud();
+      const status = $('wallet-status');
+      if (status) status.textContent = err.message || 'Google sign-in failed.';
+      $('loading').classList.add('gone');
+      return;
+    }
+  } else if (googleError) {
+    refreshWalletUi();
+    refreshTitle();
+    updateHud();
+    const status = $('wallet-status');
+    if (status) status.textContent = googleError;
+    $('loading').classList.add('gone');
+    return;
+  }
+  if (!session) session = readSession() || readGoogleSession();
+  if (session) await applyWallet(session);
+  else refreshWalletUi();
+  refreshTitle();
+  updateHud();
   $('loading').classList.add('gone');
   if (params.has('autostart')) startGame();
   else if (!session && params.get('klever') === '1' && !promptIsCooling()) {
     // One ask. A reload while the sheet is up must not open a second one.
     setTimeout(() => onWallet(true), 600);
   }
-  window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick, openDress, closeDress, openShop, closeShop, buySupply, newGrow, flushSave, loadSave, onWallet };
 }
 
 requestAnimationFrame(() => setTimeout(boot, 30));
