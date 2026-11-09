@@ -9,8 +9,8 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <title>Mota Mayhem</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><rect width='8' height='8' fill='%232f4420'/><path d='M3 0h2v3h-2zM0 2h2v2h-2zM6 2h2v2h-2zM2 3h4v3h-4zM3 6h2v2h-2z' fill='%2393c85a'/></svg>" />
-    <script type="module" crossorigin src="/Mota-Mayhem/assets/index-Ds7XFhzt.js"></script>
-    <link rel="stylesheet" crossorigin href="/Mota-Mayhem/assets/index-D9rAuxUo.css">
+    <script type="module" crossorigin src="/Mota-Mayhem/assets/index-Dag9tmvF.js"></script>
+    <link rel="stylesheet" crossorigin href="/Mota-Mayhem/assets/index-BhKdwwzq.css">
   </head>
   <body>
     <div id="stage"></div>
@@ -125,6 +125,12 @@
         <div class="logo"><canvas id="leaf-logo" width="8" height="10"></canvas><h1>MOTA<br />MAYHEM</h1></div>
         <p class="sub">TRIPLE-A BACKYARD FARMING</p>
       </div>
+      <div class="wallet-box">
+        <p id="wallet-status" class="wallet-status" aria-live="polite">Sign in with your Klever wallet. Your garden is saved to that address.</p>
+        <button type="button" id="btn-wallet" class="tbtn">SIGN IN WITH KLEVER</button>
+        <button type="button" id="btn-wallet-switch" class="wallet-link hidden">USE A DIFFERENT WALLET</button>
+        <div id="wallet-help" class="wallet-help hidden"></div>
+      </div>
       <div class="title-actions">
         <button type="button" id="btn-character" class="icon-btn" aria-label="Character" aria-pressed="false">
           <svg class="pix" viewBox="0 0 16 16" aria-hidden="true">
@@ -143,7 +149,7 @@
         </button>
         <button type="button" id="btn-new" class="tbtn hidden">NEW GROW</button>
       </div>
-      <p class="press"><span id="press-desk" class="press-desk">CLICK OR SPACE TO START</span><span id="press-touch" class="press-touch">TAP TO START</span></p>
+      <p id="press-line" class="press hidden"><span id="press-desk" class="press-desk">CLICK OR SPACE TO START</span><span id="press-touch" class="press-touch">TAP TO START</span></p>
     </div>
     <div id="strains" class="hidden"></div>
     <div id="shop" class="hidden">
