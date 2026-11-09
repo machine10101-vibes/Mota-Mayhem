@@ -48,8 +48,8 @@ sells a warehouse for 520 MOTA. Buying it opens the gate. Inside are nine indoor
 
 The farmer icon on the title screen and while you play, and the C key, open the character menu: skin, hair, hat,
 shirt, overalls, and boots, with a live preview. The backpack icon opens the bag. Each pocket shows the same model used in the yard, at a small size: a flat cannabis seed for each pack, a vegetative plant for a clone, the shed bud for wet flower, the cure jar, the green feed bottle, and the root cube. Tap a seed pocket to choose that strain. Both panels stay closed until that icon is clicked. **NEW GROW** resets the farm to the starter seeds and keeps
-the look. The character, MOTA, seeds, nutrients, root cubes, clones, beds, mothers, hydro tubes, veg pots, shed, and warehouse are saved in
-this browser.
+the look. Sign in with a Klever wallet on the title screen before the grow starts. The character, MOTA, seeds, nutrients, root cubes, clones, beds, mothers, hydro tubes, veg pots, shed, and warehouse are saved in
+this browser under that wallet address. With the Supabase URL and publishable key set, the same garden is stored for that wallet.
 
 ## How the look is built
 
@@ -57,6 +57,6 @@ this browser.
   and spatial chunking for frustum culling.
 - `src/character.js` - the hero (bucket hat with leaf, plaid shirt, leaf-pocket overalls, boots), animated rig.
 - `src/plants.js` - procedural cannabis plants for 5 growth stages. Blue Dream stays green; Granddaddy Purple flowers purple.
-- `src/strains.js` - the two starter strains. `src/save.js` writes the grow to local storage.
+- `src/strains.js` - the two starter strains. `src/save.js` writes the grow to local storage under the signed-in Klever address. `src/wallet/` checks that signature. `supabase/` holds the garden tables and the grower function.
 - `src/world.js` - backyard: ground, fence, house, porch, beds, shed, greenhouse, props, trees.
 - `src/main.js` - full-resolution picture with multisampled edges, a soft sky gradient, and depth outlines. `[` and `]` switch back to the chunky pixel scale. Entering the grow calls the browser's fullscreen mode on the tap or key that starts play, with no extra options the browser might reject. A later tap asks again if the bar is still up.

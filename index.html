@@ -123,6 +123,12 @@
         <div class="logo"><canvas id="leaf-logo" width="8" height="10"></canvas><h1>MOTA<br />MAYHEM</h1></div>
         <p class="sub">TRIPLE-A BACKYARD FARMING</p>
       </div>
+      <div class="wallet-box">
+        <p id="wallet-status" class="wallet-status" aria-live="polite">Sign in with your Klever wallet. Your garden is saved to that address.</p>
+        <button type="button" id="btn-wallet" class="tbtn">SIGN IN WITH KLEVER</button>
+        <button type="button" id="btn-wallet-switch" class="wallet-link hidden">USE A DIFFERENT WALLET</button>
+        <div id="wallet-help" class="wallet-help hidden"></div>
+      </div>
       <div class="title-actions">
         <button type="button" id="btn-character" class="icon-btn" aria-label="Character" aria-pressed="false">
           <svg class="pix" viewBox="0 0 16 16" aria-hidden="true">
@@ -141,7 +147,7 @@
         </button>
         <button type="button" id="btn-new" class="tbtn hidden">NEW GROW</button>
       </div>
-      <p class="press"><span id="press-desk" class="press-desk">CLICK OR SPACE TO START</span><span id="press-touch" class="press-touch">TAP TO START</span></p>
+      <p id="press-line" class="press hidden"><span id="press-desk" class="press-desk">CLICK OR SPACE TO START</span><span id="press-touch" class="press-touch">TAP TO START</span></p>
     </div>
     <div id="strains" class="hidden"></div>
     <div id="shop" class="hidden">
