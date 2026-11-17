@@ -36,10 +36,13 @@ const post = new THREE.ShaderMaterial({
     res: { value: new THREE.Vector2(1, 1) },
     near: { value: 1 },
     far: { value: 220 },
+    horizon: { value: new THREE.Color(0xb7e4c8) },
+    zenith: { value: new THREE.Color(0x7eb8e4) },
   },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
   fragmentShader: `
     uniform sampler2D tColor; uniform sampler2D tDepth; uniform vec2 res; uniform float near; uniform float far;
+    uniform vec3 horizon; uniform vec3 zenith;
     varying vec2 vUv;
     float lin(float d){ float z = d * 2.0 - 1.0; return (2.0 * near * far) / (far + near - z * (far - near)); }
     float L(vec2 o){ return lin(texture2D(tDepth, vUv + o / res).x); }
@@ -52,8 +55,6 @@ const post = new THREE.ShaderMaterial({
       float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
       col = mix(vec3(luma), col, 1.08);
       col = mix(col, col * vec3(0.28, 0.32, 0.36), edge * 0.4);
-      vec3 horizon = vec3(0.80, 0.91, 0.84);
-      vec3 zenith = vec3(0.45, 0.73, 0.90);
       vec3 skyCol = mix(horizon, zenith, clamp(vUv.y * 1.2, 0.0, 1.0));
       col = mix(col, skyCol, smoothstep(far * 0.84, far * 0.995, d));
       vec2 q = vUv - 0.5;
@@ -105,7 +106,8 @@ scene.background = new THREE.Color(0x7eb8e4);
 scene.fog = new THREE.Fog(SKY, 62, 138);
 const camera = new THREE.PerspectiveCamera(33, 16 / 9, 1, 220);
 
-scene.add(new THREE.HemisphereLight(0xe7f4ff, 0x7d9a52, 1.35));
+const hemi = new THREE.HemisphereLight(0xe7f4ff, 0x7d9a52, 1.35);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0cf, 2.35);
 sun.position.set(-18, 34, 14);
 sun.target.position.set(0, 0, -3);
@@ -1243,6 +1245,7 @@ function stationFocus() {
     }
   }
   consider(world.stand.x, world.stand.z, 'stand', null, 1.55);
+  for (const tap of world.scenery?.spigots || []) consider(tap.x, tap.z, 'spigot', tap, 1.35);
   if (!world.warehouse.owned) consider(world.lot.x, world.lot.z, 'lot', null, 1.7);
   else {
     consider(23.05, 0, 'wh-door', null, 1.85, 0.08, 2);
@@ -1289,6 +1292,7 @@ function actStation(f) {
   if (f.kind === 'veg') return actVeg(f.ref);
   if (f.kind === 'computer') return openShop();
   if (f.kind === 'stand') return actStand();
+  if (f.kind === 'spigot') return actSpigot(f.ref);
   if (f.kind === 'lot') return actBuyWarehouse();
   if (f.kind === 'wh-lights') {
     const W = world.warehouse;
@@ -1576,6 +1580,49 @@ function actStand() {
     return true;
   }
   toast('CURE JARS, THEN SELL THEM FOR MOTA');
+  return true;
+}
+
+const BED_NAMES = ['W HOUSE', 'W MID', 'W GATE', 'E HOUSE', 'E MID', 'E GATE'];
+
+function actSpigot(tap) {
+  const bed = tap.bed;
+  if (slotsData[bed * 4]?.locked) return tryUnlockBed(bed);
+  let growing = 0;
+  let n = 0;
+  for (let k = 0; k < 4; k++) {
+    const d = slotsData[bed * 4 + k];
+    if (d.state !== 'growing' && d.state !== 'ready' && d.state !== 'ripening') continue;
+    if (d.state === 'growing') growing++;
+    if (d.state === 'growing' && d.water <= 0.7) {
+      d.water = 1;
+      n++;
+    }
+  }
+  P.cool = 0.45;
+  player.playAction('water');
+  const dx = Math.sign(BEDS[bed].x - tap.x) || 1;
+  for (let k = 0; k < 18; k++) {
+    later(k * 0.028, () =>
+      particles.emit({
+        x: tap.x + dx * 0.25,
+        y: 0.95,
+        z: tap.z,
+        vx: dx * (1.1 + Math.random() * 0.8),
+        vy: 1.3 + Math.random() * 0.7,
+        vz: (Math.random() - 0.5) * 0.9,
+        life: 0.55,
+        size: 0.07,
+        color: 0x7ec8f2,
+        color2: 0x3f86c8,
+        g: -9,
+      }),
+    );
+  }
+  if (!n) return toast(growing ? 'BED IS WATERED' : 'NOTHING TO WATER');
+  toast(n > 1 ? `WATERED ${n}` : 'PLANT WATERED', 'good');
+  markDirty();
+  updateHud();
   return true;
 }
 
@@ -1906,7 +1953,7 @@ function collectTasks() {
   taskRows.clear();
   const house = world.house;
   const shed = world.shed;
-  const eachPlot = (list, place) => {
+  const eachPlot = (list, place, beds) => {
     for (const d of list) {
       if (!d || d.locked || d.state === 'empty') continue;
       if (d.state === 'ready' || d.state === 'ripening') {
@@ -1917,7 +1964,7 @@ function collectTasks() {
       }
       if (d.state !== 'growing') continue;
       if (d.water <= 0.7) {
-        addTask(d.water <= 0 ? 0 : 2, 'WATER', place);
+        if (!beds) addTask(d.water <= 0 ? 0 : 2, 'WATER', place);
         continue;
       }
       const step = nextTrain(d);
@@ -1928,8 +1975,19 @@ function collectTasks() {
       else if (d.stage >= 3 && state.nutrients > 0) addTask(6, 'BLOOM FEED', place);
     }
   };
-  eachPlot(slotsData, 'YARD');
-  if (world.warehouse.owned) eachPlot(whData, 'WAREHOUSE');
+  eachPlot(slotsData, 'YARD', true);
+  if (world.warehouse.owned) eachPlot(whData, 'WAREHOUSE', false);
+  BEDS.forEach((_, bed) => {
+    let n = 0;
+    let dry = false;
+    for (let k = 0; k < 4; k++) {
+      const d = slotsData[bed * 4 + k];
+      if (!d || d.locked || d.state !== 'growing' || d.water > 0.7) continue;
+      n++;
+      if (d.water <= 0) dry = true;
+    }
+    if (n) addTask(dry ? 0 : 2, 'WATER BED', BED_NAMES[bed], n);
+  });
 
   for (const mom of house.mothers) {
     if (!motherOpen(mom) || !mom.state || mom.state === 'empty') continue;
@@ -2393,6 +2451,23 @@ function stationUi(st, actLbl) {
     const open = world.warehouse.open;
     return { text: open ? `${actLbl}  CLOSE WAREHOUSE` : `${actLbl}  OPEN WAREHOUSE`, btn: open ? 'CLOSE' : 'OPEN' };
   }
+  if (st.kind === 'spigot') {
+    const bed = st.ref.bed;
+    if (slotsData[bed * 4]?.locked) {
+      const short = state.mota < UNLOCK.bed;
+      return { text: short ? `GROW BOX  ${state.mota}/${UNLOCK.bed} MOTA` : `${actLbl}  UNLOCK GROW BOX  ${UNLOCK.bed} MOTA`, btn: short ? 'ACT' : 'BUY' };
+    }
+    let growing = 0;
+    let n = 0;
+    for (let k = 0; k < 4; k++) {
+      const d = slotsData[bed * 4 + k];
+      if (d.state === 'growing') growing++;
+      if (d.state === 'growing' && d.water <= 0.7) n++;
+    }
+    if (!growing) return { text: 'NOTHING TO WATER', btn: 'ACT' };
+    if (!n) return { text: 'BED IS WATERED', btn: 'ACT' };
+    return { text: `${actLbl}  WATER BED  ${n}`, btn: 'WATER' };
+  }
   if (st.kind === 'wh-lights') {
     const flower = world.warehouse.lights === 'flower';
     return { text: flower ? `${actLbl}  FLIP TO 18/6` : `${actLbl}  FLIP TO 12/12`, btn: flower ? '18/6' : '12/12' };
@@ -2543,6 +2618,52 @@ function updateCamera(dt) {
   camera.lookAt(cam.target);
 }
 
+let dayClock = 0.32;
+const DAY_LEN = 240;
+let clockLabel = '';
+const COL_DAY_Z = new THREE.Color(0x7eb8e4);
+const COL_NIGHT_Z = new THREE.Color(0x10182c);
+const COL_DAY_H = new THREE.Color(0xb7e4c8);
+const COL_DUSK_H = new THREE.Color(0xf0a36a);
+const COL_NIGHT_H = new THREE.Color(0x1a2038);
+
+function updateDay(dt) {
+  if (!world || state.mode === 'loading') return;
+  dayClock += dt / DAY_LEN;
+  const t = dayClock % 1;
+  const elev = Math.sin(t * Math.PI * 2);
+  const az = t * Math.PI * 2 + Math.PI;
+  const night = 1 - THREE.MathUtils.smoothstep(elev, -0.12, 0.18);
+  const rising = Math.cos(t * Math.PI * 2) > 0;
+  const warm = Math.max(0, 1 - Math.abs(elev) / 0.4) * (1 - night);
+  sun.position.set(Math.cos(az) * 40, 6 + Math.max(elev, 0) * 36, Math.sin(az) * 28);
+  sun.intensity = THREE.MathUtils.lerp(2.35, 0.22, night);
+  sun.color.setHex(warm > 0.45 ? 0xffb07a : night > 0.6 ? 0x9eb6dd : 0xfff0cf);
+  hemi.intensity = THREE.MathUtils.lerp(1.35, 0.5, night);
+  hemi.color.setHex(night > 0.55 ? 0x24345c : 0xe7f4ff);
+  hemi.groundColor.setHex(night > 0.55 ? 0x1a2414 : 0x7d9a52);
+  fill.intensity = THREE.MathUtils.lerp(0.62, 0.12, night);
+  post.uniforms.zenith.value.copy(COL_DAY_Z).lerp(COL_NIGHT_Z, night);
+  post.uniforms.horizon.value.copy(COL_DAY_H).lerp(COL_DUSK_H, warm * 0.85).lerp(COL_NIGHT_H, night);
+  scene.background.copy(post.uniforms.zenith.value);
+  scene.fog.color.copy(post.uniforms.horizon.value);
+  const glow = THREE.MathUtils.smoothstep(night, 0.2, 0.75);
+  for (const lamp of world.scenery?.night || []) lamp.intensity = glow * 2.3;
+  let phase = 'DAY';
+  if (elev < -0.02) phase = 'NIGHT';
+  else if (elev < 0.45 && rising) phase = 'DAWN';
+  else if (elev < 0.45) phase = 'DUSK';
+  const label = `${phase}|${1 + Math.floor(dayClock)}`;
+  if (label === clockLabel) return;
+  clockLabel = label;
+  const el = $('clock');
+  if (!el) return;
+  $('clock-phase').textContent = phase;
+  $('clock-day').textContent = `D${1 + Math.floor(dayClock)}`;
+  el.classList.toggle('night', phase === 'NIGHT');
+  el.classList.toggle('dusk', phase === 'DAWN' || phase === 'DUSK');
+}
+
 /* -------------------------------------------------------------------- loop */
 let last = performance.now();
 let smokeT = 0;
@@ -2586,6 +2707,7 @@ function frame(now) {
   updatePlayer(dt);
   updatePlants(dt, time);
   updateShed(dt);
+  updateDay(dt);
   butterflies.update(time);
   smokeT -= dt;
   if (smokeT <= 0 && world.house.roof.visible) {
@@ -3578,7 +3700,7 @@ function boot() {
     flushSave();
     flushCloud();
   });
-  window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick, openDress, closeDress, openShop, closeShop, buySupply, newGrow, flushSave, loadSave, onWallet };
+  window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick, openDress, closeDress, openShop, closeShop, buySupply, newGrow, flushSave, loadSave, onWallet, get day() { return dayClock; }, set day(v) { dayClock = v; } };
   void openAccount();
 }
 

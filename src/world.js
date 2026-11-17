@@ -1042,7 +1042,8 @@ export function buildWorld() {
   colliders.push({ x0: -9.2, x1: -3.8, z0: 11.4, z1: 11.8 });
 
   const estate = attachEstate(group, colliders, { roof: houseRoof, facade: houseFacade });
-  const scenery = attachDressing(group, colliders, estate);
+  const spigots = BEDS.map((b) => ({ x: b.x, z: b.z, bed: 0 }));
+  const scenery = attachDressing(group, colliders, estate, spigots);
   const smokeAt = new THREE.Vector3(66 / 8, 140 / 8, -139 / 8);
 
   function groundHeight(x, z, y = 0) {
