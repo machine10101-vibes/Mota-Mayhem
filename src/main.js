@@ -176,7 +176,13 @@ function trichomeBand(ripe) {
 function paintLights(W = world?.warehouse) {
   if (!W?.bulbMat) return;
   const flower = W.lights === 'flower';
-  W.bulbMat.color.setHex(flower ? 0xffc56a : 0xb48cff);
+  const hex = flower ? 0xffc56a : 0xb48cff;
+  W.bulbMat.color.setHex(hex);
+  for (const mat of W.barMats || []) mat.color.setHex(hex);
+  if (W.vegScreen) W.vegScreen.visible = !flower;
+  if (W.flowerScreen) W.flowerScreen.visible = flower;
+  const wh = world?.scenery?.lamps?.wh;
+  if (wh) wh.color.setHex(hex);
 }
 
 function plantGeo(stage, strain) {
@@ -1691,6 +1697,18 @@ function updateShed(dt) {
   W.roof.visible = !(W.owned && W.open && (W.contains(P.x, P.z) || nearWh));
   W.forSale.visible = !W.owned;
   world.lot.mesh.visible = !W.owned;
+  const scenery = world.scenery;
+  if (scenery) {
+    const inH = house.contains(P.x, P.z);
+    scenery.lamps.down.intensity = inH && P.y < 2.15 ? 6.5 : 0;
+    scenery.lamps.loft.intensity = inH && P.y > 1.55 ? 5.5 : 0;
+    scenery.lamps.wh.intensity = W.owned && W.contains(P.x, P.z) ? 7 : 0;
+    const time = performance.now() / 1000;
+    for (const fan of scenery.fans) fan.rotation.z += dt * 9;
+    scenery.bulbs.forEach((b, i) => {
+      b.scale.setScalar(0.9 + Math.sin(time * 2.4 + i * 1.7) * 0.1);
+    });
+  }
 }
 
 /* --------------------------------------------------------------------- HUD */

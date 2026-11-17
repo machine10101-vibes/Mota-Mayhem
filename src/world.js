@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { VoxelModel, hash3, mulberry, noise2, shade, mix, toMesh, toChunkedMeshes, voxelMaterial } from './voxel.js';
 import { buildHangNug, buildPlant, PLANT_VS, PVS } from './plants.js';
 import { attachEstate, HOUSE, LOFT } from './estate.js';
+import { attachDressing } from './dressing.js';
 import { STRAIN_IDS } from './strains.js';
 
 export const YARD = { x: 20, z: 14 };
@@ -377,6 +378,91 @@ function buildHouse() {
   }
   post(-33, -89);
   post(32, -89);
+
+  for (const x of [-46, -30, 28, 44]) m.box(x, 34, -108, x + 3, 36, -90, 0xf3ecdc, 0.02);
+  m.box(-48, 34, -108, -16, 37, -105, 0x6e5030, 0.02);
+  m.box(16, 34, -108, 48, 37, -105, 0x6e5030, 0.02);
+  m.box(-48, 34, -93, -16, 37, -90, 0x6e5030, 0.02);
+  m.box(16, 34, -93, 48, 37, -90, 0x6e5030, 0.02);
+  for (const x of [-46, 42]) m.box(x, 6, -92, x + 4, 36, -88, 0xf3ecdc, 0.02);
+
+  const clap = (x, y, z) => {
+    if (y < 7) return pick([0x8c8e90, 0x7c7e80, 0x9a9c9c], x >> 2, y, z >> 2, 91);
+    if (y % 5 === 4) return shade(siding, 0.74);
+    const board = (Math.floor(x / 10) + Math.floor(z / 10)) & 1;
+    return shade(siding, board ? 1 : 0.9);
+  };
+  const skin = (x0, z0, x1, z1) => {
+    facade.box(x0, 0, z0, x1, 140, z1, (x, y, z) => {
+      const top = yt(z) - 4;
+      if (y >= top) return null;
+      if (y > 56 && y < 60) return 0xf3ecdc;
+      if (y > top - 3) return 0xf3ecdc;
+      return clap(x, y, z);
+    }, 0.02);
+  };
+  skin(-133, -188, -132, -111);
+  skin(132, -188, 133, -111);
+  skin(-132, -188, 132, -187);
+  const flowerCols = [0xf6f3ea, 0xf5d547, 0xf08ab0, 0xb48be8, 0xff7f5f];
+  const punch = (x, z0, z1, y0, h, fx) => {
+    for (let z = z0; z < z1; z++) {
+      for (let y = y0; y < y0 + h; y++) {
+        facade.del(x, y, z);
+        const pane = (z + y) % 8 < 2 ? 0xd7eef8 : mix(0x6fa6c8, 0xc5e4f4, (y - y0) / h);
+        facade.set(x, y, z, pane, 0.01);
+      }
+    }
+    const f = 0xf3ecdc;
+    facade.box(fx, y0 - 1, z0 - 1, fx + 1, y0 + 1, z1 + 1, f, 0.02);
+    facade.box(fx, y0 + h - 1, z0 - 1, fx + 1, y0 + h + 1, z1 + 1, f, 0.02);
+    facade.box(fx, y0, z0 - 1, fx + 1, y0 + h, z0 + 1, f, 0.02);
+    facade.box(fx, y0, z1 - 1, fx + 1, y0 + h, z1 + 1, f, 0.02);
+    facade.box(fx, y0 - 3, z0, fx + 1, y0 - 1, z1, 0xcfc6b0, 0.02);
+  };
+  const sideWin = (x, zc, y0, h, w, outward) => {
+    const z0 = zc - (w >> 1);
+    const z1 = zc + (w >> 1);
+    const fx = outward < 0 ? x - 1 : x + 1;
+    punch(x, z0, z1, y0, h, fx);
+    facade.box(fx, y0, z0 - 4, fx + 1, y0 + h, z0 - 1, 0x2f5f3a, 0.03);
+    facade.box(fx, y0, z1 + 1, fx + 1, y0 + h, z1 + 4, 0x3f7a4a, 0.03);
+    if (y0 < 40) {
+      for (let z = z0; z < z1; z += 2) {
+        facade.set(fx, y0 - 2, z, 0x3f8a2a, 0.04);
+        facade.set(fx, y0 - 1, z, pick(flowerCols, z, y0, x, 7), 0.02);
+      }
+    }
+  };
+  for (const [x, outward] of [[-133, -1], [132, 1]]) {
+    sideWin(x, -164, 26, 22, 14, outward);
+    sideWin(x, -136, 26, 22, 14, outward);
+    sideWin(x, -150, 68, 16, 12, outward);
+  }
+  const backWin = (xc) => {
+    const x0 = xc - 7;
+    const x1 = xc + 7;
+    const y0 = 28;
+    const h = 20;
+    const z = -188;
+    for (let x = x0; x < x1; x++) {
+      for (let y = y0; y < y0 + h; y++) {
+        facade.del(x, y, z);
+        facade.set(x, y, z, (x + y) % 8 < 2 ? 0xd7eef8 : 0x8fbfdc, 0.01);
+      }
+    }
+    facade.box(x0 - 1, y0 - 1, z - 1, x1 + 1, y0 + 1, z, 0xf3ecdc, 0.02);
+    facade.box(x0 - 1, y0 + h - 1, z - 1, x1 + 1, y0 + h + 1, z, 0xf3ecdc, 0.02);
+    facade.box(x0 - 1, y0, z - 1, x0 + 1, y0 + h, z, 0xf3ecdc, 0.02);
+    facade.box(x1 - 1, y0, z - 1, x1 + 1, y0 + h, z, 0xf3ecdc, 0.02);
+  };
+  backWin(-48);
+  backWin(48);
+  for (let y = 8; y < 78; y++) {
+    const z = -158 + Math.round(Math.sin(y * 0.35) * 2);
+    facade.set(-134, y, z, y % 4 === 0 ? 0x4a9a38 : 0x2f6a28, 0.05);
+    facade.set(134, y, z + 6, y % 4 === 0 ? 0x4a9a38 : 0x2f6a28, 0.05);
+  }
   return { shell: m, roof, facade };
 }
 
@@ -956,6 +1042,7 @@ export function buildWorld() {
   colliders.push({ x0: -9.2, x1: -3.8, z0: 11.4, z1: 11.8 });
 
   const estate = attachEstate(group, colliders, { roof: houseRoof, facade: houseFacade });
+  const scenery = attachDressing(group, colliders, estate);
   const smokeAt = new THREE.Vector3(66 / 8, 140 / 8, -139 / 8);
 
   function groundHeight(x, z, y = 0) {
@@ -972,5 +1059,5 @@ export function buildWorld() {
     return 0;
   }
 
-  return { group, colliders, slots, groundHeight, smokeAt, shed, ...estate };
+  return { group, colliders, slots, groundHeight, smokeAt, shed, scenery, ...estate };
 }
