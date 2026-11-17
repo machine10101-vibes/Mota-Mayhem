@@ -1049,7 +1049,8 @@ export function buildWorld() {
     const house = estate.house;
     if (house.onStair(x, z, y)) return house.stairHeight(z);
     if (y > 2.2 && house.onLoft(x, z)) return LOFT.y;
-    if (estate.warehouse.contains(x, z)) return 2 / 12;
+    const warehouse = estate.warehouse;
+    if (warehouse.contains(x, z) || (warehouse.owned && warehouse.open && Math.abs(z) < 1.35 && x > 22.2 && x < 24.4)) return 2 / 12;
     if (Math.abs(x) < HOUSE.half - 0.25 && z <= -14.15 && z > HOUSE.back - 0.15) return 6 / 8;
     if (Math.abs(x) < 5 && z < -11 && z > -14.2) return 6 / 8;
     if (Math.abs(x) < 4) {

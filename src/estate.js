@@ -772,7 +772,7 @@ function buildWarehouse(group, colliders) {
     { x0: east - 0.32, x1: east + 0.12, z0: -hz, z1: hz },
     { x0: west, x1: east, z0: hz - 0.32, z1: hz + 0.12 },
     { x0: west, x1: east, z0: -hz - 0.12, z1: -hz + 0.32 },
-    { x0: 23.25, x1: 23.72, z0: 1.75, z1: 2.45 },
+    { x0: 23.38, x1: 23.62, z0: 1.9, z1: 2.35 },
   );
 
   const slots = [];
