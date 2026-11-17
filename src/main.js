@@ -1879,6 +1879,174 @@ function renderBagIcons(time) {
   }
 }
 
+const taskRows = new Map();
+let taskSig = '';
+let tasksOpen = false;
+
+function addTask(rank, verb, place, n = 1) {
+  let row = taskRows.get(verb);
+  if (!row) taskRows.set(verb, (row = { rank, verb, places: new Map() }));
+  row.rank = Math.min(row.rank, rank);
+  row.places.set(place, (row.places.get(place) || 0) + n);
+}
+
+function taskPlace(places) {
+  const bits = [];
+  for (const [place, n] of places) bits.push(n > 1 ? `${place} ×${n}` : place);
+  return bits.join(' · ');
+}
+
+function collectTasks() {
+  taskRows.clear();
+  const house = world.house;
+  const shed = world.shed;
+  const eachPlot = (list, place) => {
+    for (const d of list) {
+      if (!d || d.locked || d.state === 'empty') continue;
+      if (d.state === 'ready' || d.state === 'ripening') {
+        const band = d.state === 'ripening' ? trichomeBand(d.ripe || 0) : null;
+        if (!band || band.pick) addTask(1, 'HARVEST', place);
+        else addTask(4, band.id === 'amber' ? 'HARVEST LATE' : 'HARVEST EARLY', place);
+        continue;
+      }
+      if (d.state !== 'growing') continue;
+      if (d.water <= 0.7) {
+        addTask(d.water <= 0 ? 0 : 2, 'WATER', place);
+        continue;
+      }
+      const step = nextTrain(d);
+      if (step === 'top') addTask(3, 'TOP', place);
+      else if (step === 'train') addTask(3, 'TRAIN', place);
+      else if (step === 'lolli') addTask(3, 'LOLLIPOP', place);
+      else if (d.holdVeg || (place === 'WAREHOUSE' && d.stage >= 3 && world.warehouse.lights !== 'flower')) addTask(3, 'FLIP 12/12', 'WAREHOUSE');
+      else if (d.stage >= 3 && state.nutrients > 0) addTask(6, 'BLOOM FEED', place);
+    }
+  };
+  eachPlot(slotsData, 'YARD');
+  if (world.warehouse.owned) eachPlot(whData, 'WAREHOUSE');
+
+  for (const mom of house.mothers) {
+    if (!motherOpen(mom) || !mom.state || mom.state === 'empty') continue;
+    const thirsty = mom.state === 'growing' ? mom.water < 0.45 : mom.water < 0.4;
+    const name = strainOf(mom.strain).short;
+    if (thirsty) {
+      addTask(mom.water <= 0 ? 0 : 2, 'WATER', 'MOTHER');
+      continue;
+    }
+    if (state.nutrients > 0 && (mom.state === 'growing' || mom.cool > 0)) {
+      addTask(6, 'FEED', 'MOTHER');
+      continue;
+    }
+    if (mom.state === 'mother' && mom.cool <= 0) {
+      if (house.trays.some((t) => t.state === 'empty' && trayOpen(t))) addTask(5, 'TAKE CUTTING', name);
+      else if (!house.tube2 && state.mota >= UNLOCK.tube) addTask(7, 'UNLOCK TUBES', `${UNLOCK.tube} MOTA`);
+    }
+  }
+
+  let rooted = 0;
+  for (const tray of house.trays) {
+    if (!trayOpen(tray)) continue;
+    const name = strainOf(tray.strain).short;
+    if (tray.state === 'ready') rooted++;
+    else if (tray.state === 'rooting' && state.cubes > 0) addTask(5, 'ROOT CUBE', name);
+    else if (tray.state === 'rooting' && state.nutrients > 0) addTask(6, 'FEED', 'TUBE');
+  }
+  if (rooted) {
+    const openPot = house.veg.some((v) => vegOpen(v) && v.state === 'empty');
+    if (openPot) addTask(4, 'MOVE TO VEG', 'HOUSE', rooted);
+    else if (!house.vegWest && state.mota >= UNLOCK.vegWest) addTask(4, 'UNLOCK VEG', 'WEST');
+    else if (!house.vegCenter && state.mota >= UNLOCK.vegCenter) addTask(4, 'UNLOCK VEG', 'CENTER');
+    else addTask(4, 'MOVE TO VEG', 'POTS FULL', rooted);
+  }
+
+  for (const pot of house.veg) {
+    if (!vegOpen(pot)) continue;
+    if (pot.state === 'ready' && state.clones.length < 8) addTask(4, 'TAKE CLONE', strainOf(pot.strain).short);
+    else if (pot.state === 'veg' && state.nutrients > 0) addTask(6, 'FEED', 'VEG');
+  }
+
+  let trim = 0;
+  let hang = 0;
+  for (const bud of state.wet) {
+    if (!bud.trimmed) trim++;
+    else hang++;
+  }
+  if (trim) addTask(3, 'TRIM', 'SHED', trim);
+  if (hang) addTask(3, shed.hooks.some((h) => !h.item) ? 'HANG' : 'FREE A HOOK', 'SHED', hang);
+  const readyJars = shed.hooks.filter((h) => h.item && h.item.dry >= 1).length;
+  if (readyJars) addTask(1, 'JAR', 'SHED', readyJars);
+  const burps = shed.cureJars.filter((j) => j.item?.needsBurp && !j.item.burped && !j.item.missed).length;
+  if (burps) addTask(0, 'BURP', 'SHED', burps);
+
+  const offer = motaInJars();
+  if (offer.n > 0) addTask(5, 'SELL', 'STAND', offer.n);
+
+  let emptyYard = 0;
+  let emptyWh = 0;
+  for (const d of slotsData) if (!d.locked && d.state === 'empty') emptyYard++;
+  if (world.warehouse.owned) for (const d of whData) if (d.state === 'empty') emptyWh++;
+  if (emptyYard || emptyWh) {
+    if (state.clones.length) addTask(5, 'PLANT', 'CLONE', Math.min(state.clones.length, emptyYard + emptyWh));
+    else if (seedTotal(state.seeds) > 0) {
+      if (emptyYard) addTask(8, 'PLANT', 'YARD', emptyYard);
+      if (emptyWh) addTask(8, 'PLANT', 'WAREHOUSE', emptyWh);
+    } else if (state.mota >= SEED_PACK.cost) addTask(8, 'BUY SEEDS', 'STAND');
+  }
+
+  if (slotsData.some((d) => d.locked) && state.mota >= UNLOCK.bed) addTask(7, 'UNLOCK BOX', `${UNLOCK.bed} MOTA`);
+  if (!house.mother2 && state.mota >= UNLOCK.mother) addTask(7, 'UNLOCK MOTHER', `${UNLOCK.mother} MOTA`);
+  if (!house.tube2 && state.mota >= UNLOCK.tube && !taskRows.has('UNLOCK TUBES')) addTask(7, 'UNLOCK TUBES', `${UNLOCK.tube} MOTA`);
+  if (!house.vegWest && state.mota >= UNLOCK.vegWest && !taskRows.has('UNLOCK VEG')) addTask(7, 'UNLOCK VEG', 'WEST');
+  if (!house.vegCenter && state.mota >= UNLOCK.vegCenter) addTask(7, 'UNLOCK VEG', 'CENTER');
+  if (!world.warehouse.owned && state.mota >= WAREHOUSE_PRICE) addTask(7, 'BUY WAREHOUSE', `${WAREHOUSE_PRICE} MOTA`);
+
+  return [...taskRows.values()].sort((a, b) => a.rank - b.rank || a.verb.localeCompare(b.verb));
+}
+
+function taskCount(rows) {
+  let n = 0;
+  for (const row of rows) for (const count of row.places.values()) n += count;
+  return n;
+}
+
+function setTasksOpen(open) {
+  tasksOpen = open;
+  $('tasks').classList.toggle('open', open);
+  $('tasks-menu').classList.toggle('hidden', !open);
+  $('tasks-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function updateTasks() {
+  if (!world || (state.mode !== 'play' && state.mode !== 'shop' && state.mode !== 'dress')) return;
+  const rows = collectTasks();
+  const sig = rows.map((row) => `${row.rank}|${row.verb}|${taskPlace(row.places)}`).join('\n');
+  if (sig === taskSig) return;
+  taskSig = sig;
+  const list = $('tasks-list');
+  list.replaceChildren();
+  const count = taskCount(rows);
+  $('tasks-count').textContent = String(count);
+  $('tasks-lead').textContent = rows.length ? rows[0].verb : 'CLEAR';
+  $('tasks-toggle').classList.toggle('hot', rows.some((row) => row.rank <= 1));
+  if (!rows.length) {
+    const li = document.createElement('li');
+    li.className = 'idle';
+    li.textContent = 'NOTHING TO DO';
+    list.appendChild(li);
+    return;
+  }
+  for (const row of rows) {
+    const li = document.createElement('li');
+    if (row.rank <= 1) li.className = 'hot';
+    const verb = document.createElement('b');
+    verb.textContent = row.verb;
+    const detail = document.createElement('span');
+    detail.textContent = taskPlace(row.places);
+    li.append(verb, detail);
+    list.appendChild(li);
+  }
+}
+
 function updateHud() {
   const pick = STRAINS[state.strainPick] ? state.strainPick : 'bd';
   const held = strainOf(pick);
@@ -2422,6 +2590,7 @@ function frame(now) {
   updateTokens(time);
   updateTarget();
   updateBadges();
+  updateTasks();
   renderBagIcons(time);
   saveClock += dt;
   if ((state.mode === 'play' || state.mode === 'dress' || state.mode === 'shop') && saveClock > 4) {
@@ -3330,6 +3499,15 @@ function bindDress() {
     if (state.mode !== 'play') return;
     toggleHelp();
   };
+  $('tasks').addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    if (!e.target.closest('#tasks-toggle')) return;
+    if (e.cancelable) e.preventDefault();
+    setTasksOpen(!tasksOpen);
+  });
+  addEventListener('pointerdown', () => {
+    if (tasksOpen) setTasksOpen(false);
+  });
   $('btn-help-hud').addEventListener('pointerdown', helpBtn);
   $('btn-help-close').addEventListener('pointerdown', helpBtn);
   $('btn-dress-done').addEventListener('pointerdown', (e) => {
