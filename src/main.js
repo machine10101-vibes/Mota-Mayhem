@@ -9,6 +9,7 @@ import { VoxelModel, toMesh, voxelMaterial } from './voxel.js';
 import { buildMotaToken, buildNutrientBottle, buildRootCube, HOUSE, LOFT, MOTA_PER_G, SEED_PACK, SUPPLIES, UNLOCK, WAREHOUSE_PRICE } from './estate.js';
 import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace } from './strains.js';
+import { COMPOST_CAP, SCRAP_CAP, blendCook, cookProgress, dumpScraps, gainScrap, turnCompost } from './compost.js';
 import { loadSave, writeSave, adoptAddress, unbindAddress } from './save.js';
 import { clearKleverLogin, clearSession, inKleverHandoff, isMobile, launchKleverApp, markPrompt, promptIsCooling, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
 import { accountLabel, accountProblem, clearAccountSession, createAccount, freshAccessToken, readAccountSession, rememberWallet, signInAccount } from './wallet/account.js';
@@ -134,6 +135,7 @@ const state = {
   seeds: starterSeeds(),
   clones: [],
   nutrients: 0,
+  scraps: 0,
   cubes: 0,
   mota: 0,
   jars: { AAAA: 0, AAA: 0, AA: 0, A: 0 },
@@ -1246,6 +1248,7 @@ function stationFocus() {
   }
   consider(world.stand.x, world.stand.z, 'stand', null, 1.55);
   for (const tap of world.scenery?.spigots || []) consider(tap.x, tap.z, 'spigot', tap, 1.35);
+  if (world.compost) consider(world.compost.x, world.compost.z, 'compost', world.compost, 1.6);
   if (!world.warehouse.owned) consider(world.lot.x, world.lot.z, 'lot', null, 1.7);
   else {
     consider(23.05, 0, 'wh-door', null, 1.85, 0.08, 2);
@@ -1293,6 +1296,7 @@ function actStation(f) {
   if (f.kind === 'computer') return openShop();
   if (f.kind === 'stand') return actStand();
   if (f.kind === 'spigot') return actSpigot(f.ref);
+  if (f.kind === 'compost') return actCompost(f.ref);
   if (f.kind === 'lot') return actBuyWarehouse();
   if (f.kind === 'wh-lights') {
     const W = world.warehouse;
@@ -1314,9 +1318,11 @@ function actStation(f) {
       const bud = state.wet[0];
       if (!bud.trimmed) {
         bud.trimmed = true;
+        state.scraps = gainScrap(state.scraps);
         P.cool = 0.35;
         player.playAction('harvest');
-        toast('HAND TRIMMED — TRICHOMES KEPT', 'good');
+        toast(state.scraps >= SCRAP_CAP ? 'HAND TRIMMED — SCRAP BAG IS FULL' : 'HAND TRIMMED — LEAF SCRAPS KEPT', 'good');
+        updateHud();
         markDirty();
         return true;
       }
@@ -1590,12 +1596,14 @@ function actSpigot(tap) {
   if (slotsData[bed * 4]?.locked) return tryUnlockBed(bed);
   let growing = 0;
   let n = 0;
+  const watered = [];
   for (let k = 0; k < 4; k++) {
     const d = slotsData[bed * 4 + k];
     if (d.state !== 'growing' && d.state !== 'ready' && d.state !== 'ripening') continue;
     if (d.state === 'growing') growing++;
     if (d.state === 'growing' && d.water <= 0.7) {
       d.water = 1;
+      watered.push(world.slots[bed * 4 + k]);
       n++;
     }
   }
@@ -1619,11 +1627,111 @@ function actSpigot(tap) {
       }),
     );
   }
+  for (const s of watered) {
+    for (let i = 0; i < 8; i++) {
+      later(0.12 + i * 0.03, () =>
+        particles.emit({
+          x: s.x + (Math.random() - 0.5) * 0.35,
+          y: s.y + 0.55,
+          z: s.z + (Math.random() - 0.5) * 0.35,
+          vx: (Math.random() - 0.5) * 0.7,
+          vy: 1.4 + Math.random() * 0.6,
+          vz: (Math.random() - 0.5) * 0.7,
+          life: 0.45,
+          size: 0.06,
+          color: 0x9ad4f5,
+          color2: 0x3f86c8,
+          g: -8,
+        }),
+      );
+    }
+  }
   if (!n) return toast(growing ? 'BED IS WATERED' : 'NOTHING TO WATER');
   toast(n > 1 ? `WATERED ${n}` : 'PLANT WATERED', 'good');
   markDirty();
   updateHud();
   return true;
+}
+
+function actCompost(bin) {
+  const pct = Math.round((bin.t || 0) * 100);
+  if (bin.fill > 0 && bin.t >= 1) {
+    const turned = turnCompost(state.nutrients, bin.fill, true);
+    state.nutrients = turned.nutrients;
+    bin.fill = 0;
+    bin.t = 0;
+    P.cool = 0.4;
+    player.playAction('harvest');
+    toast(turned.n > 1 ? `COMPOST MADE ${turned.n} FEED` : 'COMPOST MADE FEED', 'good');
+    for (let i = 0; i < 10; i++) {
+      particles.emit({
+        x: 16.5 + (Math.random() - 0.5) * 0.5,
+        y: 1.2,
+        z: 11,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: 1.2 + Math.random(),
+        vz: (Math.random() - 0.5) * 0.6,
+        life: 0.5,
+        size: 0.07,
+        color: 0xc6e27a,
+        color2: 0x6fa23f,
+        g: -6,
+      });
+    }
+    updateHud();
+    markDirty();
+    return true;
+  }
+  if (state.scraps > 0 && bin.fill < COMPOST_CAP) {
+    const before = bin.fill;
+    const dumped = dumpScraps(state.scraps, bin.fill);
+    bin.t = blendCook(bin.t, before, dumped.n);
+    state.scraps = dumped.scraps;
+    bin.fill = dumped.fill;
+    P.cool = 0.4;
+    player.playAction('water');
+    toast(dumped.n > 1 ? `DUMPED ${dumped.n} SCRAPS` : 'SCRAP ON THE PILE', 'good');
+    updateHud();
+    markDirty();
+    return true;
+  }
+  if (bin.fill > 0) return toast(state.scraps ? `PILE IS FULL · ${pct}%` : `BREAKING DOWN ${pct}%`);
+  return toast(state.scraps ? 'PILE IS FULL' : 'TRIM A HARVEST FOR LEAF SCRAPS');
+}
+
+let compostSteam = 0;
+function updateCompost(dt) {
+  const bin = world?.compost;
+  if (!bin?.heap) return;
+  if (bin.fill > 0 && bin.t < 1) {
+    const prev = bin.t;
+    bin.t = cookProgress(bin.t, dt, 12 * GROW);
+    if (prev < 1 && bin.t >= 1) markDirty();
+  }
+  const heap = bin.heap;
+  heap.visible = bin.fill > 0;
+  if (!heap.visible) return;
+  const s = 0.72 + 0.55 * (bin.fill / COMPOST_CAP);
+  const pulse = bin.t >= 1 ? 1 + Math.sin(performance.now() / 250) * 0.05 : 1;
+  heap.scale.set(s, s * pulse, s);
+  heap.material.color.setHex(bin.t >= 1 ? 0xd6f5a8 : 0xffffff);
+  if (bin.t >= 1) return;
+  compostSteam -= dt;
+  if (compostSteam > 0) return;
+  compostSteam = 0.22;
+  particles.emit({
+    x: 16.5 + (Math.random() - 0.5) * 0.45,
+    y: 1.45,
+    z: 11 + (Math.random() - 0.5) * 0.3,
+    vx: (Math.random() - 0.5) * 0.12,
+    vy: 0.45,
+    vz: (Math.random() - 0.5) * 0.12,
+    life: 0.9,
+    size: 0.08,
+    color: 0xd5ddd0,
+    color2: 0x8aa090,
+    g: 0.15,
+  });
 }
 
 function actBuyWarehouse() {
@@ -1773,9 +1881,18 @@ const bagIcons = [];
 let bagView = null;
 const feedGeo = buildNutrientBottle().build(0.08);
 const cubeGeo = buildRootCube().build(0.08);
+const scrapGeo = (() => {
+  const m = new VoxelModel();
+  m.box(-4, 0, -4, 4, 3, 4, 0x3a2a1c, 0.05);
+  m.box(-2, 3, -3, 3, 6, 2, 0x6fa23f, 0.04);
+  m.set(1, 6, 0, 0x93c85a, 0.02);
+  m.set(-1, 5, 1, 0x4e8a32, 0.02);
+  return m.build(0.08);
+})();
 const seedIconGeo = new Map();
 feedGeo.computeBoundingBox();
 cubeGeo.computeBoundingBox();
+scrapGeo.computeBoundingBox();
 
 function cannabisSeedGeo(id) {
   let geo = seedIconGeo.get(id);
@@ -1838,7 +1955,7 @@ function bagSignature(pick) {
   const wet = state.wet.map((w) => `${w.strain}:${w.grade}`).join(',');
   const seeds = STRAIN_IDS.map((id) => state.seeds[id] | 0).join(',');
   const jars = GRADES.map((g) => state.jars[g] | 0).join(',');
-  return [pick, seeds, clones, wet, jars, state.nutrients | 0, state.cubes | 0].join('|');
+  return [pick, seeds, clones, wet, jars, state.nutrients | 0, state.cubes | 0, state.scraps | 0].join('|');
 }
 
 function addBagSlot(grid, item) {
@@ -1902,6 +2019,7 @@ function paintBag(pick) {
     }
   }
   if (state.nutrients > 0) addBagSlot(grid, { label: 'FEED', count: state.nutrients | 0, geo: feedGeo });
+  if (state.scraps > 0) addBagSlot(grid, { label: 'SCRAPS', count: state.scraps | 0, geo: scrapGeo });
   if (state.cubes > 0) addBagSlot(grid, { label: 'CUBE', count: state.cubes | 0, geo: cubeGeo });
   if (!grid.childElementCount) {
     const empty = document.createElement('p');
@@ -2041,6 +2159,9 @@ function collectTasks() {
   if (readyJars) addTask(1, 'JAR', 'SHED', readyJars);
   const burps = shed.cureJars.filter((j) => j.item?.needsBurp && !j.item.burped && !j.item.missed).length;
   if (burps) addTask(0, 'BURP', 'SHED', burps);
+  const bin = world.compost;
+  if (bin?.fill > 0 && bin.t >= 1) addTask(3, 'TURN COMPOST', 'YARD', bin.fill);
+  else if (state.scraps > 0 && (bin?.fill || 0) < COMPOST_CAP) addTask(5, 'DUMP SCRAPS', 'COMPOST', state.scraps);
 
   const offer = motaInJars();
   if (offer.n > 0) addTask(5, 'SELL', 'STAND', offer.n);
@@ -2468,6 +2589,14 @@ function stationUi(st, actLbl) {
     if (!n) return { text: 'BED IS WATERED', btn: 'ACT' };
     return { text: `${actLbl}  WATER BED  ${n}`, btn: 'WATER' };
   }
+  if (st.kind === 'compost') {
+    const bin = st.ref;
+    const pct = Math.round((bin.t || 0) * 100);
+    if (bin.fill > 0 && bin.t >= 1) return { text: `${actLbl}  TURN COMPOST INTO FEED`, btn: 'FEED' };
+    if (state.scraps > 0 && bin.fill < COMPOST_CAP) return { text: `${actLbl}  DUMP ${state.scraps} SCRAPS`, btn: 'DUMP' };
+    if (bin.fill > 0) return { text: state.scraps ? `PILE IS FULL · ${pct}%` : `BREAKING DOWN ${pct}%`, btn: 'ACT' };
+    return { text: 'TRIM A HARVEST FOR LEAF SCRAPS', btn: 'ACT' };
+  }
   if (st.kind === 'wh-lights') {
     const flower = world.warehouse.lights === 'flower';
     return { text: flower ? `${actLbl}  FLIP TO 18/6` : `${actLbl}  FLIP TO 12/12`, btn: flower ? '18/6' : '12/12' };
@@ -2591,7 +2720,8 @@ function updateCamera(dt) {
     let xLo = -11;
     let xHi = P.x > 10 ? 18 : 11;
     let zLo = P.z < -8 ? -12 : -9;
-    let zHi = 7;
+    let zHi = P.z > 4 ? 12.4 : 7;
+    if (P.z > 6 && P.x > 12) xHi = 20;
     if (P.z < -13.6) {
       xLo = -HOUSE.half;
       xHi = HOUSE.half;
@@ -2712,6 +2842,7 @@ function frame(now) {
   updatePlayer(dt);
   updatePlants(dt, time);
   updateShed(dt);
+  updateCompost(dt);
   updateDay(dt);
   butterflies.update(time);
   smokeT -= dt;
@@ -3234,7 +3365,9 @@ function snapshot() {
     seeds: Object.fromEntries(STRAIN_IDS.map((id) => [id, state.seeds[id] | 0])),
     clones: state.clones.slice(0, 8).map((c) => ({ strain: strainOf(c.strain).id })),
     nutrients: state.nutrients | 0,
+    scraps: state.scraps | 0,
     cubes: state.cubes | 0,
+    compost: { fill: world.compost?.fill | 0, t: world.compost?.t || 0 },
     strainPick: STRAINS[state.strainPick] ? state.strainPick : 'bd',
     px: P.x,
     py: P.y,
@@ -3426,7 +3559,12 @@ function applySave(save) {
   state.seeds = Object.fromEntries(STRAIN_IDS.map((id) => [id, Math.max(0, save.seeds?.[id] | 0)]));
   state.clones = Array.isArray(save.clones) ? save.clones.slice(0, 8).map((c) => ({ strain: strainOf(c.strain || c).id })) : [];
   state.nutrients = Math.max(0, save.nutrients | 0);
+  state.scraps = Math.max(0, Math.min(SCRAP_CAP, save.scraps | 0));
   state.cubes = Math.max(0, save.cubes | 0);
+  if (world.compost) {
+    world.compost.fill = Math.max(0, Math.min(COMPOST_CAP, save.compost?.fill | 0));
+    world.compost.t = Math.max(0, Math.min(1, Number(save.compost?.t) || 0));
+  }
   state.strainPick = STRAINS[save.strainPick] ? save.strainPick : 'bd';
   state.look = normalizeLook(save.look);
   player.setLook(state.look);
