@@ -638,6 +638,18 @@ function buildCureJar() {
   return m;
 }
 
+function buildShedTable() {
+  const m = new VoxelModel();
+  const wood = 0x8a5e36;
+  m.box(-18, 12, -12, 18, 15, 12, wood, 0.03);
+  m.box(-16, 15, -10, 16, 16, 10, 0xc4a06a, 0.02);
+  for (const [x, z] of [[-14, -8], [12, -8], [-14, 6], [12, 6]]) m.box(x, 0, z, x + 4, 12, z + 4, 0x6e4a2a, 0.03);
+  m.box(-6, 16, -3, 2, 18, 3, 0x6fa23f, 0.04);
+  m.box(2, 16, -1, 8, 18, 4, 0x4e8a32, 0.04);
+  m.box(-2, 16, 1, 4, 19, 6, 0xd7c36a, 0.03);
+  return m;
+}
+
 function buildShedInterior() {
   const m = new VoxelModel();
   const wood = 0x8a5e36;
@@ -970,6 +982,8 @@ export function buildWorld() {
   doorR.position.set(shedWX(SHED_L.door1), 0, doorZ);
   group.add(doorR);
   place(group, buildShedInterior(), SHED_S, SHED_AT.x, 0, SHED_AT.z);
+  place(group, buildShedTable(), 1 / 16, 16.15, 0, -4.55);
+  colliders.push({ x0: 14.95, x1: 17.35, z0: -5.35, z1: -3.75 });
   const nugGeo = {};
   for (const id of STRAIN_IDS) nugGeo[id] = buildHangNug(id).build(SHED_S);
   const budGeo = nugGeo.bd;
@@ -995,6 +1009,10 @@ export function buildWorld() {
     group.add(mesh);
     return { x, z, y: 0.62, mesh, item: null };
   });
+  const hang = {
+    x: hooks.reduce((n, h) => n + h.x, 0) / hooks.length,
+    z: hooks.reduce((n, h) => n + h.z, 0) / hooks.length,
+  };
   colliders.push(
     { x0: 12.85, x1: 19.2, z0: -12.35, z1: -11.55 },
     { x0: 12.85, x1: 13.42, z0: -12.2, z1: -2.15 },
@@ -1011,6 +1029,12 @@ export function buildWorld() {
     doorBlocks: [{ x0: 13.68, x1: 15.68, z0: -2.7, z1: -1.9 }],
     hooks,
     cureJars,
+    trim: { x: 16.15, z: -3.15 },
+    hang,
+    cure: [
+      { x: 14.55, z: -4.72 },
+      { x: 17.55, z: -4.72 },
+    ],
     nugGeo,
     contains(x, z) {
       return x > 13.5 && x < 18.5 && z < -2.6 && z > -11.5;

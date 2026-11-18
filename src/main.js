@@ -371,7 +371,7 @@ function forChanged(e, fn) {
 }
 
 function uiTarget(el) {
-  return !!el?.closest?.('#touch, #hud, #dress, #shop, #settings, #strains, .title-actions, .wallet-box, button, .tbtn');
+  return !!el?.closest?.('#touch, #hud, #dress, #shop, #bench, #settings, #strains, .title-actions, .wallet-box, button, .tbtn');
 }
 
 function onCamDown(e) {
@@ -1225,14 +1225,9 @@ function stationFocus() {
   const shed = world.shed;
   consider(shed.door.x, shed.door.z, 'shed-door', null, 1.9);
   if (shed.open || shed.contains(P.x, P.z)) {
-    for (const h of shed.hooks) consider(h.x, h.z + 0.4, 'hook', h, 1.35);
-    for (const j of shed.cureJars) {
-      if (!j.item) continue;
-      const burp = !!(j.item.needsBurp && !j.item.burped && !j.item.missed);
-      const missed = !!(j.item.missed && (j.item.cure || 0) < 1);
-      const explain = missed && state.wet.length === 0;
-      consider(j.x + 0.55, j.z, 'jar', j, burp ? 2.4 : explain ? 2.2 : 1.2, 0.08, burp ? 2 : explain ? 1 : 0);
-    }
+    consider(shed.trim.x, shed.trim.z, 'trim', null, 1.55, 0.2);
+    consider(shed.hang.x, shed.hang.z, 'hang', null, 2.6, 0.7);
+    for (const spot of shed.cure) consider(spot.x, spot.z, 'cure', null, 1.7, 0.45);
   }
   const house = world.house;
   consider(0, -13.15, 'house-door', null, 1.7);
@@ -1308,67 +1303,316 @@ function actStation(f) {
     markDirty();
     return true;
   }
-  if (f.kind === 'hook') {
-    const h = f.ref;
-    if (!h.item) {
-      if (!state.wet.length) {
-        toast('HARVEST A PLANT FIRST');
-        return true;
-      }
-      const bud = state.wet[0];
-      if (!bud.trimmed) {
-        bud.trimmed = true;
-        state.scraps = gainScrap(state.scraps);
-        P.cool = 0.35;
-        player.playAction('harvest');
-        toast(state.scraps >= SCRAP_CAP ? 'HAND TRIMMED — SCRAP BAG IS FULL' : 'HAND TRIMMED — LEAF SCRAPS KEPT', 'good');
-        updateHud();
-        markDirty();
-        return true;
-      }
-      state.wet.shift();
-      h.item = { ...bud, t: 0, dry: 0, hold: 0, dropped: false };
-      h.mesh.geometry = world.shed.nugGeo[strainOf(bud.strain).id] || world.shed.nugGeo.bd;
-      h.mesh.visible = true;
-      h.mesh.scale.setScalar(1);
-      P.cool = 0.4;
-      player.playAction('harvest');
-      toast(`${bud.grade} HUNG TO DRY`);
-      updateHud();
-      markDirty();
-      return true;
-    }
-    if (h.item.dry < 1) {
-      toast('STILL DRYING');
-      return true;
-    }
-    const slot = shed.cureJars.find((j) => !j.item);
-    if (!slot) {
-      toast('CURE JARS ARE FULL');
-      return true;
-    }
-    slot.item = { grade: h.item.grade, grams: gramsFor(h.item.grade), strain: h.item.strain || 'bd', t: 0, cure: 0, burped: false, missed: false, needsBurp: false, sealed: false };
-    slot.mesh.visible = true;
-    h.item = null;
-    h.mesh.visible = false;
-    P.cool = 0.4;
-    toast('JARRED — BURP IT WHILE IT CURES', 'good');
-    updateHud();
-    markDirty();
-    return true;
-  }
-  const it = f.ref.item;
-  if (it?.needsBurp && !it.burped && !it.missed) {
-    it.burped = true;
-    it.needsBurp = false;
-    P.cool = 0.3;
-    toast('BURPED — CURE STAYS ON TRACK', 'good');
-    markDirty();
-    return true;
-  }
-  if (it?.missed) return toast('BURP MISSED — LET IT FINISH');
-  toast(it?.burped ? 'CURING' : 'WAIT TO BURP');
+  if (f.kind === 'trim' || f.kind === 'hang' || f.kind === 'cure') return openBench(f.kind);
+  return false;
+}
+
+let benchKind = '';
+let benchSig = '';
+
+function budLabel(strain, grade) {
+  return `${strainOf(strain).short}  ${grade}`;
+}
+
+function trimOne(index) {
+  const bud = state.wet[index];
+  if (!bud || bud.trimmed) return false;
+  bud.trimmed = true;
+  state.scraps = gainScrap(state.scraps);
   return true;
+}
+
+function hangOne(index) {
+  const bud = state.wet[index];
+  const hook = world.shed.hooks.find((h) => !h.item);
+  if (!bud?.trimmed || !hook) return false;
+  state.wet.splice(index, 1);
+  hook.item = { ...bud, t: 0, dry: 0, hold: 0, dropped: false };
+  hook.mesh.geometry = world.shed.nugGeo[strainOf(bud.strain).id] || world.shed.nugGeo.bd;
+  hook.mesh.visible = true;
+  hook.mesh.scale.setScalar(1);
+  return true;
+}
+
+function jarOne(index) {
+  const hook = world.shed.hooks[index];
+  if (!hook?.item || hook.item.dry < 1) return false;
+  const slot = world.shed.cureJars.find((j) => !j.item);
+  if (!slot) return false;
+  const it = hook.item;
+  slot.item = { grade: it.grade, grams: gramsFor(it.grade), strain: it.strain || 'bd', t: 0, cure: 0, burped: false, missed: false, needsBurp: false, sealed: false };
+  slot.mesh.visible = true;
+  hook.item = null;
+  hook.mesh.visible = false;
+  return true;
+}
+
+function burpOne(index) {
+  const it = world.shed.cureJars[index]?.item;
+  if (!it?.needsBurp || it.burped || it.missed) return false;
+  it.burped = true;
+  it.needsBurp = false;
+  return true;
+}
+
+function trimAll() {
+  let n = 0;
+  for (let i = 0; i < state.wet.length; i++) if (trimOne(i)) n++;
+  return n;
+}
+
+function hangAll() {
+  let n = 0;
+  for (let i = state.wet.length - 1; i >= 0; i--) {
+    if (!state.wet[i]?.trimmed) continue;
+    if (hangOne(i)) n++;
+  }
+  return n;
+}
+
+function jarAll() {
+  let n = 0;
+  world.shed.hooks.forEach((_, i) => {
+    if (jarOne(i)) n++;
+  });
+  return n;
+}
+
+function burpAll() {
+  let n = 0;
+  world.shed.cureJars.forEach((_, i) => {
+    if (burpOne(i)) n++;
+  });
+  return n;
+}
+
+function benchRows() {
+  const shed = world.shed;
+  if (benchKind === 'trim') {
+    return state.wet.flatMap((bud, index) => bud.trimmed ? [] : [{
+      key: `t${index}`,
+      title: budLabel(bud.strain, bud.grade),
+      detail: 'WET FLOWER',
+      pct: 0,
+      tone: '',
+      btn: 'TRIM',
+      act: 'trim',
+      index,
+    }]);
+  }
+  if (benchKind === 'hang') {
+    const waiting = state.wet.flatMap((bud, index) => bud.trimmed ? [{
+      key: `w${index}`,
+      title: budLabel(bud.strain, bud.grade),
+      detail: 'TRIMMED · READY TO HANG',
+      pct: 0,
+      tone: '',
+      btn: 'HANG',
+      act: 'hang',
+      index,
+    }] : []);
+    const drying = shed.hooks.flatMap((hook, index) => {
+      const it = hook.item;
+      if (!it) return [];
+      const ready = it.dry >= 1;
+      const left = Math.max(0, Math.ceil(HANG_GRACE - (it.hold || 0)));
+      return [{
+        key: `h${index}`,
+        title: budLabel(it.strain, it.grade),
+        detail: ready ? (it.dropped ? 'OVERDRIED' : `DRY · JAR WITHIN ${left}s`) : `DRYING ${Math.round(it.dry * 100)}%`,
+        pct: Math.round((ready ? 1 : it.dry) * 100),
+        tone: it.dropped ? 'hot' : ready ? 'gold' : '',
+        btn: ready ? 'JAR' : '',
+        act: 'jar',
+        index,
+      }];
+    });
+    return [...waiting, ...drying];
+  }
+  return shed.cureJars.flatMap((jar, index) => {
+    const it = jar.item;
+    if (!it) return [];
+    const pct = Math.round((it.cure || 0) * 100);
+    const burp = !!(it.needsBurp && !it.burped && !it.missed);
+    const detail = burp ? 'BURP NOW' : it.missed ? `BURP MISSED · ${pct}%` : it.burped ? `BURPED · CURING ${pct}%` : (it.cure || 0) >= 0.2 ? `BURP SOON · ${pct}%` : `CURING ${pct}%`;
+    return [{
+      key: `j${index}`,
+      title: budLabel(it.strain, it.grade),
+      detail,
+      pct,
+      tone: burp ? 'gold' : it.missed ? 'hot' : '',
+      btn: burp ? 'BURP' : '',
+      act: 'burp',
+      index,
+    }];
+  });
+}
+
+function benchBulk() {
+  const shed = world.shed;
+  if (benchKind === 'trim') {
+    const n = state.wet.filter((bud) => !bud.trimmed).length;
+    return { main: n ? `TRIM ALL  ${n}` : '', mainAct: 'trim-all', extra: '', extraAct: '' };
+  }
+  if (benchKind === 'hang') {
+    const buds = state.wet.filter((bud) => bud.trimmed).length;
+    const free = shed.hooks.filter((h) => !h.item).length;
+    const ready = shed.hooks.filter((h) => h.item && h.item.dry >= 1).length;
+    const jars = shed.cureJars.filter((j) => !j.item).length;
+    return {
+      main: buds && free ? `HANG ALL  ${Math.min(buds, free)}` : '',
+      mainAct: 'hang-all',
+      extra: ready && jars ? `JAR ALL  ${Math.min(ready, jars)}` : '',
+      extraAct: 'jar-all',
+    };
+  }
+  const burps = shed.cureJars.filter((j) => j.item?.needsBurp && !j.item.burped && !j.item.missed).length;
+  return { main: burps ? `BURP ALL  ${burps}` : '', mainAct: 'burp-all', extra: '', extraAct: '' };
+}
+
+function benchEmptyCopy() {
+  const shed = world.shed;
+  if (benchKind === 'trim') return 'NO WET FLOWER. HARVEST A PLANT, THEN TRIM IT HERE.';
+  if (benchKind === 'hang') {
+    const free = shed.hooks.filter((h) => !h.item).length;
+    return state.wet.some((bud) => bud.trimmed) ? '' : `NOTHING ON THE RACK. ${free} HOOKS ARE OPEN.`;
+  }
+  const free = shed.cureJars.filter((j) => !j.item).length;
+  return `JARS ARE EMPTY. ${free} ARE WAITING FOR DRY FLOWER.`;
+}
+
+function paintBench() {
+  if (state.mode !== 'bench') return;
+  const rows = benchRows();
+  const bulk = benchBulk();
+  const sig = [benchKind, bulk.main, bulk.extra, ...rows.map((row) => `${row.key}:${row.btn}`)].join('|');
+  const root = $('bench-rows');
+  if (sig !== benchSig) {
+    benchSig = sig;
+    root.replaceChildren();
+    for (const row of rows) {
+      const el = document.createElement('div');
+      el.className = 'bench-row';
+      el.dataset.key = row.key;
+      const copy = document.createElement('div');
+      copy.className = 'bench-copy';
+      const title = document.createElement('b');
+      const detail = document.createElement('span');
+      const meter = document.createElement('div');
+      meter.className = 'bench-meter';
+      const bar = document.createElement('i');
+      meter.append(bar);
+      copy.append(title, detail, meter);
+      el.append(copy);
+      if (row.btn) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tbtn';
+        btn.dataset.bench = row.act;
+        btn.dataset.i = String(row.index);
+        btn.textContent = row.btn;
+        el.append(btn);
+      }
+      root.append(el);
+    }
+  }
+  rows.forEach((row) => {
+    const el = root.querySelector(`[data-key="${row.key}"]`);
+    if (!el) return;
+    el.querySelector('b').textContent = row.title;
+    el.querySelector('span').textContent = row.detail;
+    const meter = el.querySelector('.bench-meter');
+    meter.classList.toggle('gold', row.tone === 'gold');
+    meter.classList.toggle('hot', row.tone === 'hot');
+    meter.querySelector('i').style.width = `${row.pct}%`;
+  });
+  const empty = $('bench-empty');
+  const showEmpty = !rows.length;
+  empty.classList.toggle('hidden', !showEmpty);
+  empty.textContent = showEmpty ? benchEmptyCopy() : '';
+  const main = $('btn-bench-main');
+  const extra = $('btn-bench-extra');
+  main.classList.toggle('hidden', !bulk.main);
+  extra.classList.toggle('hidden', !bulk.extra);
+  main.textContent = bulk.main || 'ALL';
+  extra.textContent = bulk.extra || 'ALL';
+  main.dataset.bench = bulk.mainAct;
+  extra.dataset.bench = bulk.extraAct;
+}
+
+function runBench(act, index = -1) {
+  let n = 0;
+  let note = '';
+  if (act === 'trim') n = trimOne(index) ? 1 : 0;
+  else if (act === 'trim-all') n = trimAll();
+  else if (act === 'hang') {
+    if (!world.shed.hooks.some((h) => !h.item)) note = 'HOOKS ARE FULL';
+    else n = hangOne(index) ? 1 : 0;
+  } else if (act === 'hang-all') n = hangAll();
+  else if (act === 'jar') {
+    if (!world.shed.cureJars.some((j) => !j.item)) note = 'CURE JARS ARE FULL';
+    else n = jarOne(index) ? 1 : 0;
+  } else if (act === 'jar-all') n = jarAll();
+  else if (act === 'burp') n = burpOne(index) ? 1 : 0;
+  else if (act === 'burp-all') n = burpAll();
+  if (!n) {
+    if (note) toast(note);
+    return;
+  }
+  const word = act.startsWith('trim') ? (n > 1 ? `TRIMMED ${n}` : 'HAND TRIMMED — LEAF SCRAPS KEPT')
+    : act.startsWith('hang') ? (n > 1 ? `HUNG ${n}` : 'HUNG TO DRY')
+    : act.startsWith('jar') ? (n > 1 ? `JARRED ${n}` : 'JARRED — BURP IT WHILE IT CURES')
+    : (n > 1 ? `BURPED ${n}` : 'BURPED — CURE STAYS ON TRACK');
+  if (act.startsWith('trim') && state.scraps >= SCRAP_CAP) toast('HAND TRIMMED — SCRAP BAG IS FULL', 'good');
+  else toast(word, 'good');
+  player.playAction(act.startsWith('burp') ? 'water' : 'harvest');
+  updateHud();
+  markDirty();
+  benchSig = '';
+  paintBench();
+}
+
+function openBench(kind) {
+  if (state.mode !== 'play' || !world?.shed) return false;
+  benchKind = kind;
+  benchSig = '';
+  state.mode = 'bench';
+  P.cool = 0.2;
+  const titles = { trim: 'HAND TRIM', hang: 'HANG DRY', cure: 'CURE JARS' };
+  const leads = {
+    trim: 'LEAVES GO INTO THE COMPOST BAG',
+    hang: 'HANG TRIMMED BUDS, THEN JAR THEM WHEN THEY ARE DRY',
+    cure: 'BURP EACH JAR ONCE WHILE IT CURES',
+  };
+  $('bench-title').textContent = titles[kind] || 'SHED';
+  $('bench-lead').textContent = leads[kind] || '';
+  $('bench').classList.remove('hidden');
+  $('touch').classList.add('hidden');
+  prompt.style.display = 'none';
+  paintBench();
+  return true;
+}
+
+function closeBench() {
+  if (state.mode !== 'bench') return;
+  $('bench').classList.add('hidden');
+  state.mode = 'play';
+  benchKind = '';
+  benchSig = '';
+  if (touchUI) $('touch').classList.remove('hidden');
+}
+
+function bindBench() {
+  $('btn-bench-close').addEventListener('pointerdown', (e) => {
+    swallow(e);
+    closeBench();
+  });
+  $('bench').addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest('button[data-bench]');
+    if (!btn || btn.id === 'btn-bench-close') return;
+    swallow(e);
+    runBench(btn.dataset.bench, Number(btn.dataset.i));
+  });
 }
 
 function motherOpen(mom) {
@@ -2298,8 +2542,37 @@ function slotAtScreen(x, y) {
   return { where: useWh ? 'wh' : 'yard', i: best, s, d: data[best], d2: 0 };
 }
 
+function shedZoneAt(x, z) {
+  const shed = world?.shed;
+  if (!shed || (!shed.open && !shed.contains(P.x, P.z))) return null;
+  const zones = [
+    { kind: 'trim', x: shed.trim.x, z: shed.trim.z, r: 1.55 },
+    { kind: 'hang', x: shed.hang.x, z: shed.hang.z, r: 2.6 },
+    ...shed.cure.map((spot) => ({ kind: 'cure', x: spot.x, z: spot.z, r: 1.7 })),
+  ];
+  let best = null;
+  for (const zone of zones) {
+    const d2 = (zone.x - x) ** 2 + (zone.z - z) ** 2;
+    if (d2 > zone.r * zone.r) continue;
+    if (!best || d2 < best.d2) best = { ...zone, d2 };
+  }
+  return best;
+}
+
 function tryPlotTap(x, y) {
   if (state.mode !== 'play') return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  if (rect.width && rect.height) {
+    ndc.set(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1);
+    raycaster.setFromCamera(ndc, camera);
+    if (raycaster.ray.intersectPlane(soilPlane, soilHit)) {
+      const zone = shedZoneAt(soilHit.x, soilHit.z);
+      if (zone) {
+        if (Math.hypot(zone.x - P.x, zone.z - P.z) > 3.2) return toast('WALK CLOSER');
+        return openBench(zone.kind);
+      }
+    }
+  }
   const plot = slotAtScreen(x, y);
   if (!plot) return;
   if (Math.hypot(plot.s.x - P.x, plot.s.z - P.z) > 3.1) return toast('WALK CLOSER');
@@ -2601,22 +2874,22 @@ function stationUi(st, actLbl) {
     const flower = world.warehouse.lights === 'flower';
     return { text: flower ? `${actLbl}  FLIP TO 18/6` : `${actLbl}  FLIP TO 12/12`, btn: flower ? '18/6' : '12/12' };
   }
-  if (st.kind === 'hook') {
-    const it = st.ref.item;
-    const bud = state.wet[0];
-    if (!it && bud && !bud.trimmed) return { text: `${actLbl}  HAND TRIM ${bud.grade}`, btn: 'TRIM' };
-    if (!it) return { text: bud ? `${actLbl}  HANG ${bud.grade}` : 'HARVEST FIRST', btn: bud ? 'HANG' : 'ACT' };
-    if (it.dry < 1) return { text: `DRYING ${Math.round(it.dry * 100)}%  ${it.grade}`, btn: 'ACT' };
-    const left = Math.max(0, Math.ceil(HANG_GRACE - (it.hold || 0)));
-    return { text: `${actLbl}  JAR ${it.grade} · ${left}s`, btn: 'JAR' };
+  if (st.kind === 'trim') {
+    const n = state.wet.filter((bud) => !bud.trimmed).length;
+    return { text: n ? `${actLbl}  TRIM  ${n}` : `${actLbl}  OPEN TRIM`, btn: 'TRIM' };
   }
-  if (st.kind === 'jar') {
-    const it = st.ref.item;
-    const pct = Math.round((it?.cure || 0) * 100);
-    if (it?.needsBurp && !it.burped && !it.missed) return { text: `${actLbl}  BURP JAR`, btn: 'BURP' };
-    if (it?.missed) return { text: `BURP MISSED · CURING ${pct}%`, btn: 'ACT' };
-    if (!it?.burped && (it?.cure || 0) >= 0.2) return { text: `CURING ${pct}% · BURP SOON`, btn: 'ACT' };
-    return { text: `CURING ${pct}%`, btn: 'ACT' };
+  if (st.kind === 'hang') {
+    const ready = world.shed.hooks.filter((h) => h.item && h.item.dry >= 1).length;
+    const drying = world.shed.hooks.filter((h) => h.item && h.item.dry < 1).length;
+    if (ready) return { text: `${actLbl}  HANG DRY  ${ready} READY`, btn: 'JAR' };
+    if (drying) return { text: `${actLbl}  HANG DRY`, btn: 'RACK' };
+    return { text: `${actLbl}  HANG DRY`, btn: 'HANG' };
+  }
+  if (st.kind === 'cure') {
+    const burps = world.shed.cureJars.filter((j) => j.item?.needsBurp && !j.item.burped && !j.item.missed).length;
+    const n = world.shed.cureJars.filter((j) => j.item).length;
+    if (burps) return { text: `${actLbl}  BURP  ${burps}`, btn: 'BURP' };
+    return { text: n ? `${actLbl}  CURE JARS  ${n}` : `${actLbl}  OPEN CURE JARS`, btn: 'CURE' };
   }
   if (st.kind === 'mother') {
     const mom = st.ref;
@@ -2807,12 +3080,13 @@ function frame(now) {
   if (state.mode === 'title' && (pressed.has('Space') || pressed.has('Enter'))) onTitleConfirm();
   if (pressed.has('Escape') && state.mode === 'dress') closeDress();
   if (pressed.has('Escape') && state.mode === 'shop') closeShop();
+  if (pressed.has('Escape') && state.mode === 'bench') closeBench();
   if (pressed.has('Escape') && state.mode === 'settings') closeSettings();
-  if (pressed.has('KeyT') && state.mode !== 'dress' && state.mode !== 'shop' && state.mode !== 'loading') {
+  if (pressed.has('KeyT') && state.mode !== 'dress' && state.mode !== 'shop' && state.mode !== 'bench' && state.mode !== 'loading') {
     if (state.mode === 'settings') closeSettings();
     else openSettings();
   }
-  if (pressed.has('KeyC') && state.mode !== 'dress' && state.mode !== 'shop' && state.mode !== 'settings' && state.mode !== 'loading') openDress();
+  if (pressed.has('KeyC') && state.mode !== 'dress' && state.mode !== 'shop' && state.mode !== 'settings' && state.mode !== 'bench' && state.mode !== 'loading') openDress();
   if (state.mode === 'play' && (pressed.has('Digit1') || pressed.has('Numpad1') || pressed.has('Digit2') || pressed.has('Numpad2'))) {
     const dir = pressed.has('Digit2') || pressed.has('Numpad2') ? 1 : -1;
     const i = Math.max(0, STRAIN_IDS.indexOf(state.strainPick));
@@ -2857,9 +3131,10 @@ function frame(now) {
   updateTarget();
   updateBadges();
   updateTasks();
+  paintBench();
   renderBagIcons(time);
   saveClock += dt;
-  if ((state.mode === 'play' || state.mode === 'dress' || state.mode === 'shop' || (state.mode === 'settings' && state.returnMode === 'play')) && saveClock > 4) {
+  if ((state.mode === 'play' || state.mode === 'dress' || state.mode === 'shop' || state.mode === 'bench' || (state.mode === 'settings' && state.returnMode === 'play')) && saveClock > 4) {
     saveClock = 0;
     saveDirty = true;
   }
@@ -3005,7 +3280,7 @@ function toggleSettings() {
 }
 
 function openSettings() {
-  if (!player || state.mode === 'loading' || state.mode === 'settings' || state.mode === 'dress' || state.mode === 'shop') return;
+  if (!player || state.mode === 'loading' || state.mode === 'settings' || state.mode === 'dress' || state.mode === 'shop' || state.mode === 'bench') return;
   state.returnMode = state.mode === 'play' ? 'play' : 'title';
   state.mode = 'settings';
   $('settings').classList.remove('hidden');
@@ -3105,7 +3380,7 @@ async function onWallet(automatic = false) {
   if (walletSession?.provider !== 'email') return;
   if (automatic && (walletSession.wallet || promptIsCooling())) return;
   if (state.mode !== 'settings') {
-    if (state.mode === 'dress' || state.mode === 'shop' || state.mode === 'loading') return;
+    if (state.mode === 'dress' || state.mode === 'shop' || state.mode === 'bench' || state.mode === 'loading') return;
     openSettings();
   }
   if (state.mode !== 'settings') return;
@@ -3686,7 +3961,7 @@ function setInv(open) {
 }
 
 function openDress() {
-  if (!player || state.mode === 'loading' || state.mode === 'dress' || state.mode === 'shop' || state.mode === 'settings') return;
+  if (!player || state.mode === 'loading' || state.mode === 'dress' || state.mode === 'shop' || state.mode === 'bench' || state.mode === 'settings') return;
   state.returnMode = state.mode === 'play' ? 'play' : 'title';
   state.mode = 'dress';
   dressFacing = P.facing;
@@ -3957,7 +4232,7 @@ function boot() {
   addEventListener('fullscreenchange', resize);
   addEventListener('webkitfullscreenchange', resize);
   const askFullscreen = (e) => {
-    const playing = state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress' || state.mode === 'settings';
+    const playing = state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress' || state.mode === 'bench' || state.mode === 'settings';
     if (playing) enterFullscreen();
   };
   addEventListener('pointerdown', askFullscreen, true);
@@ -3966,6 +4241,7 @@ function boot() {
   bindTouch();
   bindDress();
   bindShop();
+  bindBench();
   bindWallet();
   setTouchUI(shouldTouch());
   matchMedia('(max-width: 820px)').addEventListener('change', () => setTouchUI(shouldTouch() || touchUI));
@@ -3974,7 +4250,7 @@ function boot() {
     flushSave();
     flushCloud();
   });
-  window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick, openDress, closeDress, openShop, closeShop, buySupply, newGrow, flushSave, loadSave, onWallet, openSettings, closeSettings, get day() { return dayClock; }, set day(v) { dayClock = v; } };
+  window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick, openDress, closeDress, openShop, closeShop, openBench, closeBench, buySupply, newGrow, flushSave, loadSave, onWallet, openSettings, closeSettings, get day() { return dayClock; }, set day(v) { dayClock = v; } };
   void openAccount();
 }
 
