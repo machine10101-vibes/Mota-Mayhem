@@ -186,7 +186,8 @@ body:has(#dress:not(.hidden)) #hud { z-index:12; }
 .set-actions .tbtn, .set-px .tbtn, #set-fs { min-height:44px; }
 #bench { position:fixed; inset:0; z-index:9; display:flex; align-items:center; justify-content:center; padding:var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l); pointer-events:none; }
 .bench-card { pointer-events:auto; width:min(520px, 100%); max-height:min(78vh, 680px); overflow:auto; display:flex; flex-direction:column; gap:8px; touch-action:manipulation; }
-.bench-row { display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; padding:6px; background:rgba(0,0,0,.28); }
+.bench-row { display:grid; grid-template-columns:64px 1fr auto; gap:8px; align-items:center; padding:6px; background:rgba(0,0,0,.28); }
+.bench-icon { width:64px; height:64px; image-rendering:pixelated; image-rendering:crisp-edges; background:rgba(8,6,4,.55); box-shadow:inset 0 0 0 2px #2a1c12; }
 .bench-copy { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .bench-copy b { color:#f3f1df; font-weight:normal; font-size:8px; }
 .bench-copy span { color:#c9d6b5; font-size:7px; }

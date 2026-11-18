@@ -14,6 +14,8 @@ test('trim, hang, and cure each open a shed window', () => {
   assert.match(main, /function openBench\(kind\)/);
   assert.match(main, /kind === 'trim' \|\| f\.kind === 'hang' \|\| f\.kind === 'cure'/);
   assert.doesNotMatch(main, /kind === 'hook'/);
+  assert.match(main, /className = 'bench-icon'/);
+  assert.match(main, /drawIcons\(benchIcons/);
   assert.match(main, /TRIM ALL/);
   assert.match(main, /HANG ALL/);
   assert.match(main, /BURP ALL/);

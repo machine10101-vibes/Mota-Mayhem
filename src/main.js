@@ -1309,9 +1309,19 @@ function actStation(f) {
 
 let benchKind = '';
 let benchSig = '';
+const benchIcons = [];
 
 function budLabel(strain, grade) {
   return `${strainOf(strain).short}  ${grade}`;
+}
+
+function nugIcon(strain) {
+  const id = strainOf(strain).id;
+  return world.shed.nugGeo[id] || world.shed.nugGeo.bd;
+}
+
+function jarIcon() {
+  return world.shed.cureJars[0]?.mesh?.geometry || null;
 }
 
 function trimOne(index) {
@@ -1393,6 +1403,7 @@ function benchRows() {
       key: `t${index}`,
       title: budLabel(bud.strain, bud.grade),
       detail: 'WET FLOWER',
+      geo: nugIcon(bud.strain),
       pct: 0,
       tone: '',
       btn: 'TRIM',
@@ -1405,6 +1416,7 @@ function benchRows() {
       key: `w${index}`,
       title: budLabel(bud.strain, bud.grade),
       detail: 'TRIMMED · READY TO HANG',
+      geo: nugIcon(bud.strain),
       pct: 0,
       tone: '',
       btn: 'HANG',
@@ -1420,6 +1432,7 @@ function benchRows() {
         key: `h${index}`,
         title: budLabel(it.strain, it.grade),
         detail: ready ? (it.dropped ? 'OVERDRIED' : `DRY · JAR WITHIN ${left}s`) : `DRYING ${Math.round(it.dry * 100)}%`,
+        geo: nugIcon(it.strain),
         pct: Math.round((ready ? 1 : it.dry) * 100),
         tone: it.dropped ? 'hot' : ready ? 'gold' : '',
         btn: ready ? 'JAR' : '',
@@ -1439,6 +1452,7 @@ function benchRows() {
       key: `j${index}`,
       title: budLabel(it.strain, it.grade),
       detail,
+      geo: jarIcon(),
       pct,
       tone: burp ? 'gold' : it.missed ? 'hot' : '',
       btn: burp ? 'BURP' : '',
@@ -1490,10 +1504,19 @@ function paintBench() {
   if (sig !== benchSig) {
     benchSig = sig;
     root.replaceChildren();
+    benchIcons.length = 0;
     for (const row of rows) {
       const el = document.createElement('div');
       el.className = 'bench-row';
       el.dataset.key = row.key;
+      if (row.geo) {
+        const canvas = document.createElement('canvas');
+        canvas.className = 'bench-icon';
+        canvas.width = 80;
+        canvas.height = 80;
+        el.append(canvas);
+        benchIcons.push({ canvas, ctx: canvas.getContext('2d'), geo: row.geo, frame: iconFrame(row.geo, 1.2), phase: benchIcons.length * 0.8 });
+      }
       const copy = document.createElement('div');
       copy.className = 'bench-copy';
       const title = document.createElement('b');
@@ -1599,6 +1622,7 @@ function closeBench() {
   state.mode = 'play';
   benchKind = '';
   benchSig = '';
+  benchIcons.length = 0;
   if (touchUI) $('touch').classList.remove('hidden');
 }
 
@@ -2273,10 +2297,10 @@ function paintBag(pick) {
   }
 }
 
-function renderBagIcons(time) {
-  if (!bagIcons.length || $('inv').classList.contains('hidden')) return;
+function drawIcons(icons, time) {
+  if (!icons.length) return;
   const view = ensureBagView();
-  for (const icon of bagIcons) {
+  for (const icon of icons) {
     view.mesh.geometry = icon.geo;
     view.mesh.position.copy(icon.frame.center).multiplyScalar(-1);
     view.pivot.rotation.y = icon.rock ? Math.sin(time * 0.7 + icon.phase) * 0.4 : time * 0.55 + icon.phase;
@@ -2292,6 +2316,11 @@ function renderBagIcons(time) {
     icon.ctx.clearRect(0, 0, 80, 80);
     icon.ctx.drawImage(view.renderer.domElement, 0, 0);
   }
+}
+
+function renderBagIcons(time) {
+  if (bagIcons.length && !$('inv').classList.contains('hidden')) drawIcons(bagIcons, time);
+  if (state.mode === 'bench') drawIcons(benchIcons, time);
 }
 
 const taskRows = new Map();
