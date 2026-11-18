@@ -607,11 +607,17 @@ function playLimits() {
     return lim;
   }
   const insideW = W.contains(P.x, P.z);
-  if (insideW) return { x0: 23.72, x1: 36.32, z0: -4.82, z1: 4.82 };
-  const crossW = W.owned && W.open && Math.abs(P.z) < 1.45 && P.x > 21.1 && P.x < 25.5;
-  if (crossW) return { x0: 20.2, x1: 36.32, z0: -1.35, z1: 1.35 };
-  const lane = W.gateOpen && Math.abs(P.z) < 1.05 && P.x > 16.4;
-  if (lane) return { x0: -19.1, x1: 22.85, z0: -1.02, z1: 1.02 };
+  const inGap = Math.abs(P.z) < 1.35 && P.x > 20.8 && P.x < 24.6;
+  if (insideW || (W.owned && W.open && inGap)) {
+    const lim = { x0: 23.72, x1: 36.32, z0: -4.82, z1: 4.82 };
+    if (W.open && Math.abs(P.z) < 1.35 && P.x < 24.4) {
+      lim.x0 = 20.4;
+      lim.z0 = -1.35;
+      lim.z1 = 1.35;
+    }
+    return lim;
+  }
+  if (W.gateOpen && P.x > 16.2 && P.x < 23.3 && Math.abs(P.z) < 1.8) return { x0: -19.1, x1: 22.95, z0: -1.3, z1: 1.3 };
   return { x0: -19.1, x1: 19.1, z0: -13.4, z1: 13.3 };
 }
 
@@ -1239,7 +1245,7 @@ function stationFocus() {
   consider(world.stand.x, world.stand.z, 'stand', null, 1.55);
   if (!world.warehouse.owned) consider(world.lot.x, world.lot.z, 'lot', null, 1.7);
   else {
-    consider(22.15, 0, 'wh-door', null, 1.65);
+    consider(23.05, 0, 'wh-door', null, 1.85, 0.08, 2);
     if (world.warehouse.open || world.warehouse.contains(P.x, P.z)) consider(world.warehouse.lightSwitch.x, world.warehouse.lightSwitch.z, 'wh-lights', null, 1.55, 1.15, 1);
   }
   return best;
@@ -1694,7 +1700,7 @@ function updateShed(dt) {
   W.gate.rotation.y += ((W.gateOpen ? 1.15 : 0) - W.gate.rotation.y) * swingK;
   W.door.rotation.y += ((W.open ? 1.25 : 0) - W.door.rotation.y) * swingK;
   const nearWh = W.owned && W.open && Math.abs(P.z) < 2.1 && P.x > 20.4 && P.x < 25.2;
-  W.roof.visible = !(W.owned && W.open && (W.contains(P.x, P.z) || nearWh));
+  W.roof.visible = !(W.owned && (W.contains(P.x, P.z) || (W.open && nearWh)));
   W.forSale.visible = !W.owned;
   world.lot.mesh.visible = !W.owned;
   const scenery = world.scenery;
@@ -2503,7 +2509,9 @@ function updateCamera(dt) {
     cam.distT = narrow ? 6.6 : 8.8;
     cam.target.lerp(v3.set(P.x, P.y + (narrow ? 0.35 : 0.95), P.z), k);
   } else if (state.mode === 'play') {
-    const indoor = P.z < -13.8 || world.warehouse.contains(P.x, P.z);
+    const W = world.warehouse;
+    const inWh = W.contains(P.x, P.z) || (W.owned && W.open && Math.abs(P.z) < 1.35 && P.x > 22.2 && P.x < 24.8);
+    const indoor = P.z < -13.8 || inWh;
     cam.pitch += ((indoor ? 1.08 : 0.85) - cam.pitch) * k;
     let xLo = -11;
     let xHi = P.x > 10 ? 18 : 11;
