@@ -184,6 +184,19 @@ body:has(#dress:not(.hidden)) #hud { z-index:12; }
 .set-err { color:#ffb4a2; }
 .set-actions, .set-px { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .set-actions .tbtn, .set-px .tbtn, #set-fs { min-height:44px; }
+#bench { position:fixed; inset:0; z-index:9; display:flex; align-items:center; justify-content:center; padding:var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l); pointer-events:none; }
+.bench-card { pointer-events:auto; width:min(520px, 100%); max-height:min(78vh, 680px); overflow:auto; display:flex; flex-direction:column; gap:8px; touch-action:manipulation; }
+.bench-row { display:grid; grid-template-columns:64px 1fr auto; gap:8px; align-items:center; padding:6px; background:rgba(0,0,0,.28); }
+.bench-icon { width:64px; height:64px; image-rendering:pixelated; image-rendering:crisp-edges; background:rgba(8,6,4,.55); box-shadow:inset 0 0 0 2px #2a1c12; }
+.bench-copy { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.bench-copy b { color:#f3f1df; font-weight:normal; font-size:8px; }
+.bench-copy span { color:#c9d6b5; font-size:7px; }
+.bench-meter { height:8px; background:#1b2412; box-shadow:inset 0 0 0 2px #1b2412; }
+.bench-meter i { display:block; height:100%; width:0; background:#7fb44a; }
+.bench-meter.gold i { background:var(--gold); }
+.bench-meter.hot i { background:#ff8d7a; }
+.bench-row .tbtn { min-width:88px; min-height:44px; }
+.bench-empty { margin:0; color:#c9d6b5; font-size:8px; line-height:1.6; }
 #shop { position:fixed; inset:0; z-index:9; display:flex; align-items:center; justify-content:center; padding:var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l); pointer-events:none; }
 .shop-card { pointer-events:auto; width:min(520px, 100%); max-height:min(78vh, 680px); overflow:auto; display:flex; flex-direction:column; gap:8px; touch-action:manipulation; }
 .shop-mota { margin:0; color:#c6f56a; font-size:10px; }
@@ -195,7 +208,7 @@ body:has(#dress:not(.hidden)) #hud { z-index:12; }
 .shop-cost { color:var(--gold); font-weight:normal; font-size:8px; }
 .shop-row .tbtn { min-width:72px; min-height:44px; }
 @media (max-width: 820px) {
-  .shop-card { max-height:min(62vh, 520px); }
+  .shop-card, .bench-card { max-height:min(62vh, 520px); }
 }
 
 #touch { position:fixed; inset:0; pointer-events:none; z-index:6; }
@@ -251,7 +264,7 @@ body:has(#dress:not(.hidden)) #hud { z-index:12; }
   .jars { margin-top:4px; }
   body.touch-ui #prompt { bottom: calc(var(--safe-b) + 110px); font-size:8px; }
   body.touch-ui #strains { bottom: calc(var(--safe-b) + 168px); }
-  .dress-card, .settings-card { max-height:min(58vh, 420px); }
+  .dress-card, .settings-card, .bench-card { max-height:min(58vh, 420px); }
 }
 body.touch-ui #strains { bottom: calc(var(--safe-b) + 214px); }
 @media (max-width: 820px) {
