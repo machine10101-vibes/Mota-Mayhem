@@ -397,7 +397,26 @@ function catenary(m, x0, z0, x1, z1, y, sag, col, scale = 8) {
   }
 }
 
-function dressYard(group, colliders, bulbs) {
+function buildSpigot() {
+  const m = new VoxelModel();
+  m.box(-3, 0, -3, 3, 6, 3, 0x6e5030, 0.04);
+  m.box(-2, 5, -2, 2, 16, 2, 0x9aa3a8, 0.02);
+  m.box(-3, 14, -3, 3, 17, 3, 0xc5ccd0, 0.02);
+  m.box(-1, 13, 2, 1, 16, 10, 0xd5dbe0, 0.02);
+  m.box(-1, 8, 8, 1, 14, 11, 0x3a8fd0, 0.02);
+  m.box(-4, 15, -7, 4, 18, -3, 0x2f6fbf, 0.02);
+  m.box(-1, 16, -3, 1, 17, -1, 0x8a9298, 0.02);
+  return m;
+}
+
+function yardLight(group, lights, x, y, z) {
+  const light = new THREE.PointLight(0xffc56a, 0, 7, 2);
+  light.position.set(x, y, z);
+  group.add(light);
+  lights.push(light);
+}
+
+function dressYard(group, colliders, bulbs, night, spigots) {
   const lantern = buildLantern();
   const posts = [
     [-2.55, -8.7],
@@ -410,6 +429,7 @@ function dressYard(group, colliders, bulbs) {
   for (const [x, z] of posts) {
     put(group, lantern.post, 1 / S, x, 0, z);
     put(group, lantern.glow, 1 / S, x, 0, z, 0, glowMat, false);
+    yardLight(group, night, x, 1.72, z);
     block(colliders, x, z, 0.18, 0.18);
   }
 
@@ -439,7 +459,18 @@ function dressYard(group, colliders, bulbs) {
   for (const x of [-2.35, 2.35]) {
     put(group, sconce.wood, 1 / S, x, 1.55, -13.92);
     put(group, sconce.glow, 1 / S, x, 1.55, -13.92, 0, glowMat, false);
+    yardLight(group, night, x, 1.85, -13.55);
   }
+
+  const spigot = buildSpigot();
+  spigots.forEach((tap, bed) => {
+    const toward = tap.x > 0 ? 1 : -1;
+    const x = tap.x - toward * 3.25;
+    put(group, spigot, 1 / S, x, 0, tap.z, toward > 0 ? -Math.PI / 2 : Math.PI / 2);
+    block(colliders, x, tap.z, 0.22, 0.22);
+    tap.x = x;
+    tap.bed = bed;
+  });
 
   const chair = buildChair();
   put(group, chair, 1 / S, -3.55, 0.78, -12.55);
@@ -623,9 +654,10 @@ function dressClouds(group) {
   group.add(mesh);
 }
 
-export function attachDressing(group, colliders, estate) {
+export function attachDressing(group, colliders, estate, spigots) {
   const bulbs = [];
   const fans = [];
+  const night = [];
   const lamps = {
     down: new THREE.PointLight(0xfff0cc, 0, 14, 2),
     loft: new THREE.PointLight(0xfff6e0, 0, 12, 2),
@@ -637,12 +669,12 @@ export function attachDressing(group, colliders, estate) {
   group.add(lamps.down, lamps.wh);
   estate.house.upper.add(lamps.loft);
 
-  dressYard(group, colliders, bulbs);
+  dressYard(group, colliders, bulbs, night, spigots);
   dressRooms(group, fans);
   dressLoft(estate.house.upper, fans);
   dressWarehouse(group, colliders, estate.warehouse, fans);
   dressShed(group, fans);
   dressGreenhouse(group);
   dressClouds(group);
-  return { lamps, fans, bulbs };
+  return { lamps, fans, bulbs, night, spigots };
 }

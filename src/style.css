@@ -26,6 +26,7 @@ canvas#leaf-icon, canvas#leaf-logo { image-rendering:pixelated; }
 .vitals div + div { box-shadow:inset 3px 0 0 rgba(0,0,0,.35); }
 .vitals b { font-size:12px; line-height:1; font-weight:normal; color:#f3f1df; }
 .icon-row { display:flex; gap:6px; pointer-events:auto; }
+#tasks-row { display:flex; align-items:center; gap:8px; pointer-events:none; }
 #tasks { position:relative; pointer-events:auto; z-index:6; }
 #tasks-toggle { appearance:none; -webkit-appearance:none; border:0; display:flex; align-items:center; gap:8px; padding:6px 8px; background:var(--panel); box-shadow:var(--frame); color:#f3f1df; font-family:inherit; font-size:8px; line-height:1; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
 #tasks-toggle b { color:var(--ink); background:var(--gold); padding:4px 5px; box-shadow:2px 2px 0 var(--ink); font-weight:normal; }
@@ -40,6 +41,11 @@ canvas#leaf-icon, canvas#leaf-logo { image-rendering:pixelated; }
 #tasks-list b { color:var(--gold); font-weight:normal; }
 #tasks-list li.hot b { color:#ff8b6a; }
 #tasks-list li.idle { color:#8ea184; }
+#clock { display:flex; align-items:center; gap:6px; padding:6px 8px; background:var(--panel); box-shadow:var(--frame); font-size:8px; line-height:1; }
+#clock b { color:var(--gold); font-weight:normal; }
+#clock.dusk b { color:#ffb07a; }
+#clock.night b { color:#9ecbff; }
+#clock span { color:#c9d6b5; }
 .icon-btn { pointer-events:auto; appearance:none; -webkit-appearance:none; border:0; width:46px; height:46px; padding:6px; background:var(--panel); box-shadow:var(--frame); cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; font-family:inherit; color:var(--gold); font-size:16px; }
 .icon-btn.on { box-shadow:var(--frame-gold); }
 .icon-btn .pix { width:100%; height:100%; display:block; shape-rendering:crispEdges; }
