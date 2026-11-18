@@ -11,7 +11,7 @@ import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace } from './strains.js';
 import { loadSave, writeSave, adoptAddress, unbindAddress } from './save.js';
 import { clearKleverLogin, clearSession, inKleverHandoff, isMobile, launchKleverApp, markPrompt, promptIsCooling, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
-import { accountLabel, accountProblem, clearAccountSession, createAccount, readAccountSession, rememberWallet, signInAccount } from './wallet/account.js';
+import { accountLabel, accountProblem, clearAccountSession, createAccount, freshAccessToken, readAccountSession, rememberWallet, signInAccount } from './wallet/account.js';
 import { clearCloudToken, flushCloud, schedulePush, syncGarden } from './wallet/cloud.js';
 
 const $ = (id) => document.getElementById(id);
@@ -2898,6 +2898,7 @@ async function onWallet(automatic = false) {
     ? 'Confirm the signature in the Klever Wallet app…'
     : 'Confirm the signature in the Klever extension…';
   try {
+    await freshAccessToken(walletSession);
     const linked = await signIn();
     rememberWallet(walletSession, linked.address);
     clearKleverLogin();

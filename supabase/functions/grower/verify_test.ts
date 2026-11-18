@@ -2,7 +2,7 @@ import { assert, assertEquals } from "jsr:@std/assert@1";
 import * as ed from "@noble/ed25519";
 import { sha512 } from "@noble/hashes/sha2.js";
 import { bech32 } from "bech32";
-import { kleverMessageHash, loginMessageOk, publicKeyFromAddress, verifyKleverSignature } from "./verify.ts";
+import { kleverMessageHash, loginMessageOk, publicKeyFromAddress, signatureBytes, verifyKleverSignature } from "./verify.ts";
 
 ed.hashes.sha512 = sha512;
 
@@ -30,6 +30,13 @@ Deno.test("a Klever address is 62 characters and verifies its own login", () => 
   const signature = ed.sign(kleverMessageHash(message), secret);
   const hex = [...signature].map((b) => b.toString(16).padStart(2, "0")).join("");
   assert(verifyKleverSignature(message, hex, address));
+  const hexBase64 = btoa(hex);
+  assertEquals(hexBase64.length, 172);
+  assertEquals(signatureBytes(hexBase64).length, 64);
+  assert(verifyKleverSignature(message, hexBase64, address));
+  const rawBase64 = btoa(String.fromCharCode(...signature));
+  assertEquals(signatureBytes(rawBase64).length, 64);
+  assert(verifyKleverSignature(message, rawBase64, address));
   assert(loginMessageOk(message, address));
   assert(!verifyKleverSignature(message, hex, addressFromPublicKey(ed.getPublicKey(new Uint8Array(32).fill(9)))));
   assert(!loginMessageOk(message.replace("Nonce: 00112233445566778899aabbccddeeff", "Nonce: short"), address));

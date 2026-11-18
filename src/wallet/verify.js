@@ -53,6 +53,18 @@ export function signatureBytes(signature) {
     const bin = atob(raw);
     const out = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    // Some Klever wallet bridges Base64-encode the 128-character hex form.
+    // Decode that inner hex layer instead of treating its ASCII bytes as a signature.
+    if (out.length === 128) {
+      const hexText = String.fromCharCode(...out);
+      if (/^[0-9a-fA-F]{128}$/.test(hexText)) {
+        const decoded = new Uint8Array(64);
+        for (let i = 0; i < decoded.length; i++) {
+          decoded[i] = Number.parseInt(hexText.slice(i * 2, i * 2 + 2), 16);
+        }
+        return decoded;
+      }
+    }
     return out;
   } catch {
     return new Uint8Array();

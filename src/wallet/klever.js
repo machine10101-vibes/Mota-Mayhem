@@ -8,6 +8,7 @@ export const KLEVER_ANDROID = 'https://play.google.com/store/apps/details?id=fin
 export const KLEVER_IOS = 'https://apps.apple.com/app/klever-wallet-bitcoin-crypto/id1615064243';
 
 const ADDRESS_RE = /^klv1[02-9ac-hj-np-z]{20,}$/;
+let signingInFlight = false;
 
 export function isMobile() {
   const ua = navigator.userAgent || '';
@@ -33,24 +34,56 @@ function fail(code, message) {
   return err;
 }
 
-function signatureText(signed, depth = 0) {
-  if (signed == null || depth > 4) return '';
+export function signatureText(signed, depth = 0, allowBareString = true) {
+  if (signed == null || depth > 8) return '';
   if (typeof signed === 'string') {
     const trimmed = signed.trim();
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
       try {
-        return signatureText(JSON.parse(trimmed), depth + 1);
+        return signatureText(JSON.parse(trimmed), depth + 1, false);
       } catch {
-        return trimmed;
+        return '';
       }
     }
-    return trimmed;
+    // Direct signMessage() results are strings. Ignore arbitrary echoed message
+    // text when walking an event object so it cannot be mistaken for a signature.
+    return allowBareString ? trimmed : '';
   }
-  if (Array.isArray(signed)) return signatureText(signed[0], depth + 1);
-  const nested = (typeof signed.data === 'string' && signed.data) || signed.data?.signature || '';
-  const value = signed.signature || signed.sig || signed.hex || signed.result || nested
-    || (typeof signed.toHex === 'function' ? signed.toHex() : '');
-  if (value && value !== signed) return signatureText(value, depth + 1);
+  if (ArrayBuffer.isView(signed) && signed.byteLength === 64) {
+    return [...new Uint8Array(signed.buffer, signed.byteOffset, signed.byteLength)]
+      .map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+  if (Array.isArray(signed)) {
+    if (signed.length === 64 && signed.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255)) {
+      return signed.map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    }
+    for (const item of signed) {
+      const found = signatureText(item, depth + 1);
+      if (found) return found;
+    }
+    return '';
+  }
+  if (typeof signed !== 'object') return '';
+
+  // Klever Connect SDK Signature objects expose `bytes` and `hex`; older
+  // wallet responses may instead wrap the proof in signature/sig fields.
+  // Never read an event's "message" field: it is only the echoed challenge.
+  for (const key of ['signature', 'sig', 'hex', 'bytes']) {
+    if (signed[key] != null) {
+      const found = signatureText(signed[key], depth + 1, true);
+      if (found) return found;
+    }
+  }
+  if (typeof signed.toHex === 'function') {
+    const found = signatureText(signed.toHex(), depth + 1, true);
+    if (found) return found;
+  }
+  for (const key of ['result', 'data', 'response', 'payload']) {
+    if (signed[key] != null) {
+      const found = signatureText(signed[key], depth + 1, false);
+      if (found) return found;
+    }
+  }
   return '';
 }
 
@@ -73,11 +106,60 @@ export function markPrompt() {
 }
 
 /**
- * The in-app browser's kleverWeb.signMessage sends SIGN_TRANSACTION. A login
- * message is not a transaction, so the app opens the confirm sheet and then
- * closes it. SIGN_IN_MESSAGE keeps that sheet up until the grower taps confirm.
+ * Klever closes a confirm sheet when the page under it changes size. Pin the
+ * layout to the height it had before the sheet opened, and release it after.
  */
+function holdPageStill() {
+  const h = `${Math.round(window.innerHeight)}px`;
+  document.documentElement.style.setProperty('--sign-lock-h', h);
+  document.documentElement.classList.add('wallet-signing');
+}
+
+function releasePageHold() {
+  document.documentElement.classList.remove('wallet-signing');
+  document.documentElement.style.removeProperty('--sign-lock-h');
+}
+
+/**
+ * The installed app's own signMessage opens a message sheet inside the browser
+ * and leaves it up until Confirm. The newer page bridge opens a separate PIN
+ * screen that the app dismisses as soon as fingerprint starts, so that bridge
+ * is only used when the message sheet is not there.
+ */
+function legacySignMessage(message) {
+  const wallet = window.kleverWallet;
+  const events = window.kleverWalletEvents;
+  if (typeof wallet?.handleTransaction !== 'function') return null;
+  if (typeof events?.createEvent !== 'function' || typeof events.addEventListener !== 'function') return null;
+  return new Promise((resolve, reject) => {
+    const event = events.createEvent({
+      chain: 'KLEVER',
+      type: 'SIGN_MESSAGE',
+      transactionInfo: {
+        siteUrl: location.href,
+        hostname: location.hostname,
+      },
+      preTransaction: message,
+    });
+    events.addEventListener(event.id, (result) => {
+      const data = result?.data;
+      if (data?.status === 'ACCEPTED') resolve(result);
+      else reject(fail('rejected', 'The Klever app closed the sign-in request.'));
+    });
+    wallet.handleTransaction(JSON.stringify(event));
+  });
+}
+
 async function requestSignature(kw, message) {
+  // Use the SDK's supported message-signing API whenever it exists. Do not
+  // also dispatch a legacy event after this request: that can open a second
+  // approval sheet while the first one is still active.
+  if (typeof kw?.signMessage === 'function') return kw.signMessage(message);
+
+  // Older in-app browser builds expose only the event interface.
+  const legacy = legacySignMessage(message);
+  if (legacy) return legacy;
+
   const bridge = window.__kleverBrowser__?.bridge;
   if (typeof bridge === 'function') {
     return bridge({
@@ -88,7 +170,7 @@ async function requestSignature(kw, message) {
       url: location.href,
     });
   }
-  return kw.signMessage(message);
+  throw fail('unsupported', 'This Klever Wallet version does not support message signing. Please update Klever Wallet and try again.');
 }
 
 export function waitForProvider(ms = 2000) {
@@ -128,11 +210,7 @@ async function connectProvider(kw, mobile) {
   return address;
 }
 
-/**
- * Asks the Klever extension (desktop) or the Klever Wallet app (mobile, inside its browser)
- * to sign a login message. The signature is checked against the address before it is trusted.
- */
-export async function signIn() {
+export async function connectWallet() {
   const mobile = isMobile();
   const kw = await waitForProvider(mobile ? (inKleverHandoff() ? 4000 : 900) : 2500);
   if (!kw) {
@@ -144,36 +222,60 @@ export async function signIn() {
     );
   }
   const address = await connectProvider(kw, mobile);
-  const nonceBytes = crypto.getRandomValues(new Uint8Array(16));
-  const nonce = [...nonceBytes].map((b) => b.toString(16).padStart(2, '0')).join('');
-  const message = [
+  return { kw, address, mobile };
+}
+
+function connectMessage(address, nonce, issued) {
+  return [
     'Mota Mayhem wants you to connect your Klever wallet.',
     'This does not send any coins.',
     `Address: ${address}`,
     `Nonce: ${nonce}`,
-    `Issued: ${new Date().toISOString()}`,
+    `Issued: ${issued}`,
   ].join('\n');
-  let signed;
+}
+
+/**
+ * Asks the Klever extension or app to sign the connect message. The signature
+ * is checked against the address before the wallet is linked to this account.
+ */
+export async function signProof(nonce, address, kw, mobile = isMobile()) {
+  if (signingInFlight) {
+    throw fail('busy', 'A Klever signature request is already in progress. Please wait for it to finish.');
+  }
+  signingInFlight = true;
+  holdPageStill();
   try {
-    signed = await requestSignature(kw, message);
-  } catch {
-    throw fail('rejected', mobile ? 'The Klever app closed the connection request.' : 'The Klever extension closed the connection request.');
-  }
-  const signature = signatureText(signed);
-  let ok = verifyKleverSignature(message, signature, address);
-  // The extension can also check the signature itself. Trust that only when it names this same address.
-  if (!ok && typeof kw.validateSignature === 'function') {
+    const message = connectMessage(address, nonce, new Date().toISOString());
+    let signed;
     try {
-      const res = await kw.validateSignature(message, signature, address);
-      const signer = typeof res === 'object' ? res.signer || res.address : '';
-      ok = res === true || res?.isValid === true;
-      if (ok && signer && signer !== address) ok = false;
-    } catch {
-      ok = false;
+      if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+      signed = await requestSignature(kw, message);
+    } catch (err) {
+      if (err?.code === 'rejected' || err?.code === 'unsupported') throw err;
+      throw fail('rejected', mobile ? 'The Klever app closed the connection request.' : 'The Klever extension closed the connection request.');
     }
+    const signature = signatureText(signed);
+    if (!signature) {
+      throw fail('bad-signature', 'Klever returned an empty signature. Please try again.');
+    }
+    if (!verifyKleverSignature(message, signature, address)) {
+      throw fail('bad-signature', 'The signature does not match this Klever address.');
+    }
+    return { address, message, signature, nonce };
+  } finally {
+    releasePageHold();
+    signingInFlight = false;
   }
-  if (!ok) throw fail('bad-signature', 'The signature does not match this Klever address.');
-  const session = { address, message, signature, at: Date.now() };
+}
+
+/** Connects the Klever account and signs the message that links it to this garden. */
+export async function signIn() {
+  const { kw, address, mobile } = await connectWallet();
+  const nonceBytes = crypto.getRandomValues(new Uint8Array(16));
+  const nonce = [...nonceBytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const proof = await signProof(nonce, address, kw, mobile);
+  const session = { address: proof.address, message: proof.message, signature: proof.signature, at: Date.now() };
   saveSession(session);
   return session;
 }
