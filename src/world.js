@@ -752,6 +752,22 @@ function buildBarrel() {
   return m;
 }
 
+function buildScrapHeap() {
+  const m = new VoxelModel();
+  for (let x = -10; x <= 10; x++) {
+    for (let z = -8; z <= 8; z++) {
+      const d = Math.hypot(x / 10, z / 8);
+      if (d > 1) continue;
+      const h = Math.round(2 + (1 - d) * 7);
+      for (let y = 0; y < h; y++) {
+        const leaf = hash3(x, y, z, 201) > 0.45;
+        m.set(x, y, z, leaf ? (hash3(x, y, z, 202) > 0.5 ? 0x6fa23f : 0x4e8a32) : pick([0x3a2a1c, 0x4a3524, 0x2e2118], x, y, z, 203), 0.05);
+      }
+    }
+  }
+  return m;
+}
+
 function buildCompost() {
   const m = new VoxelModel();
   const slat = (x, y, z) => (y % 5 === 4 ? 0x5d4026 : pick([0x9a6a3c, 0x8a5e36, 0xa4743f], x >> 3, y, z >> 3, 161));
@@ -1028,6 +1044,11 @@ export function buildWorld() {
 
   place(group, buildCompost(), 1 / 16, 16.5, 0, 11);
   colliders.push({ x0: 15, x1: 18, z0: 9.7, z1: 12.4 });
+  const heapMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const heap = place(group, buildScrapHeap(), 1 / 16, 16.5, 1.28, 11, 0, [0, 0, 0], heapMat, false);
+  heap.visible = false;
+  heap.castShadow = false;
+  const compost = { x: 16.5, z: 9.2, fill: 0, t: 0, heap };
 
   place(group, buildWheelbarrow(), 1 / 16, -12.6, 0, 3.8, -0.5);
   colliders.push({ x0: -13.6, x1: -11.6, z0: 2.4, z1: 5.4 });
@@ -1061,5 +1082,5 @@ export function buildWorld() {
     return 0;
   }
 
-  return { group, colliders, slots, groundHeight, smokeAt, shed, scenery, ...estate };
+  return { group, colliders, slots, groundHeight, smokeAt, shed, scenery, compost, ...estate };
 }
