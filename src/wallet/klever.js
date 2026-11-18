@@ -218,7 +218,7 @@ export async function connectWallet() {
       mobile ? 'mobile-app' : 'extension',
       mobile
         ? 'Open this page in the Klever Wallet app. The app will ask you to approve the connection.'
-        : 'Install the Klever Wallet extension, then press Connect wallet on this page.',
+        : 'Install the Klever Wallet extension, then press Connect wallet in Settings.',
     );
   }
   const address = await connectProvider(kw, mobile);

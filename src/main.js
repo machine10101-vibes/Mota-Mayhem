@@ -313,7 +313,7 @@ function walletReady() {
 
 addEventListener('keydown', (e) => {
   if (e.target?.closest?.('input, textarea')) return;
-  if ((e.code === 'Space' || e.code === 'Enter') && (state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress')) enterFullscreen();
+  if ((e.code === 'Space' || e.code === 'Enter') && (state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress' || state.mode === 'settings')) enterFullscreen();
   if ((e.code === 'Space' || e.code === 'Enter') && state.mode === 'title') onTitleConfirm();
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   if (!keys.has(e.code)) pressed.add(e.code);
@@ -369,7 +369,7 @@ function forChanged(e, fn) {
 }
 
 function uiTarget(el) {
-  return !!el?.closest?.('#touch, #hud, #dress, #shop, #strains, .title-actions, .wallet-box, button, .tbtn');
+  return !!el?.closest?.('#touch, #hud, #dress, #shop, #settings, #strains, .title-actions, .wallet-box, button, .tbtn');
 }
 
 function onCamDown(e) {
@@ -2677,7 +2677,12 @@ function frame(now) {
   if (state.mode === 'title' && (pressed.has('Space') || pressed.has('Enter'))) onTitleConfirm();
   if (pressed.has('Escape') && state.mode === 'dress') closeDress();
   if (pressed.has('Escape') && state.mode === 'shop') closeShop();
-  if (pressed.has('KeyC') && state.mode !== 'dress' && state.mode !== 'shop' && state.mode !== 'loading') openDress();
+  if (pressed.has('Escape') && state.mode === 'settings') closeSettings();
+  if (pressed.has('KeyT') && state.mode !== 'dress' && state.mode !== 'shop' && state.mode !== 'loading') {
+    if (state.mode === 'settings') closeSettings();
+    else openSettings();
+  }
+  if (pressed.has('KeyC') && state.mode !== 'dress' && state.mode !== 'shop' && state.mode !== 'settings' && state.mode !== 'loading') openDress();
   if (state.mode === 'play' && (pressed.has('Digit1') || pressed.has('Numpad1') || pressed.has('Digit2') || pressed.has('Numpad2'))) {
     const dir = pressed.has('Digit2') || pressed.has('Numpad2') ? 1 : -1;
     const i = Math.max(0, STRAIN_IDS.indexOf(state.strainPick));
@@ -2723,7 +2728,7 @@ function frame(now) {
   updateTasks();
   renderBagIcons(time);
   saveClock += dt;
-  if ((state.mode === 'play' || state.mode === 'dress' || state.mode === 'shop') && saveClock > 4) {
+  if ((state.mode === 'play' || state.mode === 'dress' || state.mode === 'shop' || (state.mode === 'settings' && state.returnMode === 'play')) && saveClock > 4) {
     saveClock = 0;
     saveDirty = true;
   }
@@ -2806,31 +2811,112 @@ function onTitleConfirm() {
   if (walletReady()) startGame();
 }
 
+function pixelLabel() {
+  if (!pixelScale) return 'AUTO';
+  return pixelScale <= 1 ? 'FINE' : `X${pixelScale}`;
+}
+
+function stepPixels(dir) {
+  const cur = pixelScale || autoScale();
+  pixelScale = THREE.MathUtils.clamp(cur + dir, 1, 5);
+  localStorage.setItem('mm-pixel', String(pixelScale));
+  resize();
+  paintSettings();
+}
+
+function unlinkWallet() {
+  if (!walletSession || walletSession.provider !== 'email' || walletBusy) return;
+  rememberWallet(walletSession, '');
+  const saved = loadSave();
+  const body = writeSave({ ...(saved || { v: 1, ...snapshot() }), wallet: '' });
+  if (body && cloudPush) schedulePush(walletSession, body);
+  $('set-unlink-ask')?.classList.add('hidden');
+  refreshWalletUi();
+}
+
+function paintSettings() {
+  const signed = walletSession?.provider === 'email' && !!walletSession.address;
+  const linked = signed && !!walletSession.wallet;
+  if ($('set-account')) $('set-account').textContent = signed ? accountLabel(walletSession) : 'NOT SIGNED IN';
+  $('btn-set-out')?.classList.toggle('hidden', !signed);
+  const copy = $('set-wallet-copy');
+  if (copy) {
+    copy.textContent = !signed
+      ? 'Sign in with email on the title screen. The wallet connects here.'
+      : linked
+        ? 'This Klever wallet is linked to the account. The garden stays with the email.'
+        : 'Connect the Klever extension or app, then approve the signature. This does not send any coins.';
+  }
+  const who = $('set-wallet-who');
+  if (who && !walletBusy) {
+    who.textContent = linked
+      ? `Linked ${shortAddress(walletSession.wallet)}`
+      : signed
+        ? 'No Klever wallet is linked to this account.'
+        : '';
+  }
+  const connect = $('btn-set-wallet');
+  if (connect) {
+    connect.classList.toggle('hidden', !signed || linked);
+    connect.disabled = walletBusy;
+  }
+  $('btn-set-unlink')?.classList.toggle('hidden', !linked);
+  if (!linked) $('set-unlink-ask')?.classList.add('hidden');
+  const help = $('set-wallet-help');
+  if (help && !walletBusy) help.classList.add('hidden');
+  if ($('set-px')) $('set-px').textContent = pixelLabel();
+  if ($('set-fs')) $('set-fs').textContent = inFullscreen() ? 'WINDOW' : 'FULL';
+}
+
+function toggleSettings() {
+  if (state.mode === 'settings') closeSettings();
+  else openSettings();
+}
+
+function openSettings() {
+  if (!player || state.mode === 'loading' || state.mode === 'settings' || state.mode === 'dress' || state.mode === 'shop') return;
+  state.returnMode = state.mode === 'play' ? 'play' : 'title';
+  state.mode = 'settings';
+  $('settings').classList.remove('hidden');
+  if (state.returnMode === 'title') $('title').classList.add('dressing');
+  else {
+    $('touch').classList.add('hidden');
+    toggleHelp(false);
+    setInv(false);
+  }
+  setIcon($('btn-settings'), true);
+  setIcon($('btn-settings-title'), true);
+  if ($('set-wallet-err')) $('set-wallet-err').textContent = '';
+  paintSettings();
+}
+
+function closeSettings() {
+  if (state.mode !== 'settings') return;
+  $('settings').classList.add('hidden');
+  $('title').classList.remove('dressing');
+  const back = state.returnMode === 'play' ? 'play' : 'title';
+  state.mode = back;
+  setIcon($('btn-settings'), false);
+  setIcon($('btn-settings-title'), false);
+  if (back === 'play' && touchUI) $('touch').classList.remove('hidden');
+}
+
 function refreshWalletUi() {
   const status = $('wallet-status');
-  const sign = $('btn-wallet');
   const form = $('account-form');
   const swap = $('btn-wallet-switch');
-  const help = $('wallet-help');
   const signed = walletSession?.provider === 'email' && !!walletSession.address;
-  sign?.classList.toggle('hidden', !signed);
   form?.classList.toggle('hidden', signed);
   swap?.classList.toggle('hidden', !signed);
   $('press-line')?.classList.toggle('hidden', !signed || cloudSyncing);
-  if (sign) {
-    const linked = signed && walletSession.wallet;
-    sign.textContent = linked ? shortAddress(walletSession.wallet) : 'CONNECT WALLET';
-    sign.setAttribute('aria-label', linked ? 'Connected Klever wallet' : 'Connect wallet');
-  }
   if (!status) return;
   if (!signed) {
-    help?.classList.add('hidden');
     status.textContent = 'Create an account with email and a password. Your garden is saved to that account.';
     const dressNote = document.querySelector('#dress .dress-note');
     if (dressNote) dressNote.textContent = 'SAVED ON THIS DEVICE';
+    paintSettings();
     return;
   }
-  help?.classList.add('hidden');
   status.replaceChildren();
   const who = document.createElement('b');
   who.textContent = accountLabel(walletSession);
@@ -2849,19 +2935,23 @@ function refreshWalletUi() {
   status.append(lead, who, tail);
   const dressNote = document.querySelector('#dress .dress-note');
   if (dressNote) dressNote.textContent = 'SAVED TO THIS ACCOUNT';
+  paintSettings();
 }
 
 function handOffToWallet() {
-  const sign = $('btn-wallet');
-  const status = $('wallet-status');
+  const sign = $('btn-set-wallet');
+  const status = $('set-wallet-who');
   if (sign) sign.disabled = true;
   if (status) status.textContent = 'Opening Klever Wallet…';
   launchKleverApp();
   const finish = () => {
     walletBusy = false;
     if (sign) sign.disabled = false;
-    if (walletSession?.wallet) return;
-    const help = $('wallet-help');
+    if (walletSession?.wallet) {
+      paintSettings();
+      return;
+    }
+    const help = $('set-wallet-help');
     if (help) showWalletHelp(help, 'mobile-app');
     if (status) status.textContent = 'Klever Wallet is open. Tap Connect wallet, then approve the signature.';
   };
@@ -2880,9 +2970,14 @@ function handOffToWallet() {
 }
 
 async function onWallet(automatic = false) {
-  if (walletBusy || state.mode === 'play') return;
+  if (walletBusy) return;
   if (walletSession?.provider !== 'email') return;
   if (automatic && (walletSession.wallet || promptIsCooling())) return;
+  if (state.mode !== 'settings') {
+    if (state.mode === 'dress' || state.mode === 'shop' || state.mode === 'loading') return;
+    openSettings();
+  }
+  if (state.mode !== 'settings') return;
   if (isMobile() && !window.kleverWeb && !inKleverHandoff()) {
     markPrompt();
     walletBusy = true;
@@ -2891,12 +2986,16 @@ async function onWallet(automatic = false) {
   }
   markPrompt();
   walletBusy = true;
-  const sign = $('btn-wallet');
-  const status = $('wallet-status');
+  const sign = $('btn-set-wallet');
+  const status = $('set-wallet-who');
+  const err = $('set-wallet-err');
   if (sign) sign.disabled = true;
+  if (err) err.textContent = '';
   if (status) status.textContent = isMobile()
     ? 'Confirm the signature in the Klever Wallet app…'
     : 'Confirm the signature in the Klever extension…';
+  let problem = '';
+  let helpKind = '';
   try {
     await freshAccessToken(walletSession);
     const linked = await signIn();
@@ -2906,12 +3005,14 @@ async function onWallet(automatic = false) {
     if (body && cloudPush) schedulePush(walletSession, body);
     refreshWalletUi();
   } catch (err) {
-    const help = $('wallet-help');
-    if (help && (err.code === 'mobile-app' || err.code === 'extension')) showWalletHelp(help, err.code);
-    if (status) status.textContent = err.message || 'The wallet could not be connected.';
+    problem = err.message || 'The wallet could not be connected.';
+    if (err.code === 'mobile-app' || err.code === 'extension') helpKind = err.code;
   } finally {
     walletBusy = false;
-    if (sign) sign.disabled = false;
+    paintSettings();
+    if (problem && $('set-wallet-err')) $('set-wallet-err').textContent = problem;
+    const help = $('set-wallet-help');
+    if (help && helpKind) showWalletHelp(help, helpKind);
   }
 }
 
@@ -3013,6 +3114,8 @@ async function onAccount(kind) {
 }
 
 function signOutAccount() {
+  const backToTitle = state.mode === 'play' || state.mode === 'settings' || state.returnMode === 'play';
+  if (state.mode === 'settings') closeSettings();
   flushSave();
   flushCloud();
   clearSession();
@@ -3025,18 +3128,50 @@ function signOutAccount() {
   cloudPush = false;
   const pass = $('account-password');
   if (pass) pass.value = '';
+  if (backToTitle) {
+    state.mode = 'title';
+    $('title').classList.remove('gone', 'dressing');
+    $('hud').classList.add('hidden');
+    $('touch').classList.add('hidden');
+  }
   refreshWalletUi();
   refreshTitle();
 }
 
 function bindWallet() {
-  $('btn-wallet')?.addEventListener('click', () => onWallet());
   $('account-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
     onAccount('in');
   });
   $('btn-email-new')?.addEventListener('click', () => onAccount('new'));
   $('btn-wallet-switch')?.addEventListener('click', () => signOutAccount());
+  $('btn-set-wallet')?.addEventListener('click', () => onWallet());
+  $('btn-set-unlink')?.addEventListener('click', () => {
+    $('set-unlink-ask')?.classList.remove('hidden');
+    $('set-wallet-err') && ($('set-wallet-err').textContent = '');
+  });
+  $('btn-set-unlink-no')?.addEventListener('click', () => $('set-unlink-ask')?.classList.add('hidden'));
+  $('btn-set-unlink-yes')?.addEventListener('click', () => unlinkWallet());
+  $('btn-set-out')?.addEventListener('click', () => signOutAccount());
+  $('btn-settings')?.addEventListener('pointerdown', (e) => {
+    swallow(e);
+    toggleSettings();
+  });
+  $('btn-settings-title')?.addEventListener('pointerdown', (e) => {
+    swallow(e);
+    toggleSettings();
+  });
+  $('btn-settings-close')?.addEventListener('pointerdown', (e) => {
+    swallow(e);
+    closeSettings();
+  });
+  $('set-px-down')?.addEventListener('click', () => stepPixels(-1));
+  $('set-px-up')?.addEventListener('click', () => stepPixels(1));
+  $('set-fs')?.addEventListener('click', () => {
+    if (inFullscreen()) document.exitFullscreen?.();
+    else enterFullscreen();
+    setTimeout(paintSettings, 200);
+  });
 }
 
 const LEAF = ['...XX...', 'X..XX..X', 'XX.XX.XX', '.XXXXXX.', 'X.XXXX.X', '..XXXX..', '...XX...', '...XX...', '...XX...', '...XX...'];
@@ -3413,7 +3548,7 @@ function setInv(open) {
 }
 
 function openDress() {
-  if (!player || state.mode === 'loading' || state.mode === 'dress' || state.mode === 'shop') return;
+  if (!player || state.mode === 'loading' || state.mode === 'dress' || state.mode === 'shop' || state.mode === 'settings') return;
   state.returnMode = state.mode === 'play' ? 'play' : 'title';
   state.mode = 'dress';
   dressFacing = P.facing;
@@ -3684,7 +3819,7 @@ function boot() {
   addEventListener('fullscreenchange', resize);
   addEventListener('webkitfullscreenchange', resize);
   const askFullscreen = (e) => {
-    const playing = state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress';
+    const playing = state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress' || state.mode === 'settings';
     if (playing) enterFullscreen();
   };
   addEventListener('pointerdown', askFullscreen, true);
@@ -3701,7 +3836,7 @@ function boot() {
     flushSave();
     flushCloud();
   });
-  window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick, openDress, closeDress, openShop, closeShop, buySupply, newGrow, flushSave, loadSave, onWallet, get day() { return dayClock; }, set day(v) { dayClock = v; } };
+  window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick, openDress, closeDress, openShop, closeShop, buySupply, newGrow, flushSave, loadSave, onWallet, openSettings, closeSettings, get day() { return dayClock; }, set day(v) { dayClock = v; } };
   void openAccount();
 }
 

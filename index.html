@@ -64,6 +64,21 @@
               <rect x="9" y="9" width="1" height="2" fill="#93c85a"/>
             </svg>
           </button>
+          <button type="button" id="btn-settings" class="icon-btn" aria-label="Settings" aria-pressed="false">
+            <svg class="pix" viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="7" y="1" width="2" height="2" fill="#ffe66a"/>
+              <rect x="7" y="13" width="2" height="2" fill="#ffe66a"/>
+              <rect x="1" y="7" width="2" height="2" fill="#ffe66a"/>
+              <rect x="13" y="7" width="2" height="2" fill="#ffe66a"/>
+              <rect x="3" y="3" width="2" height="2" fill="#ffe66a"/>
+              <rect x="11" y="3" width="2" height="2" fill="#ffe66a"/>
+              <rect x="3" y="11" width="2" height="2" fill="#ffe66a"/>
+              <rect x="11" y="11" width="2" height="2" fill="#ffe66a"/>
+              <rect x="5" y="5" width="6" height="6" fill="#c6f56a"/>
+              <rect x="6" y="6" width="4" height="4" fill="#1b2412"/>
+              <rect x="7" y="7" width="2" height="2" fill="#ffe66a"/>
+            </svg>
+          </button>
           <button type="button" id="btn-help-hud" class="icon-btn help-ico" aria-label="Help" aria-pressed="false">?</button>
         </div>
       </div>
@@ -102,6 +117,7 @@
         <b>CANOPY</b><span>TOP, THEN TRAIN, THEN LOLLIPOP</span>
         <b>BAG</b><span>BACKPACK SHOWS THE 3D ITEMS YOU CARRY</span>
         <b>TASKS</b><span>THE LIST UNDER THE STATS</span>
+        <b>SETTINGS</b><span>T OR THE GEAR. WALLET LIVES HERE</span>
         <b>SPIGOT</b><span>WATERS EVERY PLANT IN THAT BED</span>
         <b>TIME</b><span>DAWN THROUGH NIGHT, LAMPS COME ON</span>
         <b>CAMERA</b><span>Q / E / DRAG / WHEEL</span>
@@ -116,6 +132,7 @@
         <b>CANOPY</b><span>TOP, TRAIN, LOLLIPOP</span>
         <b>BAG</b><span>3D ITEMS YOU CARRY</span>
         <b>TASKS</b><span>THE LIST UNDER THE STATS</span>
+        <b>SETTINGS</b><span>THE GEAR. WALLET LIVES HERE</span>
         <b>SPIGOT</b><span>WATERS EVERY PLANT IN THAT BED</span>
         <b>TIME</b><span>DAWN THROUGH NIGHT, LAMPS COME ON</span>
         <b>CAMERA</b><span>DRAG / PINCH</span>
@@ -152,11 +169,24 @@
             <button type="button" id="btn-email-new" class="tbtn">CREATE ACCOUNT</button>
           </div>
         </form>
-        <button type="button" id="btn-wallet" class="tbtn hidden">CONNECT WALLET</button>
         <button type="button" id="btn-wallet-switch" class="wallet-link hidden">USE A DIFFERENT ACCOUNT</button>
-        <div id="wallet-help" class="wallet-help hidden"></div>
       </div>
       <div class="title-actions">
+        <button type="button" id="btn-settings-title" class="icon-btn" aria-label="Settings" aria-pressed="false">
+          <svg class="pix" viewBox="0 0 16 16" aria-hidden="true">
+            <rect x="7" y="1" width="2" height="2" fill="#ffe66a"/>
+            <rect x="7" y="13" width="2" height="2" fill="#ffe66a"/>
+            <rect x="1" y="7" width="2" height="2" fill="#ffe66a"/>
+            <rect x="13" y="7" width="2" height="2" fill="#ffe66a"/>
+            <rect x="3" y="3" width="2" height="2" fill="#ffe66a"/>
+            <rect x="11" y="3" width="2" height="2" fill="#ffe66a"/>
+            <rect x="3" y="11" width="2" height="2" fill="#ffe66a"/>
+            <rect x="11" y="11" width="2" height="2" fill="#ffe66a"/>
+            <rect x="5" y="5" width="6" height="6" fill="#c6f56a"/>
+            <rect x="6" y="6" width="4" height="4" fill="#1b2412"/>
+            <rect x="7" y="7" width="2" height="2" fill="#ffe66a"/>
+          </svg>
+        </button>
         <button type="button" id="btn-character" class="icon-btn" aria-label="Character" aria-pressed="false">
           <svg class="pix" viewBox="0 0 16 16" aria-hidden="true">
             <rect x="5" y="0" width="6" height="2" fill="#2f6a28"/>
@@ -177,6 +207,48 @@
       <p id="press-line" class="press hidden"><span id="press-desk" class="press-desk">CLICK OR SPACE TO START</span><span id="press-touch" class="press-touch">TAP TO START</span></p>
     </div>
     <div id="strains" class="hidden"></div>
+    <div id="settings" class="hidden">
+      <div class="panel settings-card">
+        <div class="dress-title">SETTINGS</div>
+        <div class="set-row">
+          <span>ACCOUNT</span>
+          <div class="set-actions">
+            <b id="set-account">NOT SIGNED IN</b>
+            <button type="button" id="btn-set-out" class="tbtn tiny hidden">SIGN OUT</button>
+          </div>
+        </div>
+        <div class="set-wallet">
+          <div class="dress-title">KLEVER WALLET</div>
+          <p id="set-wallet-copy" class="set-copy">Sign in with email on the title screen. The wallet connects here.</p>
+          <p id="set-wallet-who" class="set-who" aria-live="polite"></p>
+          <p id="set-wallet-err" class="set-err" role="alert"></p>
+          <div class="set-actions">
+            <button type="button" id="btn-set-wallet" class="tbtn">CONNECT WALLET</button>
+            <button type="button" id="btn-set-unlink" class="tbtn hidden">UNLINK</button>
+          </div>
+          <div id="set-unlink-ask" class="set-ask hidden">
+            <p>Unlink this Klever wallet from the account?</p>
+            <div class="set-actions">
+              <button type="button" id="btn-set-unlink-yes" class="tbtn">UNLINK</button>
+              <button type="button" id="btn-set-unlink-no" class="tbtn">CANCEL</button>
+            </div>
+          </div>
+          <div id="set-wallet-help" class="wallet-help hidden"></div>
+        </div>
+        <div class="set-row">
+          <span>PIXELS</span>
+          <div class="set-px">
+            <button type="button" id="set-px-down" class="tbtn tiny" aria-label="Finer pixels">-</button>
+            <b id="set-px">AUTO</b>
+            <button type="button" id="set-px-up" class="tbtn tiny" aria-label="Chunkier pixels">+</button>
+          </div>
+        </div>
+        <div class="set-row"><span>SCREEN</span><button type="button" id="set-fs" class="tbtn tiny">FULL</button></div>
+        <div class="dress-actions">
+          <button type="button" id="btn-settings-close" class="tbtn">CLOSE</button>
+        </div>
+      </div>
+    </div>
     <div id="shop" class="hidden">
       <div class="panel shop-card">
         <div class="dress-title">SUPPLY COMPUTER</div>
