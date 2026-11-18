@@ -26,6 +26,20 @@ canvas#leaf-icon, canvas#leaf-logo { image-rendering:pixelated; }
 .vitals div + div { box-shadow:inset 3px 0 0 rgba(0,0,0,.35); }
 .vitals b { font-size:12px; line-height:1; font-weight:normal; color:#f3f1df; }
 .icon-row { display:flex; gap:6px; pointer-events:auto; }
+#tasks { position:relative; pointer-events:auto; z-index:6; }
+#tasks-toggle { appearance:none; -webkit-appearance:none; border:0; display:flex; align-items:center; gap:8px; padding:6px 8px; background:var(--panel); box-shadow:var(--frame); color:#f3f1df; font-family:inherit; font-size:8px; line-height:1; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+#tasks-toggle b { color:var(--ink); background:var(--gold); padding:4px 5px; box-shadow:2px 2px 0 var(--ink); font-weight:normal; }
+#tasks.open #tasks-toggle, #tasks-toggle.hot { box-shadow:var(--frame-gold); }
+#tasks-toggle.hot b { background:#ff8b6a; }
+#tasks-caret { width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid var(--gold); }
+#tasks.open #tasks-caret { transform:rotate(180deg); }
+#tasks-menu { position:absolute; top:calc(100% + 6px); left:0; width:max-content; min-width:100%; max-width:min(260px, calc(100vw - var(--safe-l) - var(--safe-r) - 16px)); max-height:168px; overflow:auto; background:var(--panel); box-shadow:var(--frame); padding:4px; touch-action:pan-y; }
+#tasks-list { list-style:none; margin:0; padding:0; }
+#tasks-list li { display:flex; justify-content:space-between; gap:12px; padding:5px 6px; font-size:8px; line-height:1.3; color:#d7e2c8; }
+#tasks-list li + li { box-shadow:inset 0 2px 0 rgba(0,0,0,.35); }
+#tasks-list b { color:var(--gold); font-weight:normal; }
+#tasks-list li.hot b { color:#ff8b6a; }
+#tasks-list li.idle { color:#8ea184; }
 .icon-btn { pointer-events:auto; appearance:none; -webkit-appearance:none; border:0; width:46px; height:46px; padding:6px; background:var(--panel); box-shadow:var(--frame); cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; font-family:inherit; color:var(--gold); font-size:16px; }
 .icon-btn.on { box-shadow:var(--frame-gold); }
 .icon-btn .pix { width:100%; height:100%; display:block; shape-rendering:crispEdges; }

@@ -67,6 +67,16 @@
           <button type="button" id="btn-help-hud" class="icon-btn help-ico" aria-label="Help" aria-pressed="false">?</button>
         </div>
       </div>
+      <div id="tasks">
+        <button type="button" id="tasks-toggle" aria-expanded="false" aria-controls="tasks-menu">
+          <b id="tasks-count">0</b>
+          <span id="tasks-lead">CLEAR</span>
+          <i id="tasks-caret" aria-hidden="true"></i>
+        </button>
+        <div id="tasks-menu" class="hidden">
+          <ul id="tasks-list"></ul>
+        </div>
+      </div>
       <div id="inv" class="panel bag hidden">
         <div class="bag-flap"><span class="pack-title">BAG</span></div>
         <div id="bag-grid" class="bag-grid"></div>
@@ -88,6 +98,7 @@
         <b>FARMER</b><span>C</span>
         <b>CANOPY</b><span>TOP, THEN TRAIN, THEN LOLLIPOP</span>
         <b>BAG</b><span>BACKPACK SHOWS THE 3D ITEMS YOU CARRY</span>
+        <b>TASKS</b><span>THE LIST UNDER THE STATS</span>
         <b>CAMERA</b><span>Q / E / DRAG / WHEEL</span>
         <b>SCREEN</b><span>FILLS THE BROWSER</span>
         <b>PIXELS</b><span>[ ] FOR THE CHUNKY LOOK</span>
@@ -99,6 +110,7 @@
         <b>STRAIN</b><span>TAP THE SEED PILL</span>
         <b>CANOPY</b><span>TOP, TRAIN, LOLLIPOP</span>
         <b>BAG</b><span>3D ITEMS YOU CARRY</span>
+        <b>TASKS</b><span>THE LIST UNDER THE STATS</span>
         <b>CAMERA</b><span>DRAG / PINCH</span>
         <b>SCREEN</b><span>FILLS THE BROWSER</span>
       </div>
