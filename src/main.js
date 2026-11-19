@@ -1620,6 +1620,7 @@ function actVeg(pot) {
 
 function actStand() {
   ensureBuyerOrder();
+  P.cool = 0.35;
   const order = state.buyerOrder;
   if (order && !order.claimed && (state.jars[order.grade] | 0) >= order.count) {
     state.jars[order.grade] -= order.count;
@@ -1634,7 +1635,6 @@ function actStand() {
     return true;
   }
   const offer = motaInJars();
-  P.cool = 0.35;
   if (offer.n > 0) {
     for (const g of GRADES) state.jars[g] = 0;
     syncCuredGrams();
