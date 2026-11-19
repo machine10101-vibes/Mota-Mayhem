@@ -522,3 +522,13 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline:2px so
 .weather[data-weather="breezy"] { color:#b9e6d5; }
 @media (max-width:560px) { .weather { min-height:25px; padding:4px 6px; font-size:6px; } }
 @media (prefers-reduced-motion:reduce) { .weather { transition:none; } }
+
+
+/* Weekly league harvest target and milestone feedback. */
+.league-goal { margin:10px 0 8px; padding:8px; background:rgba(0,0,0,.3); border:1px solid rgba(198,245,106,.16); }
+.league-goal-head { display:flex; justify-content:space-between; align-items:center; gap:8px; color:#c9d6b5; font-size:6px; line-height:1.5; }
+.league-goal-head b { color:#ffe66a; font-weight:normal; font-variant-numeric:tabular-nums; }
+.league-goal-track { height:7px; margin-top:6px; overflow:hidden; background:#080d08; box-shadow:inset 0 0 0 1px rgba(0,0,0,.8); }
+.league-goal-track i { display:block; width:0; height:100%; background:linear-gradient(90deg,#7eb8e4,#93c85a,#ffe66a); box-shadow:0 0 9px rgba(147,200,90,.42); transition:width .25s ease; }
+.league-goal-track[aria-valuenow="120"] i { background:#ffe66a; }
+@media(prefers-reduced-motion:reduce) { .league-goal-track i { transition:none; } }
