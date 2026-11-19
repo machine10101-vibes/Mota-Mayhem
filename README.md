@@ -86,3 +86,6 @@ The outdoor yard now follows a repeating in-game weather pattern. Morning shower
 ## Weather and weekly competition updates
 
 The seven-day weather cycle now changes outdoor bed water use: cloudy weather slows soil drying by 8%, showers refill active outdoor beds at dawn and slow drying by 18%, breezy days increase water use by 10%, and warm days increase it by 25%. Clear days use the normal rate. These conditions apply to outdoor grow beds; indoor and warehouse plants keep their own care schedule. The weather HUD and Field Notes explain the current effect. The weekly Grower League advances at the start of each new seven-day week, settles the previous standings once, pays the podium reward, and resets the new week's score.
+
+
+The west-yard glasshouse is an unlockable expansion for 520 MOTA. Buying it opens the existing glass structure and activates four additional grow pots. Glasshouse crops use less water and grow 5% faster than outdoor beds; the expansion and all four crop states persist in local and account saves. Older gardens default to the glasshouse being locked.
