@@ -208,6 +208,50 @@ function buildTrees() {
   return m;
 }
 
+
+/* ---------------------------------------------------------- garden accents */
+// Small, hand-placed voxel clusters break up the long fence lines and make
+// the yard feel tended without cluttering the walkable routes or grow beds.
+function buildGardenAccents() {
+  const m = new VoxelModel();
+  const clusters = [
+    [-15.2, 13.55], [-11.6, 13.45], [-4.2, 13.6], [4.1, 13.55], [11.5, 13.5], [15.1, 13.55],
+    [-19.25, -7.2], [-19.35, -4.4], [-19.25, 4.2], [-19.25, 7.1],
+    [19.25, -7.1], [19.3, -4.1], [19.25, 4.1], [19.2, 7.0],
+  ];
+  const flowers = [0xf6f3ea, 0xf5d547, 0xf08ab0, 0xb48be8, 0xff9870];
+  clusters.forEach(([wx, wz], i) => {
+    const cx = Math.round(wx * G);
+    const cz = Math.round(wz * G);
+    // A few irregular pebbles anchor each clump to the ground.
+    for (let p = 0; p < 4; p++) {
+      const ox = Math.round((hash3(i, p, 1, 311) - 0.5) * 10);
+      const oz = Math.round((hash3(i, p, 2, 312) - 0.5) * 10);
+      const col = pick([0x9a9b8c, 0xb1aa91, 0x777f70], i, p, 0, 313);
+      m.box(cx + ox, 0, cz + oz, cx + ox + 2, 1, cz + oz + 2, col, 0.035);
+    }
+    // Three varied grass blades and one tiny flower give each patch a silhouette.
+    for (let b = 0; b < 3; b++) {
+      const ox = Math.round((hash3(i, b, 3, 314) - 0.5) * 13);
+      const oz = Math.round((hash3(i, b, 4, 315) - 0.5) * 12);
+      const green = pick([0x3f8a32, 0x59a33b, 0x79bd48], i, b, 0, 316);
+      m.set(cx + ox, 0, cz + oz, green, 0.04);
+      m.set(cx + ox + (b - 1), 1 + (b === 1 ? 1 : 0), cz + oz, shade(green, 1.12), 0.03);
+    }
+    const fx = cx + Math.round((hash3(i, 0, 5, 317) - 0.5) * 8);
+    const fz = cz + Math.round((hash3(i, 0, 6, 318) - 0.5) * 8);
+    const bloom = flowers[i % flowers.length];
+    m.set(fx, 0, fz, 0x3f8a32, 0.03);
+    m.set(fx, 1, fz, 0x59a33b, 0.03);
+    m.set(fx, 2, fz, bloom, 0.015);
+    if (i % 3 === 0) {
+      m.set(fx + 1, 2, fz, bloom, 0.015);
+      m.set(fx, 2, fz + 1, bloom, 0.015);
+    }
+  });
+  return m;
+}
+
 /* ------------------------------------------------------------------- fence */
 
 function fenceRun(lenUnits, gateEnds = false) {
@@ -910,6 +954,7 @@ export function buildWorld() {
   ];
   for (const [x, z, r, c] of bushSpots) bush(bushes, Math.round(x * G), Math.round(z * G), Math.round(r * G), c);
   placeChunked(group, bushes, 1 / G, true, 64);
+  placeChunked(group, buildGardenAccents(), 1 / G, true, 48);
 
   const outer = buildOuterGround();
   placeChunked(group, outer.m, 1 / outer.S, false, 48);
