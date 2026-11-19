@@ -495,3 +495,22 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline:2px so
 .panel::after, .buyer-order::after, .reputation::after { content:""; position:absolute; inset:1px; pointer-events:none; z-index:-1; background:linear-gradient(125deg,rgba(255,255,255,.055),transparent 38%,rgba(198,245,106,.025)); }
 @media (max-width: 560px) { #buyer-order { max-width:calc(100vw - 142px); } #buyer-order .buyer-tier { font-size:5px; padding:2px 3px; } }
 @media (prefers-reduced-motion: reduce) { #buyer-order, .panel, .stat, .vitals, #clock { transition:none !important; } }
+
+
+/* Weekly grower league: compact standings that work on touch and desktop. */
+.league-btn { color:#ffe66a; font-family:Arial,sans-serif; font-size:18px; }
+.league-panel { position:absolute; z-index:18; top:calc(var(--safe-t) + 74px); right:var(--safe-r); width:min(300px,calc(100vw - 24px)); padding:12px; background:linear-gradient(145deg,rgba(22,32,17,.98),rgba(7,12,8,.98)); border:1px solid rgba(255,230,106,.38); box-shadow:0 14px 38px rgba(0,0,0,.42),var(--frame); pointer-events:auto; }
+.league-head,.league-meta { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.league-head { color:var(--gold); font-size:8px; }
+.league-head span,.league-meta { color:#c9d6b5; font-size:7px; }
+.league-meta { margin-top:10px; padding:8px; background:rgba(0,0,0,.28); }
+.league-meta b { color:#c6f56a; font-weight:normal; }
+.league-standings { display:grid; gap:5px; margin:9px 0; padding:0; list-style:none; }
+.league-standings li { display:grid; grid-template-columns:24px 1fr auto; align-items:center; gap:8px; padding:7px; background:rgba(0,0,0,.25); color:#d5e2c4; font-size:7px; }
+.league-standings li b { color:#879a78; font-weight:normal; }
+.league-standings li i { color:#f3f1df; font-style:normal; }
+.league-standings li.you { box-shadow:inset 2px 0 #c6f56a; color:#c6f56a; }
+.league-standings li.you b,.league-standings li.you i { color:#ffe66a; }
+.league-prize { margin:0; color:#ffe66a; font-size:7px; }
+.league-foot { margin:8px 0 0; color:#aebca1; font:11px/1.45 Arial,sans-serif; }
+@media(max-width:560px) { .league-panel { top:calc(var(--safe-t) + 116px); right:var(--safe-r); width:min(280px,calc(100vw - 24px)); } }

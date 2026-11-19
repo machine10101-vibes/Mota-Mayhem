@@ -72,3 +72,7 @@ The interface now uses a shared glass-and-pixel treatment, clearer focus/hover f
 ## Buyer network
 
 Daily orders are now tied to your grower reputation. The Local Shop is the starting client; reputation milestones unlock the Greenhouse Co-op, Craft Collective, Night Market, and Royal Reserve. Higher-tier clients pay larger daily order bonuses. A client is locked in when that day's order is generated, so earning a new tier upgrades the next day's client rather than changing an active contract. Existing saves keep their current order and receive a compatible default client if they predate the buyer network.
+
+
+## Weekly Grower League
+The grower league adds a seven-day harvest competition against three named rival growers. Harvesting higher-grade flower earns more league points; standings update as you work, and a MOTA prize is paid automatically when the next week begins. League week, score, and paid-week state are included in saves, with older gardens migrated safely.
