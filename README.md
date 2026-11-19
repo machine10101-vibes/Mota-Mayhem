@@ -60,3 +60,10 @@ this browser under that account. The game is connected to the Mota Mayhem Supaba
 - `src/strains.js` - the two starter strains. `src/save.js` writes the grow to local storage under the email account. `src/wallet/` checks the email sign-in and a connected Klever wallet. `supabase/` holds the garden tables and the grower function.
 - `src/world.js` - backyard: ground, fence, house, porch, beds, shed, greenhouse, props, trees.
 - `src/main.js` - full-resolution picture with multisampled edges, a soft sky gradient, and depth outlines. `[` and `]` switch back to the chunky pixel scale. Entering the grow calls the browser's fullscreen mode on the tap or key that starts play, with no extra options the browser might reject. A later tap asks again if the bar is still up.
+
+
+## Grower reputation
+
+Harvested flower earns reputation based on its final grade. Completing daily buyer orders and creating hybrids also build reputation; harvesting a hybrid seed crop adds a smaller boost. Five grower ranks run from Seedling to Mota Legend. Reaching a new rank awards a one-time MOTA bonus for that rank. The HUD reputation meter shows the current tier and progress to the next milestone. Reputation and rank progress are saved with the garden.
+
+The interface now uses a shared glass-and-pixel treatment, clearer focus/hover feedback, and a brighter, more saturated world-lighting pass while preserving the optional chunky-pixel render mode.
