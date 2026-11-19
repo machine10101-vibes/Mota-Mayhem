@@ -2145,6 +2145,27 @@ function setPrompt(text) {
   prompt.style.display = 'flex';
 }
 
+function showQuickStart() {
+  const panel = $('welcome');
+  if (!panel || state.mode !== 'play') return;
+  panel.classList.remove('hidden');
+  $('welcome-close')?.focus({ preventScroll: true });
+}
+
+function closeQuickStart() {
+  const panel = $('welcome');
+  if (!panel) return;
+  panel.classList.add('hidden');
+  try { localStorage.setItem('mm-guide-v1', 'seen'); } catch { /* storage may be unavailable */ }
+  $('btn-help-hud')?.focus({ preventScroll: true });
+}
+
+function showWelcomeIfNeeded() {
+  let seen = false;
+  try { seen = localStorage.getItem('mm-guide-v1') === 'seen'; } catch { /* show the guide if storage is unavailable */ }
+  if (!seen) showQuickStart();
+}
+
 function toggleHelp(force) {
   const help = $('help');
   const open = typeof force === 'boolean' ? force : help.classList.contains('hidden');
@@ -2804,6 +2825,7 @@ function startGame() {
   canSave = true;
   flushSave();
   refreshTitle();
+  showWelcomeIfNeeded();
 }
 
 function onTitleConfirm() {
@@ -3825,6 +3847,32 @@ function boot() {
   addEventListener('pointerdown', askFullscreen, true);
   addEventListener('touchend', askFullscreen, true);
   addEventListener('orientationchange', () => setTimeout(resize, 120));
+  $('welcome-close')?.addEventListener('click', closeQuickStart);
+  $('welcome-help')?.addEventListener('click', () => {
+    closeQuickStart();
+    toggleHelp(true);
+  });
+  $('welcome')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeQuickStart();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const panel = $('welcome');
+    const focusable = [...panel.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])')];
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  });
+  $('btn-guide-open')?.addEventListener('click', showQuickStart);
   bindTouch();
   bindDress();
   bindShop();

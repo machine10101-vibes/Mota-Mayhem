@@ -106,8 +106,25 @@
     <div id="prompt" role="button" tabindex="-1"><kbd id="prompt-key"></kbd><span id="prompt-label"></span></div>
     <div id="toasts"></div>
 
+    <div id="welcome" class="panel hidden" role="dialog" aria-modal="true" aria-labelledby="welcome-title" aria-describedby="welcome-copy">
+      <div class="welcome-card">
+        <div class="welcome-kicker">YOUR FIRST DAY</div>
+        <h2 id="welcome-title">WELCOME TO THE YARD</h2>
+        <p id="welcome-copy" class="welcome-copy">A quick field guide to getting comfortable. You can reopen this any time from Field Notes.</p>
+        <ol class="welcome-steps">
+          <li><b>MOVE</b><span>WASD / ARROWS on desktop, or the left stick on touch screens.</span></li>
+          <li><b>EXPLORE</b><span>Walk up to a garden bed, station, or character to see what you can do.</span></li>
+          <li><b>ACT</b><span>Use SPACE or ACT when the action prompt appears. On touch, tap the prompt.</span></li>
+          <li><b>KEEP AN EYE OUT</b><span>Use the task list and plant cards to spot what needs attention.</span></li>
+        </ol>
+        <div class="welcome-actions">
+          <button type="button" id="welcome-help" class="tbtn">FIELD NOTES</button>
+          <button type="button" id="welcome-close" class="tbtn welcome-primary">LET'S GROW</button>
+        </div>
+      </div>
+    </div>
     <div id="help" class="panel hidden">
-      <div class="help-head"><span class="help-title">FIELD NOTES</span><button type="button" id="btn-help-close" class="tbtn tiny">CLOSE</button></div>
+      <div class="help-head"><span class="help-title">FIELD NOTES</span><button type="button" id="btn-guide-open" class="tbtn tiny">QUICK START</button><button type="button" id="btn-help-close" class="tbtn tiny">CLOSE</button></div>
       <div class="help-grid help-desk">
         <b>MOVE</b><span>WASD / ARROWS</span>
         <b>RUN</b><span>SHIFT</span>
