@@ -821,6 +821,7 @@ function gramsFor(grade) {
 }
 
 const GREENHOUSE_PRICE = 520;
+const MOON_GARDEN_PRICE = 360;
 const PLANT_TOP = [0.82, 1.36, 1.78, 2.26, 3.28];
 const plantBits = {
   frostGeo: new THREE.SphereGeometry(0.07, 6, 4),
@@ -939,11 +940,11 @@ function updatePlants(dt, time) {
     } else {
       mesh.visible = true;
       if (d.state === 'ripening') {
-        d.water = Math.max(0, d.water - (dt / THIRST) * (s.where === 'gh' ? 0.74 : outdoorWaterUse));
+        d.water = Math.max(0, d.water - (dt / THIRST) * (s.where === 'gh' ? (world.moonGarden.owned ? 0.68 : 0.74) : outdoorWaterUse));
         d.age += dt;
         if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
         d.ripe = Math.min(1.25, (d.ripe || 0) + dt / (RIPE_TIME * strainPace(d.strain, 4)));
-      } else if (d.state === 'growing' && growTick(d, dt, s.where === 'gh' ? 1.05 : 1, s.where === 'gh' ? 0.74 : outdoorWaterUse)) {
+      } else if (d.state === 'growing' && growTick(d, dt, s.where === 'gh' ? (world.moonGarden.owned ? 1.15 : 1.05) : 1, s.where === 'gh' ? (world.moonGarden.owned ? 0.68 : 0.74) : outdoorWaterUse)) {
         finishStage(d, mesh, false);
         burst(s, d.state === 'ripening' ? 0xfff3a0 : 0xbfe88a);
       }
@@ -1289,6 +1290,7 @@ function stationFocus() {
   consider(world.stand.x, world.stand.z, 'stand', null, 1.55);
   for (const tap of world.scenery?.spigots || []) consider(tap.x, tap.z, 'spigot', tap, 1.35);
   consider(world.greenhouse.door.x, world.greenhouse.door.z, 'greenhouse', null, 1.9, 0.08, 1);
+  consider(world.moonGarden.station.x, world.moonGarden.station.z, 'moon-garden', null, 1.9, 0.08, 2);
   if (!world.warehouse.owned) consider(world.lot.x, world.lot.z, 'lot', null, 1.7);
   else {
     consider(23.05, 0, 'wh-door', null, 1.85, 0.08, 2);
@@ -1340,6 +1342,7 @@ function actStation(f) {
   if (f.kind === 'spigot') return actSpigot(f.ref);
   if (f.kind === 'lot') return actBuyWarehouse();
   if (f.kind === 'greenhouse') return actBuyGreenhouse();
+  if (f.kind === 'moon-garden') return actBuyMoonGarden();
   if (f.kind === 'wh-lights') {
     const W = world.warehouse;
     W.lights = W.lights === 'flower' ? 'veg' : 'flower';
@@ -1731,6 +1734,20 @@ function actBuyGreenhouse() {
   const offset = world.slots.length - gh.slots.length;
   for (let i = 0; i < gh.slots.length; i++) slotsData[offset + i].locked = false;
   P.cool = 0.4; toast('GLASSHOUSE UNLOCKED — FOUR NEW GROW POTS', 'good'); updateHud(); markDirty(); return true;
+}
+
+function actBuyMoonGarden() {
+  const garden = world.moonGarden;
+  if (garden.owned) return toast('MOON GARDEN OPEN · GLASSHOUSE BONUS ACTIVE');
+  if (state.mota < MOON_GARDEN_PRICE) return toast(`NEED ${MOON_GARDEN_PRICE} MOTA — MOON GARDEN`);
+  state.mota -= MOON_GARDEN_PRICE;
+  garden.owned = true;
+  garden.forSale.visible = false;
+  P.cool = 0.4;
+  toast('MOON GARDEN UNLOCKED — GLASSHOUSE GROWS 10% FASTER', 'good');
+  updateHud();
+  markDirty();
+  return true;
 }
 
 function actBuyWarehouse() {
@@ -2613,6 +2630,9 @@ function stationUi(st, actLbl) {
   if (st.kind === 'greenhouse') return world.greenhouse.owned
     ? { text: 'GLASSHOUSE OPEN · FOUR GROW POTS', btn: 'ENTER' }
     : { text: state.mota < GREENHOUSE_PRICE ? `GLASSHOUSE  ${state.mota}/${GREENHOUSE_PRICE} MOTA` : `${actLbl}  UNLOCK GLASSHOUSE  ${GREENHOUSE_PRICE} MOTA`, btn: state.mota < GREENHOUSE_PRICE ? 'LOCKED' : 'BUY' };
+  if (st.kind === 'moon-garden') return world.moonGarden.owned
+    ? { text: 'MOON GARDEN OPEN · GLASSHOUSE +10% GROWTH', btn: 'OPEN' }
+    : { text: state.mota < MOON_GARDEN_PRICE ? `MOON GARDEN  ${state.mota}/${MOON_GARDEN_PRICE} MOTA` : `${actLbl}  UNLOCK MOON GARDEN  ${MOON_GARDEN_PRICE} MOTA`, btn: state.mota < MOON_GARDEN_PRICE ? 'LOCKED' : 'BUY' };
   if (st.kind === 'shed-door') {
     const open = world.shed.open;
     return { text: open ? `${actLbl}  CLOSE SHED` : `${actLbl}  OPEN SHED`, btn: open ? 'CLOSE' : 'OPEN' };
@@ -3723,6 +3743,7 @@ function snapshot() {
     facing: P.facing,
     warehouse: !!world.warehouse.owned,
     greenhouse: !!world.greenhouse.owned,
+    moonGarden: !!world.moonGarden.owned,
     lights: world.warehouse.lights === 'flower' ? 'flower' : 'veg',
     plots: slotsData.map(plotSnap),
     wh: whData.map(plotSnap),
@@ -3884,6 +3905,7 @@ function resetWorld() {
   slotsData.forEach((d, i) => { d.locked = i >= world.slots.length - world.greenhouse.slots.length || (i / 4 | 0) !== 0; });
   blankPlots(whData, whMeshes);
   world.greenhouse.owned = false; world.greenhouse.forSale.visible = true;
+  world.moonGarden.owned = false; world.moonGarden.forSale.visible = true;
   const ghOffset = world.slots.length - world.greenhouse.slots.length;
   for (let i = 0; i < world.greenhouse.slots.length; i++) slotsData[ghOffset + i].locked = true;
   const W = world.warehouse;
@@ -3997,6 +4019,7 @@ function applySave(save) {
   world.shed.cureJars.forEach((j, i) => restoreItem(j, save.cure?.[i]));
   const greenhouseOwned = !!save.greenhouse;
   world.greenhouse.owned = greenhouseOwned; world.greenhouse.forSale.visible = !greenhouseOwned;
+  world.moonGarden.owned = !!save.moonGarden; world.moonGarden.forSale.visible = !world.moonGarden.owned;
   const ghOffset = world.slots.length - world.greenhouse.slots.length;
   for (let i = 0; i < world.greenhouse.slots.length; i++) slotsData[ghOffset + i].locked = !greenhouseOwned;
   const owned = !!save.warehouse;
