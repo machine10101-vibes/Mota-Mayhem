@@ -134,6 +134,8 @@
         <b>CANOPY</b><span>TOP, THEN TRAIN, THEN LOLLIPOP</span>
         <b>BAG</b><span>I OR THE BACKPACK BUTTON OPENS YOUR 3D INVENTORY</span>
         <b>TASKS</b><span>THE LIST UNDER THE STATS</span>
+        <b>GENETICS</b><span>HARVEST TWO CULTIVARS, THEN CROSS THEM IN THE UPSTAIRS LAB</span>
+        <b>SEED CROPS</b><span>GROW A HYBRID IN THE BREEDING POTS TO COLLECT FOUR SEEDS</span>
         <b>SETTINGS</b><span>T OR THE GEAR. WALLET LIVES HERE</span>
         <b>SPIGOT</b><span>WATERS EVERY PLANT IN THAT BED</span>
         <b>TIME</b><span>DAWN THROUGH NIGHT, LAMPS COME ON</span>
@@ -149,6 +151,8 @@
         <b>CANOPY</b><span>TOP, TRAIN, LOLLIPOP</span>
         <b>BAG</b><span>3D ITEMS YOU CARRY</span>
         <b>TASKS</b><span>THE LIST UNDER THE STATS</span>
+        <b>GENETICS</b><span>HARVEST TWO CULTIVARS, THEN CROSS THEM UPSTAIRS</span>
+        <b>SEED CROPS</b><span>GROW HYBRIDS IN THE BREEDING POTS FOR FOUR SEEDS</span>
         <b>SETTINGS</b><span>THE GEAR. WALLET LIVES HERE</span>
         <b>SPIGOT</b><span>WATERS EVERY PLANT IN THAT BED</span>
         <b>TIME</b><span>DAWN THROUGH NIGHT, LAMPS COME ON</span>
@@ -264,6 +268,28 @@
         <div class="dress-actions">
           <button type="button" id="btn-settings-close" class="tbtn">CLOSE</button>
         </div>
+      </div>
+    </div>
+    <div id="breeding" class="hidden">
+      <div class="panel breed-card" role="dialog" aria-modal="true" aria-labelledby="breed-title">
+        <div class="dress-title" id="breed-title">GENETICS LAB</div>
+        <p class="breed-copy">Harvest a finished plant to read its genetics. Cross two different readings to create a hybrid with blended growth, flower, size, and frost traits.</p>
+        <label class="breed-field">PARENT A
+          <select id="breed-parent-a"></select>
+        </label>
+        <p id="breed-parent-a-readout" class="breed-readout"></p>
+        <label class="breed-field">PARENT B
+          <select id="breed-parent-b"></select>
+        </label>
+        <p id="breed-parent-b-readout" class="breed-readout"></p>
+        <div class="breed-preview-label">OFFSPRING PREVIEW</div>
+        <p id="breed-offspring-readout" class="breed-readout breed-offspring"></p>
+        <p id="breed-status" class="breed-status" aria-live="polite">HARVEST TWO DIFFERENT CULTIVARS TO BUILD YOUR GENETICS LIBRARY.</p>
+        <div class="dress-actions">
+          <button type="button" id="btn-breeding-close" class="tbtn">CLOSE</button>
+          <button type="button" id="btn-breed-cross" class="tbtn welcome-primary" disabled>CREATE HYBRID</button>
+        </div>
+        <p class="dress-note">ONE TRIAL SEED PER CROSS. GROW IT IN A BREEDING POT TO PRODUCE FOUR MORE SEEDS.</p>
       </div>
     </div>
     <div id="shop" class="hidden">

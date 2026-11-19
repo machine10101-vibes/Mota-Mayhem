@@ -148,3 +148,86 @@ export function starterSeeds() {
 export function seedTotal(seeds) {
   return STRAIN_IDS.reduce((n, id) => n + ((seeds?.[id] | 0) || 0), 0);
 }
+
+
+// Hybrid cultivars are stored as full trait profiles so they can be restored
+// before a saved garden's seed inventory and plants are hydrated.
+const BASE_STRAIN_IDS = [...STRAIN_IDS];
+let hybridSerial = 0;
+
+function blendColor(a, b) {
+  const ch = (shift) => Math.round((((a >>> shift) & 255) + ((b >>> shift) & 255)) / 2);
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+}
+
+export function registerHybridStrain(definition) {
+  if (!definition || typeof definition !== 'object') return null;
+  const id = String(definition.id || '');
+  if (!/^hyb\d+$/.test(id)) return null;
+  const parents = Array.isArray(definition.parents) ? definition.parents.slice(0, 2).map((p) => STRAINS[p] ? p : 'bd') : ['bd', 'gdp'];
+  const base = strainOf(parents[0]);
+  const other = strainOf(parents[1]);
+  const number = Number(id.slice(3)) || 1;
+  const average = (key, fallback = 1) => {
+    const n = Number(definition[key]);
+    return Number.isFinite(n) ? Math.max(0.65, Math.min(1.8, n)) : (base[key] + other[key]) / 2 || fallback;
+  };
+  const colors = (key, fallback) => {
+    const value = definition[key];
+    return Array.isArray(value) && value.length >= 3 ? value.slice(0, 3).map((v) => Number(v) >>> 0) : fallback;
+  };
+  const profile = {
+    id, name: String(definition.name || `${base.name} × ${other.name}`).slice(0, 64),
+    short: String(definition.short || `${base.short.slice(0, 2)}×${other.short.slice(0, 2)}`).slice(0, 8),
+    kind: 'HYBRID', weeks: Number(definition.weeks) || (base.weeks + other.weeks) / 2,
+    flower: average('flower'), veg: average('veg'), stature: average('stature'),
+    frost: average('frost'), seed: Number.isFinite(Number(definition.seed)) ? Number(definition.seed) : (base.seed + other.seed) / 2,
+    bud: colors('bud', base.bud.map((c, i) => blendColor(c, other.bud[i]))),
+    leafDark: Number(definition.leafDark) >>> 0 || blendColor(base.leafDark, other.leafDark),
+    leafLight: Number(definition.leafLight) >>> 0 || blendColor(base.leafLight, other.leafLight),
+    stem: Number(definition.stem) >>> 0 || blendColor(base.stem, other.stem),
+    stemD: Number(definition.stemD) >>> 0 || blendColor(base.stemD, other.stemD),
+    parents, hybrid: true,
+  };
+  if (definition.hair && typeof definition.hair === 'object') profile.hair = { ...definition.hair };
+  STRAINS[id] = profile;
+  if (!STRAIN_IDS.includes(id)) STRAIN_IDS.push(id);
+  hybridSerial = Math.max(hybridSerial, number);
+  return profile;
+}
+
+export function createHybridStrain(parentAId, parentBId) {
+  const a = strainOf(parentAId);
+  const b = strainOf(parentBId);
+  if (a.id === b.id) return null;
+  const id = `hyb${++hybridSerial}`;
+  const blend = (key) => (Number(a[key]) + Number(b[key])) / 2;
+  const hair = a.hair || b.hair;
+  const definition = {
+    id, parents: [a.id, b.id],
+    name: `${a.name} × ${b.name}`,
+    short: `${a.short.slice(0, 2)}×${b.short.slice(0, 2)}`,
+    weeks: (a.weeks + b.weeks) / 2,
+    flower: blend('flower'), veg: blend('veg'), stature: blend('stature'),
+    frost: blend('frost'), seed: blend('seed'),
+    bud: a.bud.map((c, i) => blendColor(c, b.bud[i])),
+    leafDark: blendColor(a.leafDark, b.leafDark),
+    leafLight: blendColor(a.leafLight, b.leafLight),
+    stem: blendColor(a.stem, b.stem), stemD: blendColor(a.stemD, b.stemD),
+    ...(hair ? { hair: { ...hair } } : {}),
+  };
+  return registerHybridStrain(definition);
+}
+
+export function hybridDefinitions() {
+  return STRAIN_IDS.filter((id) => STRAINS[id]?.hybrid).map((id) => {
+    const { hybrid, ...profile } = STRAINS[id];
+    return { ...profile, parents: [...profile.parents], bud: [...profile.bud], ...(profile.hair ? { hair: { ...profile.hair } } : {}) };
+  });
+}
+
+export function clearHybridStrains() {
+  for (const id of STRAIN_IDS.filter((key) => !BASE_STRAIN_IDS.includes(key))) delete STRAINS[id];
+  STRAIN_IDS.splice(0, STRAIN_IDS.length, ...BASE_STRAIN_IDS);
+  hybridSerial = 0;
+}
