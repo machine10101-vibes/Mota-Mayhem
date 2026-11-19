@@ -67,3 +67,8 @@ this browser under that account. The game is connected to the Mota Mayhem Supaba
 Harvested flower earns reputation based on its final grade. Completing daily buyer orders and creating hybrids also build reputation; harvesting a hybrid seed crop adds a smaller boost. Five grower ranks run from Seedling to Mota Legend. Reaching a new rank awards a one-time MOTA bonus for that rank. The HUD reputation meter shows the current tier and progress to the next milestone. Reputation and rank progress are saved with the garden.
 
 The interface now uses a shared glass-and-pixel treatment, clearer focus/hover feedback, and a brighter, more saturated world-lighting pass while preserving the optional chunky-pixel render mode.
+
+
+## Buyer network
+
+Daily orders are now tied to your grower reputation. The Local Shop is the starting client; reputation milestones unlock the Greenhouse Co-op, Craft Collective, Night Market, and Royal Reserve. Higher-tier clients pay larger daily order bonuses. A client is locked in when that day's order is generated, so earning a new tier upgrades the next day's client rather than changing an active contract. Existing saves keep their current order and receive a compatible default client if they predate the buyer network.
