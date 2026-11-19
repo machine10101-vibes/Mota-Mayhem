@@ -9,8 +9,8 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <title>Mota Mayhem</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><rect width='8' height='8' fill='%232f4420'/><path d='M3 0h2v3h-2zM0 2h2v2h-2zM6 2h2v2h-2zM2 3h4v3h-4zM3 6h2v2h-2z' fill='%2393c85a'/></svg>" />
-    <script type="module" crossorigin src="/Mota-Mayhem/assets/index-BWZCdePi.js"></script>
-    <link rel="stylesheet" crossorigin href="/Mota-Mayhem/assets/index-DcH2thCG.css">
+    <script type="module" crossorigin src="/Mota-Mayhem/assets/index-B-4URXc4.js"></script>
+    <link rel="stylesheet" crossorigin href="/Mota-Mayhem/assets/index-DnvbI6O1.css">
   </head>
   <body>
     <div id="stage"></div>
@@ -121,8 +121,6 @@
         <b>TASKS</b><span>THE LIST UNDER THE STATS</span>
         <b>SETTINGS</b><span>T OR THE GEAR. WALLET LIVES HERE</span>
         <b>SPIGOT</b><span>WATERS EVERY PLANT IN THAT BED</span>
-        <b>COMPOST</b><span>TRIM SCRAPS BREAK DOWN INTO FEED</span>
-        <b>SHED</b><span>CLICK TRIM, THE RACK, OR THE JARS</span>
         <b>TIME</b><span>DAWN THROUGH NIGHT, LAMPS COME ON</span>
         <b>CAMERA</b><span>Q / E / DRAG / WHEEL</span>
         <b>SCREEN</b><span>FILLS THE BROWSER</span>
@@ -138,13 +136,11 @@
         <b>TASKS</b><span>THE LIST UNDER THE STATS</span>
         <b>SETTINGS</b><span>THE GEAR. WALLET LIVES HERE</span>
         <b>SPIGOT</b><span>WATERS EVERY PLANT IN THAT BED</span>
-        <b>COMPOST</b><span>TRIM SCRAPS BREAK DOWN INTO FEED</span>
-        <b>SHED</b><span>TAP TRIM, THE RACK, OR THE JARS</span>
         <b>TIME</b><span>DAWN THROUGH NIGHT, LAMPS COME ON</span>
         <b>CAMERA</b><span>DRAG / PINCH</span>
         <b>SCREEN</b><span>FILLS THE BROWSER</span>
       </div>
-      <p class="help-note">EACH PLANT CARRIES A CARD. BLUE IS WATER, GREEN IS GROWTH, AND THAT BAR TURNS WHITE, GOLD, OR AMBER AS THE TRICHOMES RIPEN. T, R, AND L ARE TOP, TRAIN, AND LOLLIPOP. A DRY PLANT DROOPS AND TANS. HAND TRIMMING KEEPS THE LEAVES. DUMP THEM IN THE COMPOST BY THE EAST FENCE AND TURN THE FINISHED PILE INTO FEED.</p>
+      <p class="help-note">EACH PLANT CARRIES A CARD. BLUE IS WATER, GREEN IS GROWTH, AND THAT BAR TURNS WHITE, GOLD, OR AMBER AS THE TRICHOMES RIPEN. T, R, AND L ARE TOP, TRAIN, AND LOLLIPOP. A DRY PLANT DROOPS AND TANS.</p>
     </div>
 
     <div id="touch" class="hidden">
@@ -152,8 +148,8 @@
         <div id="stick-knob"></div>
       </div>
       <div id="btns">
-        <button type="button" id="btn-cam-l" class="tbtn tiny" aria-label="Camera left"><svg class="cam-arrow" viewBox="0 0 5 7" aria-hidden="true"><rect x="3" y="0" width="2" height="1"/><rect x="2" y="1" width="2" height="1"/><rect x="1" y="2" width="2" height="1"/><rect x="0" y="3" width="2" height="1"/><rect x="1" y="4" width="2" height="1"/><rect x="2" y="5" width="2" height="1"/><rect x="3" y="6" width="2" height="1"/></svg></button>
-        <button type="button" id="btn-cam-r" class="tbtn tiny" aria-label="Camera right"><svg class="cam-arrow" viewBox="0 0 5 7" aria-hidden="true"><rect x="0" y="0" width="2" height="1"/><rect x="1" y="1" width="2" height="1"/><rect x="2" y="2" width="2" height="1"/><rect x="3" y="3" width="2" height="1"/><rect x="2" y="4" width="2" height="1"/><rect x="1" y="5" width="2" height="1"/><rect x="0" y="6" width="2" height="1"/></svg></button>
+        <button type="button" id="btn-cam-l" class="tbtn tiny" aria-label="Camera left">Q</button>
+        <button type="button" id="btn-cam-r" class="tbtn tiny" aria-label="Camera right">E</button>
         <button type="button" id="btn-run" class="tbtn" aria-label="Run">RUN</button>
         <button type="button" id="btn-act" class="tbtn act" aria-label="Act">ACT</button>
         <button type="button" id="btn-help" class="tbtn tiny" aria-label="Help">?</button>
@@ -252,19 +248,6 @@
         <div class="set-row"><span>SCREEN</span><button type="button" id="set-fs" class="tbtn tiny">FULL</button></div>
         <div class="dress-actions">
           <button type="button" id="btn-settings-close" class="tbtn">CLOSE</button>
-        </div>
-      </div>
-    </div>
-    <div id="bench" class="hidden">
-      <div class="panel bench-card">
-        <div class="dress-title" id="bench-title">HAND TRIM</div>
-        <p id="bench-lead" class="dress-note"></p>
-        <div id="bench-rows"></div>
-        <p id="bench-empty" class="bench-empty hidden"></p>
-        <div class="dress-actions">
-          <button type="button" id="btn-bench-main" class="tbtn hidden">TRIM ALL</button>
-          <button type="button" id="btn-bench-extra" class="tbtn hidden">JAR ALL</button>
-          <button type="button" id="btn-bench-close" class="tbtn">CLOSE</button>
         </div>
       </div>
     </div>
