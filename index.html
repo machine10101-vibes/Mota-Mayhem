@@ -266,6 +266,26 @@
         </div>
       </div>
     </div>
+    <div id="breeding" class="hidden">
+      <div class="panel breed-card" role="dialog" aria-modal="true" aria-labelledby="breed-title">
+        <div class="dress-title" id="breed-title">GENETICS LAB</div>
+        <p class="breed-copy">Harvest a finished plant to read its genetics. Cross two different readings to create a hybrid with blended growth, flower, size, and frost traits.</p>
+        <label class="breed-field">PARENT A
+          <select id="breed-parent-a"></select>
+        </label>
+        <p id="breed-parent-a-readout" class="breed-readout"></p>
+        <label class="breed-field">PARENT B
+          <select id="breed-parent-b"></select>
+        </label>
+        <p id="breed-parent-b-readout" class="breed-readout"></p>
+        <p id="breed-status" class="breed-status" aria-live="polite">HARVEST TWO DIFFERENT CULTIVARS TO BUILD YOUR GENETICS LIBRARY.</p>
+        <div class="dress-actions">
+          <button type="button" id="btn-breeding-close" class="tbtn">CLOSE</button>
+          <button type="button" id="btn-breed-cross" class="tbtn welcome-primary" disabled>CREATE HYBRID</button>
+        </div>
+        <p class="dress-note">ONE TRIAL SEED PER CROSS. GROW IT IN A BREEDING POT TO PRODUCE FOUR MORE SEEDS.</p>
+      </div>
+    </div>
     <div id="shop" class="hidden">
       <div class="panel shop-card">
         <div class="dress-title">SUPPLY COMPUTER</div>
