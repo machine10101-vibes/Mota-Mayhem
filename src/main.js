@@ -145,6 +145,9 @@ const state = {
   grams: 0,
   harvested: 0,
   reputation: 0,
+  leagueWeek: 1,
+  leagueScore: 0,
+  leaguePaidWeek: 0,
   wet: [],
   buyerOrder: null,
   look: null,
@@ -1167,6 +1170,7 @@ function actPlot(plot) {
     const id = strainOf(d.strain).id;
     state.wet.push({ grade, grams, strain: id, trimmed: false });
     state.harvested++;
+    addLeaguePoints(grade);
     const repByGrade = { A: 8, AA: 12, AAA: 18, AAAA: 26 };
     addReputation(repByGrade[grade] || 8, `${grade} HARVEST`);
     state.seeds[id] = (state.seeds[id] | 0) + 1;
@@ -2218,6 +2222,7 @@ function updateTasks() {
 function updateHud() {
   updateBuyerOrderHud();
   renderReputationHud();
+  renderGrowerLeague();
   const pick = STRAINS[state.strainPick] ? state.strainPick : 'bd';
   const held = strainOf(pick);
   $('mota').textContent = state.mota;
@@ -2877,8 +2882,82 @@ function updateBuyerOrderHud() {
   root.classList.remove('complete');
 }
 
+
+const LEAGUE_RIVALS = [
+  { name: 'MOSSY MILES', style: 'STEADY HAND', base: 54 },
+  { name: 'JUNEBUG', style: 'QUALITY FIRST', base: 68 },
+  { name: 'THE NIGHT OWL', style: 'LATE BLOOMER', base: 82 },
+];
+
+function rivalLeagueScore(rival, week) {
+  // Stable week-to-week variation keeps the field competitive without random save drift.
+  const wave = ((week * (rival.base + 17) + rival.name.length * 13) % 31) - 15;
+  return Math.max(24, rival.base + wave);
+}
+
+function leagueRows(week = state.leagueWeek || 1) {
+  return [
+    { name: 'YOU', style: 'YOUR GARDEN', score: state.leagueScore | 0, player: true },
+    ...LEAGUE_RIVALS.map((rival) => ({ name: rival.name, style: rival.style, score: rivalLeagueScore(rival, week), player: false })),
+  ].sort((a, b) => b.score - a.score);
+}
+
+function addLeaguePoints(grade) {
+  const points = { A: 12, AA: 20, AAA: 30, AAAA: 42 }[grade] || 12;
+  state.leagueScore = Math.max(0, (state.leagueScore | 0) + points);
+  markDirty();
+  renderGrowerLeague();
+}
+
+function advanceGrowerLeague(nextWeek) {
+  const previousWeek = state.leagueWeek || 1;
+  if (previousWeek > (state.leaguePaidWeek | 0)) {
+    const rows = leagueRows(previousWeek);
+    const place = rows.findIndex((row) => row.player) + 1;
+    const reward = place === 1 ? 180 : place === 2 ? 90 : 35;
+    state.mota += reward;
+    state.leaguePaidWeek = previousWeek;
+    if (state.mode === 'play') toast(`WEEK ${previousWeek} LEAGUE · PLACE #${place} · +${reward} MOTA`, place === 1 ? 'good' : '');
+  }
+  state.leagueWeek = nextWeek;
+  state.leagueScore = 0;
+  markDirty();
+  renderGrowerLeague();
+}
+
+function renderGrowerLeague() {
+  const root = $('league-panel');
+  const list = $('league-standings');
+  if (!root || !list) return;
+  const week = state.leagueWeek || 1;
+  const day = Math.floor(dayClock) + 1;
+  const dayInWeek = ((day - 1) % 7) + 1;
+  $('league-week').textContent = `WEEK ${week}`;
+  $('league-day').textContent = `DAY ${dayInWeek}/7`;
+  $('league-score').textContent = String(state.leagueScore | 0);
+  const rows = leagueRows(week);
+  list.replaceChildren();
+  rows.forEach((row, index) => {
+    const item = document.createElement('li');
+    if (row.player) item.className = 'you';
+    const rank = document.createElement('b');
+    rank.textContent = String(index + 1).padStart(2, '0');
+    const name = document.createElement('span');
+    name.textContent = row.name;
+    const score = document.createElement('i');
+    score.textContent = String(row.score);
+    item.append(rank, name, score);
+    list.appendChild(item);
+  });
+  const place = rows.findIndex((row) => row.player) + 1;
+  $('league-prize').textContent = place === 1 ? 'LEADING · 180 MOTA PRIZE' : place === 2 ? '2ND · 90 MOTA PRIZE' : 'TOP 3 · 35 MOTA PRIZE';
+  $('league-panel').setAttribute('aria-label', `Weekly league standings, you are in place ${place}`);
+}
+
 function ensureBuyerOrder() {
   const day = Math.floor(dayClock) + 1;
+  const week = Math.floor(dayClock / 7) + 1;
+  if (week > (state.leagueWeek || 1)) advanceGrowerLeague(week);
   if (state.buyerOrder?.day === day) return false;
   state.buyerOrder = makeBuyerOrder(day);
   taskSig = '';
@@ -3518,6 +3597,9 @@ function itemSnap(it) {
 function snapshot() {
   return {
     dayClock,
+    leagueWeek: state.leagueWeek | 0,
+    leagueScore: state.leagueScore | 0,
+    leaguePaidWeek: state.leaguePaidWeek | 0,
     buyerOrder: state.buyerOrder ? { ...state.buyerOrder } : null,
     look: state.look || player.getLook(),
     mota: state.mota | 0,
@@ -3680,6 +3762,9 @@ function resetWorld() {
   state.grams = 0;
   state.harvested = 0;
   state.reputation = 0;
+  state.leagueWeek = 1;
+  state.leagueScore = 0;
+  state.leaguePaidWeek = 0;
   state.buyerOrder = makeBuyerOrder(1);
   state.wet = [];
   state.genetics = [];
@@ -3734,6 +3819,10 @@ function applySave(save) {
   state.mota = save.mota | 0;
   state.harvested = save.harvested | 0;
   state.reputation = Math.max(0, Math.min(10000000, save.reputation | 0));
+  state.leagueWeek = Math.max(1, save.leagueWeek | 0 || Math.floor(dayClock / 7) + 1);
+  state.leagueScore = Math.max(0, Math.min(1000000, save.leagueScore | 0));
+  state.leaguePaidWeek = Math.max(0, save.leaguePaidWeek | 0);
+  if (state.leagueWeek < Math.floor(dayClock / 7) + 1) { state.leagueWeek = Math.floor(dayClock / 7) + 1; state.leagueScore = 0; }
   const generatedOrder = makeBuyerOrder(orderDay);
   state.buyerOrder = savedOrder && savedOrder.day === orderDay && GRADES.includes(savedOrder.grade)
     ? { ...generatedOrder, ...savedOrder, customer: typeof savedOrder.customer === 'string' ? savedOrder.customer : generatedOrder.customer, customerTier: typeof savedOrder.customerTier === 'string' ? savedOrder.customerTier : generatedOrder.customerTier, customerColor: typeof savedOrder.customerColor === 'string' ? savedOrder.customerColor : generatedOrder.customerColor, bonus: Number.isFinite(savedOrder.bonus) ? Math.max(0, savedOrder.bonus | 0) : generatedOrder.bonus, claimed: !!savedOrder.claimed }
