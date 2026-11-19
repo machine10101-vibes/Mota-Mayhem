@@ -3846,6 +3846,13 @@ function updateBreedingPreview() {
   const valid = !!a && !!b && a !== b && !!STRAINS[a] && !!STRAINS[b];
   $('breed-parent-a-readout').textContent = a ? geneticsTraitLine(a) : 'HARVEST A PLANT TO READ ITS GENETICS';
   $('breed-parent-b-readout').textContent = b ? geneticsTraitLine(b) : 'A SECOND DISTINCT GENETIC READING IS REQUIRED';
+  const preview = $('breed-offspring-readout');
+  if (valid) {
+    const parentA = strainOf(a);
+    const parentB = strainOf(b);
+    const pct = (key) => Math.round(((parentA[key] + parentB[key]) / 2) * 100);
+    preview.textContent = `OFFSPRING PREVIEW  FLOWER ${pct('flower')}% · VEG ${pct('veg')}% · SIZE ${pct('stature')}% · FROST ${pct('frost')}% · FINISH ${((parentA.weeks + parentB.weeks) / 2).toFixed(1)} WK`;
+  } else preview.textContent = 'CHOOSE TWO DISTINCT READINGS TO PREVIEW THEIR BLENDED TRAITS.';
   const button = $('btn-breed-cross');
   button.disabled = !valid;
   $('breed-status').textContent = state.genetics.length < 2
