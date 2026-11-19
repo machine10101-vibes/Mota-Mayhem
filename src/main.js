@@ -1203,7 +1203,7 @@ function act(slotIndex = -1) {
     forced = plot;
   }
   if (!forced) {
-    if (world.house.contains(P.x, P.z)) return toast(P.y > 2.2 ? 'WALK TO A VEG POT OR THE COMPUTER' : 'WALK TO A MOTHER, HYDRO TUBE, OR VEG POT');
+    if (world.house.contains(P.x, P.z)) return toast(P.y > 2.2 ? 'WALK TO A VEG POT, GENETICS LAB, OR COMPUTER' : 'WALK TO A MOTHER, HYDRO TUBE, OR VEG POT');
     if (world.warehouse.contains(P.x, P.z)) return toast('WALK TO A GROW POT');
     return toast('WALK TO A GARDEN BED');
   }
@@ -1311,7 +1311,7 @@ function actStation(f) {
   if (f.kind === 'tray') return actTray(f.ref);
   if (f.kind === 'veg') return actVeg(f.ref);
   if (f.kind === 'breed-pot') return actBreedPot(f.ref);
-  if (f.kind === 'breeder') return openBreeding();
+  if (f.kind === 'breeder') return world.house.vegCenter ? openBreeding() : tryUnlock('vegCenter', UNLOCK.vegCenter, 'BREEDING LAB');
   if (f.kind === 'computer') return openShop();
   if (f.kind === 'stand') return actStand();
   if (f.kind === 'spigot') return actSpigot(f.ref);
@@ -2101,7 +2101,7 @@ function collectTasks() {
     if (pot.state === 'ready' && state.clones.length < 8) addTask(4, 'TAKE CLONE', strainOf(pot.strain).short);
     else if (pot.state === 'veg' && state.nutrients > 0) addTask(6, 'FEED', 'VEG');
   }
-  if (house.vegCenter && state.genetics.length >= 2 && !state.hybrids.length) addTask(5, 'CROSS GENETICS', 'BREEDING LAB');
+  if (house.vegCenter && state.genetics.length >= 2) addTask(5, 'CROSS GENETICS', 'BREEDING LAB');
 
   let trim = 0;
   let hang = 0;
@@ -2656,7 +2656,13 @@ function stationUi(st, actLbl) {
     return { text: 'BRING CURED JARS', btn: 'ACT' };
   }
   if (st.kind === 'computer') return { text: `${actLbl}  USE COMPUTER`, btn: 'SHOP' };
-  if (st.kind === 'breeder') return { text: `${actLbl}  OPEN GENETICS LAB`, btn: 'BREED' };
+  if (st.kind === 'breeder') {
+    if (!world.house.vegCenter) {
+      const short = state.mota < UNLOCK.vegCenter;
+      return { text: short ? `BREEDING LAB  ${state.mota}/${UNLOCK.vegCenter} MOTA` : `${actLbl}  UNLOCK BREEDING LAB  ${UNLOCK.vegCenter} MOTA`, btn: short ? 'ACT' : 'UNLOCK' };
+    }
+    return { text: `${actLbl}  OPEN GENETICS LAB`, btn: 'BREED' };
+  }
   if (st.kind === 'breed-pot') {
     const pot = st.ref;
     const name = strainOf(pot.strain).short;
@@ -3459,7 +3465,7 @@ function syncStationPlants() {
     tray.plant.scale.setScalar(0.48);
   }
   for (const pot of world.house.veg) {
-    const on = pot.state === 'veg' || pot.state === 'ready';
+    const on = pot.state === 'veg' || pot.state === 'growing' || pot.state === 'ready';
     pot.plant.visible = on;
     if (!on) continue;
     pot.plant.geometry = plantGeo(2, pot.strain || 'bd');
@@ -3798,6 +3804,102 @@ function setStrainBar(on) {
   }
 }
 
+function geneticsTraitLine(id) {
+  const spec = strainOf(id);
+  return `${spec.short}  FLOWER ${Math.round(spec.flower * 100)}% · VEG ${Math.round(spec.veg * 100)}% · SIZE ${Math.round(spec.stature * 100)}% · FROST ${Math.round(spec.frost * 100)}%`;
+}
+
+function renderBreeding() {
+  const a = $('breed-parent-a');
+  const b = $('breed-parent-b');
+  const previousA = a.value;
+  const previousB = b.value;
+  const library = state.genetics.filter((id) => !!STRAINS[id]);
+  for (const select of [a, b]) {
+    select.replaceChildren();
+    if (!library.length) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'NO GENETICS READ YET';
+      select.append(option);
+      continue;
+    }
+    for (const id of library) {
+      const option = document.createElement('option');
+      option.value = id;
+      option.textContent = strainOf(id).name;
+      select.append(option);
+    }
+  }
+  if (library.includes(previousA)) a.value = previousA;
+  else if (library[0]) a.value = library[0];
+  if (library.includes(previousB)) b.value = previousB;
+  else if (library[1]) b.value = library[1];
+  else if (library[0]) b.value = library[0];
+  updateBreedingPreview();
+}
+
+function updateBreedingPreview() {
+  const a = $('breed-parent-a').value;
+  const b = $('breed-parent-b').value;
+  const valid = !!a && !!b && a !== b && !!STRAINS[a] && !!STRAINS[b];
+  $('breed-parent-a-readout').textContent = a ? geneticsTraitLine(a) : 'HARVEST A PLANT TO READ ITS GENETICS';
+  $('breed-parent-b-readout').textContent = b ? geneticsTraitLine(b) : 'A SECOND DISTINCT GENETIC READING IS REQUIRED';
+  const button = $('btn-breed-cross');
+  button.disabled = !valid;
+  $('breed-status').textContent = state.genetics.length < 2
+    ? 'HARVEST TWO DIFFERENT CULTIVARS TO BUILD YOUR GENETICS LIBRARY.'
+    : valid ? 'READY TO CROSS. OFFSPRING INHERITS BLENDED PARENT TRAITS.' : 'CHOOSE TWO DIFFERENT PARENTS.';
+}
+
+function crossGenetics() {
+  const a = $('breed-parent-a').value;
+  const b = $('breed-parent-b').value;
+  if (!a || !b || a === b) return toast('CHOOSE TWO DIFFERENT PARENTS');
+  const hybrid = createHybridStrain(a, b);
+  if (!hybrid) return toast('COULD NOT CREATE THAT CROSS');
+  state.hybrids = hybridDefinitions();
+  state.seeds[hybrid.id] = (state.seeds[hybrid.id] | 0) + 1;
+  state.strainPick = hybrid.id;
+  $('breed-status').textContent = `NEW CROSS: ${hybrid.name}. ONE TRIAL SEED ADDED TO YOUR BAG.`;
+  toast(`${hybrid.short} HYBRID CREATED — PLANT THE TRIAL SEED IN A BREEDING POT`, 'good');
+  updateHud();
+  markDirty();
+}
+
+function openBreeding() {
+  if (state.mode !== 'play') return true;
+  if (!world.house.vegCenter) return tryUnlock('vegCenter', UNLOCK.vegCenter, 'BREEDING LAB');
+  state.mode = 'breeding';
+  P.cool = 0.25;
+  $('breeding').classList.remove('hidden');
+  $('touch').classList.add('hidden');
+  prompt.style.display = 'none';
+  renderBreeding();
+  $('breed-parent-a')?.focus({ preventScroll: true });
+  return true;
+}
+
+function closeBreeding() {
+  if (state.mode !== 'breeding') return;
+  $('breeding').classList.add('hidden');
+  state.mode = 'play';
+  if (touchUI) $('touch').classList.remove('hidden');
+}
+
+function bindBreeding() {
+  $('btn-breeding-close').addEventListener('pointerdown', (e) => {
+    swallow(e);
+    closeBreeding();
+  });
+  $('btn-breed-cross').addEventListener('pointerdown', (e) => {
+    swallow(e);
+    crossGenetics();
+  });
+  $('breed-parent-a').addEventListener('change', updateBreedingPreview);
+  $('breed-parent-b').addEventListener('change', updateBreedingPreview);
+}
+
 function renderShop() {
   $('shop-mota').textContent = String(state.mota | 0);
   const root = $('shop-rows');
@@ -3947,7 +4049,7 @@ function boot() {
   addEventListener('fullscreenchange', resize);
   addEventListener('webkitfullscreenchange', resize);
   const askFullscreen = (e) => {
-    const playing = state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress' || state.mode === 'settings';
+    const playing = state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress' || state.mode === 'settings' || state.mode === 'breeding';
     if (playing) enterFullscreen();
   };
   addEventListener('pointerdown', askFullscreen, true);
@@ -3982,6 +4084,7 @@ function boot() {
   bindTouch();
   bindDress();
   bindShop();
+  bindBreeding();
   bindWallet();
   setTouchUI(shouldTouch());
   matchMedia('(max-width: 820px)').addEventListener('change', () => setTouchUI(shouldTouch() || touchUI));
