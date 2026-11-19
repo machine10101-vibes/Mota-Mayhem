@@ -257,3 +257,67 @@ body.touch-ui #strains { bottom: calc(var(--safe-b) + 214px); }
   .dress-card { max-height:min(52vh, 460px); }
   .dress-row { grid-template-columns:72px 44px 1fr 44px; }
 }
+
+/* ---------------------------------------------------------------- UX polish */
+:where(button, input, select, textarea, a, [role="button"], [tabindex]):focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 4px;
+}
+:where(button, .tbtn, .icon-btn, .chip, .seed-tile, #prompt) {
+  -webkit-tap-highlight-color: transparent;
+}
+button:disabled, .tbtn:disabled, .icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: .48;
+  filter: grayscale(.35);
+}
+@media (hover: hover) and (pointer: fine) {
+  .tbtn:not(:disabled):hover, .icon-btn:not(:disabled):hover,
+  .chip:not(:disabled):hover, .seed-tile:not(:disabled):hover {
+    filter: brightness(1.18);
+    transform: translateY(-1px);
+  }
+  .strain-stat:hover { filter: brightness(1.16); }
+}
+.pack, .dress-card, .settings-card, .shop-card, .bench-card, #help {
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--edge) rgba(0,0,0,.3);
+  -webkit-overflow-scrolling: touch;
+}
+#prompt { padding-block: 11px; }
+#prompt:focus-visible { outline-offset: 6px; }
+@media (max-width: 560px) {
+  #hud { max-width: calc(100vw - var(--safe-l) - var(--safe-r)); }
+  .topbar, .status { min-width: 0; }
+  .vitals { flex-wrap: wrap; }
+  .vitals div { min-width: 48px; }
+  .icon-btn { width: 44px; height: 44px; }
+  .pack, .dress-card, .settings-card, .shop-card, .bench-card {
+    width: min(100%, 440px);
+    max-height: min(68dvh, 560px);
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  #help { max-height: min(62dvh, 520px); overflow-y: auto; }
+  #strains { max-height: 24dvh; overflow-y: auto; padding: 4px; }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .pack, .dress-card, .settings-card, .shop-card, .bench-card {
+    max-height: min(76dvh, 420px);
+  }
+  #help { max-height: 72dvh; overflow-y: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+@media (prefers-contrast: more) {
+  :root { --panel: rgba(5, 9, 4, .98); --edge: #b9f477; --gold: #fff18a; }
+  .stat .k, .vitals span, .pack-label, .shop-name span, .dress-note {
+    color: #f3f1df;
+  }
+}
