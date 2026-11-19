@@ -2884,7 +2884,9 @@ function updateBuyerOrderHud() {
 }
 
 
-const LEAGUE_GOAL = 120;\n\nconst LEAGUE_RIVALS = [
+const LEAGUE_GOAL = 120;
+
+const LEAGUE_RIVALS = [
   { name: 'MOSSY MILES', style: 'STEADY HAND', base: 54 },
   { name: 'JUNEBUG', style: 'QUALITY FIRST', base: 68 },
   { name: 'THE NIGHT OWL', style: 'LATE BLOOMER', base: 82 },
