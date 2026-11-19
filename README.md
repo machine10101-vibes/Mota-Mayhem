@@ -51,7 +51,7 @@ shirt, overalls, and boots, with a live preview. The backpack icon opens the bag
 the look. Create an account with email and a password before the grow starts. After that account is open, Connect wallet links a Klever wallet to it. The character, MOTA, seeds, nutrients, root cubes, clones, beds, mothers, hydro tubes, veg pots, shed, and warehouse are saved in
 this browser under that account. The game is connected to the Mota Mayhem Supabase project in `public/supabase.json`. Creating an email account signs the player in and writes that account's email plus the whole garden to that database. Later progress is saved to the same row. If the project still asks them to confirm the email, the garden is written when they sign in after confirming.
 
-## How the look is built
+## Visual polish\n\nThe yard includes small hand-placed voxel flora and pebble clusters along its perimeter to soften long fence lines without blocking paths or beds. Sparse pollen motes drift through the outdoor scene, and a restrained warm contrast pass deepens the palette. The title account panel and in-game panels use layered translucent surfaces, with clear hover, active, and keyboard-focus feedback.\n\n## How the look is built
 
 - `src/voxel.js` - voxel mesher with face culling, baked per-vertex ambient occlusion, per-voxel colour jitter,
   and spatial chunking for frustum culling.
