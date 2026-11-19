@@ -3856,6 +3856,20 @@ function boot() {
     if (e.key === 'Escape') {
       e.preventDefault();
       closeQuickStart();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const panel = $('welcome');
+    const focusable = [...panel.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])')];
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
     }
   });
   $('btn-guide-open')?.addEventListener('click', showQuickStart);
