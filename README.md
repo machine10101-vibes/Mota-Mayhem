@@ -89,3 +89,8 @@ The seven-day weather cycle now changes outdoor bed water use: cloudy weather sl
 
 
 The west-yard glasshouse is an unlockable expansion for 520 MOTA. Buying it opens the existing glass structure and activates four additional grow pots. Glasshouse crops use less water and grow 5% faster than outdoor beds; the expansion and all four crop states persist in local and account saves. Older gardens default to the glasshouse being locked.
+
+
+## Moon Garden
+
+The Moon Garden is a second unlockable outdoor environment built around a moonwell courtyard, cool stonework, crescent arch, and lantern flowers. Unlock it for 360 MOTA at its sign beside the courtyard. Owning it gives the glasshouse a further 10% growth boost and reduces its crop water use from 0.74 to 0.68. The unlock is saved with the garden; older saves start with the Moon Garden locked.
