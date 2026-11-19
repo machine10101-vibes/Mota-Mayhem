@@ -193,6 +193,8 @@ body:has(#dress:not(.hidden)) #hud { z-index:12; }
 .breed-field { display:flex; flex-direction:column; gap:6px; color:var(--edge); font-size:8px; }
 .breed-field select { width:100%; min-height:44px; border:0; border-radius:0; padding:10px; color:#f3f1df; background:#1b2818; box-shadow:var(--frame); font:inherit; }
 .breed-readout { margin:0; padding:7px; background:rgba(0,0,0,.28); color:#c9d6b5; font-size:7px; line-height:1.6; overflow-wrap:anywhere; }
+.breed-preview-label { color:var(--edge); font-size:8px; margin-top:2px; }
+.breed-offspring { color:#c6f56a; box-shadow:inset 0 0 0 1px rgba(147,200,90,.35); }
 #btn-breed-cross:disabled { opacity:.45; cursor:not-allowed; }
 #shop { position:fixed; inset:0; z-index:9; display:flex; align-items:center; justify-content:center; padding:var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l); pointer-events:none; }
 .shop-card { pointer-events:auto; width:min(520px, 100%); max-height:min(78vh, 680px); overflow:auto; display:flex; flex-direction:column; gap:8px; touch-action:manipulation; }
