@@ -2436,7 +2436,12 @@ function makeBadge() {
 }
 
 function buildBadges() {
-  world.slots.forEach((s, i) => badges.push({ el: makeBadge(), where: s.where === 'gh' ? 'gh' : 'yard', i, s, data: slotsData }));
+  world.slots.forEach((s, i) => {
+    const where = s.where === 'gh' ? 'gh' : 'yard';
+    const el = makeBadge();
+    if (where === 'gh') el.dataset.zone = 'gh';
+    badges.push({ el, where, i, s, data: slotsData });
+  });
   world.warehouse.slots.forEach((s, i) => badges.push({ el: makeBadge(), where: 'wh', i, s, data: whData }));
 }
 
