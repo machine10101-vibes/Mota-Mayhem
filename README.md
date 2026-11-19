@@ -1,1 +1,62 @@
-# Mota-Mayhem
+# Mota Mayhem
+
+Play: [machine10101-vibes.github.io/Mota-Mayhem](https://machine10101-vibes.github.io/Mota-Mayhem/)
+
+A cannabis-farming game rendered as cartoon 3D pixel art (voxels), played from an overhead third-person camera.
+This first slice focuses on graphics: a fully fenced backyard with a house and porch, greenhouse, shed, raised beds,
+and props, a voxel hero based on the reference sprite, and a small plant / water / harvest loop.
+
+## Run
+
+```bash
+npm install
+npm run dev      # http://localhost:5173/Mota-Mayhem/
+npm run build    # production build in dist/ (GitHub Pages base /Mota-Mayhem/)
+```
+
+## Controls
+
+Desktop
+
+| Action | Keys |
+| --- | --- |
+| Move / run | WASD or arrows / Shift |
+| Plant, water, harvest | Space (or F) next to a bed plot |
+| Rotate / zoom camera | Q, E or drag / mouse wheel |
+| Pixel size | `[` and `]` |
+| Toggle help | H |
+
+Phone and tablet: tap to start. Left stick moves, **RUN** sprints, **ACT** (or the on-screen prompt) plants, waters, harvests, opens doors, clones, sells, and buys, drag the yard to look around, pinch to zoom, **?** toggles help. The farmer icon opens the character menu. The backpack icon opens the inventory. **1** and **2** cycle the seed strain, and the strain chips do the same.
+
+## Gameplay
+
+A new grow starts with 10 Blue Dream seeds, 10 Granddaddy Purple seeds, and 4 seeds each of Green Crack, Gorilla Glue #4, Long Island Skunk, UW Purple, and DJ Short Blueberry. One outdoor grow box is open, the wooden bed closest to the porch on the west side, with four plots. The other five boxes are locked. The voxel MOTA logo, a green leaf inside a purple and cyan ring, floats over each locked box, and over the locked mother, the locked tube row, and each locked upstairs veg room. Walk up and spend 80 MOTA to open another grow box. Plant in an open plot, or plant a vegged clone if you have one. Each plant grows through sprout, seedling, vegetative, flowering, and ready. A sprout opens as two round seed leaves with one small serrated pair between them, and the seed shell still on one tip. A harvest returns one seed of that strain. Clones skip ahead to vegetative and keep the mother's
+strain. Keep soil watered: dry plants slow down and accumulate stress. In vegetative growth, top the plant once and then tie the branches out. In flower, lollipop the lowers. Doing all three lifts the harvest grade one step. Every living plant carries a card: a blue water bar, a growth bar that shifts white, gold, or amber with the trichomes, and three squares for top, train, and lollipop. Dry plants droop and turn tan, a topped plant bushes out, and trained branches lean between two stakes. A flowering plant can take a bloom feed if you are carrying nutrients. Harvest grade (A, AA, AAA, AAAA) starts from how consistently you watered. The finished plant then ripens: clear trichomes are early, cloudy and cloudy-with-amber are the pick, and mostly amber is late. Picking outside that window drops the grade. Open the shed door, walk in, hand-trim the wet flower, hang it to dry, jar it, and burp the jar while it cures. Skipping the burp or leaving a hang too long drops the grade.
+Cured flower lands in the jars.
+
+Open the house from the porch. A new game opens one mother pot, the front hydroponic tube row (four cups), and the four vegetative pots in the downstairs veg room. The second mother and the back tube row are in the rooms and unlock for MOTA. Plant a seed you are
+holding and that plant grows into a mother, then stays there for cuttings. The clone room is straight ahead.
+Cuttings root in tube-style hydroponic lines: an NFT tube, a reservoir, and a pump, with a net cup at each
+site. Water a mother, take a cutting, wait for it to root, move it into veg, then
+carry the finished clone out to a bed or the warehouse.
+
+Stairs in the mother room climb to a second story the same depth and width as the rooms below. The west and center rooms upstairs are two more veg rooms, with the same pot layout as the ground-floor veg room. Each of those rooms unlocks for MOTA. The east room is the supply office and is open from the start. Use the computer there to spend MOTA on seeds, nutrients, and root cubes. Nutrients feed a mother or a veg pot. Root cubes speed a tube that is still rooting. The upstairs floor stays hidden until you are on the stairs, so the ground-floor grow rooms stay visible from above.
+
+The porch stand sells cured jars for MOTA, the in-game
+token. A 4-seed pack of whichever cultivars you have the fewest of is there too when you are low. Flower time follows the cultivar: DJ Short Blueberry finishes fastest, then Green Crack and UW Purple, with Gorilla Glue #4 the slowest. Vegging a mother or a clone uses that same pace. Growth, drying, and curing run slower than the first builds: a full seed-to-ripe pass takes several minutes, and a hang or a cure takes about a minute and a half. The east lot
+sells a warehouse for 520 MOTA. Buying it opens the gate. Inside are nine indoor pots under 18/6 veg lights. Flip the switch inside to 12/12 when a plant is waiting, and it flowers a little faster than the yard. Ripening pauses if you flip the lights back, and the plant holds its water until 12/12 is on again.
+
+The farmer icon on the title screen and while you play, and the C key, open the character menu: skin, hair, hat,
+shirt, overalls, and boots, with a live preview. The backpack icon opens the bag. Each pocket shows the same model used in the yard, at a small size: a flat cannabis seed for each pack, a vegetative plant for a clone, the shed bud for wet flower, the cure jar, the green feed bottle, and the root cube. Tap a seed pocket to choose that strain. Both panels stay closed until that icon is clicked. **NEW GROW** resets the farm to the starter seeds and keeps
+the look. Create an account with email and a password before the grow starts. After that account is open, Connect wallet links a Klever wallet to it. The character, MOTA, seeds, nutrients, root cubes, clones, beds, mothers, hydro tubes, veg pots, shed, and warehouse are saved in
+this browser under that account. The game is connected to the Mota Mayhem Supabase project in `public/supabase.json`. Creating an email account signs the player in and writes that account's email plus the whole garden to that database. Later progress is saved to the same row. If the project still asks them to confirm the email, the garden is written when they sign in after confirming.
+
+## How the look is built
+
+- `src/voxel.js` - voxel mesher with face culling, baked per-vertex ambient occlusion, per-voxel colour jitter,
+  and spatial chunking for frustum culling.
+- `src/character.js` - the hero (bucket hat with leaf, plaid shirt, leaf-pocket overalls, boots), animated rig.
+- `src/plants.js` - procedural cannabis plants for 5 growth stages. Blue Dream stays green; Granddaddy Purple flowers purple.
+- `src/strains.js` - the two starter strains. `src/save.js` writes the grow to local storage under the email account. `src/wallet/` checks the email sign-in and a connected Klever wallet. `supabase/` holds the garden tables and the grower function.
+- `src/world.js` - backyard: ground, fence, house, porch, beds, shed, greenhouse, props, trees.
+- `src/main.js` - full-resolution picture with multisampled edges, a soft sky gradient, and depth outlines. `[` and `]` switch back to the chunky pixel scale. Entering the grow calls the browser's fullscreen mode on the tap or key that starts play, with no extra options the browser might reject. A later tap asks again if the bar is still up.

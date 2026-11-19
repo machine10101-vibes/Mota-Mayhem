@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#10160c" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Mota Mayhem</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><rect width='8' height='8' fill='%232f4420'/><path d='M3 0h2v3h-2zM0 2h2v2h-2zM6 2h2v2h-2zM2 3h4v3h-4zM3 6h2v2h-2z' fill='%2393c85a'/></svg>" />
+  </head>
+  <body>
+    <div id="stage"></div>
+
+    <div id="hud" class="hidden">
+      <div class="topbar">
+        <div id="brand" class="status">
+          <div class="stat mota-stat">
+            <canvas id="leaf-icon" width="8" height="10"></canvas>
+            <span class="stat-copy"><span class="k">MOTA</span><b id="mota">0</b></span>
+          </div>
+          <button type="button" class="stat strain-stat" id="strain-now" aria-label="Cycle strain">
+            <i id="strain-swatch"></i>
+            <span class="stat-copy"><span class="k" id="strain-label">BD</span><b id="strain-count">10</b></span>
+          </button>
+          <div class="vitals">
+            <div><span>WET</span><b id="wet">0</b></div>
+            <div><span>CLONE</span><b id="clones">0</b></div>
+            <div><span>FEED</span><b id="nuts">0</b></div>
+            <div><span>GRAMS</span><b id="grams">0</b></div>
+          </div>
+        </div>
+        <div class="icon-row">
+          <button type="button" id="btn-you" class="icon-btn" aria-label="Character" aria-pressed="false">
+            <svg class="pix" viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="5" y="0" width="6" height="2" fill="#2f6a28"/>
+              <rect x="3" y="2" width="10" height="2" fill="#93c85a"/>
+              <rect x="7" y="0" width="2" height="2" fill="#c6f56a"/>
+              <rect x="5" y="4" width="6" height="4" fill="#e8a76b"/>
+              <rect x="6" y="5" width="1" height="1" fill="#1b2412"/>
+              <rect x="9" y="5" width="1" height="1" fill="#1b2412"/>
+              <rect x="4" y="8" width="8" height="2" fill="#b33a32"/>
+              <rect x="7" y="8" width="2" height="2" fill="#7fb44a"/>
+              <rect x="5" y="10" width="6" height="3" fill="#2f7f4a"/>
+              <rect x="4" y="13" width="3" height="2" fill="#5c4030"/>
+              <rect x="9" y="13" width="3" height="2" fill="#5c4030"/>
+            </svg>
+          </button>
+          <button type="button" id="btn-inv" class="icon-btn" aria-label="Inventory" aria-pressed="false">
+            <svg class="pix" viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="4" y="1" width="8" height="2" fill="#6b4423"/>
+              <rect x="1" y="3" width="3" height="7" fill="#6b4423"/>
+              <rect x="12" y="3" width="3" height="7" fill="#6b4423"/>
+              <rect x="2" y="4" width="2" height="5" fill="#c4956a"/>
+              <rect x="12" y="4" width="2" height="5" fill="#c4956a"/>
+              <rect x="3" y="3" width="10" height="12" fill="#6b4423"/>
+              <rect x="4" y="4" width="8" height="10" fill="#f0d2a0"/>
+              <rect x="6" y="5" width="4" height="2" fill="#ffe66a"/>
+              <rect x="7" y="5" width="2" height="2" fill="#6b4423"/>
+              <rect x="5" y="8" width="6" height="5" fill="#ffe6b8"/>
+              <rect x="7" y="9" width="2" height="3" fill="#2f7f4a"/>
+              <rect x="6" y="9" width="1" height="2" fill="#93c85a"/>
+              <rect x="9" y="9" width="1" height="2" fill="#93c85a"/>
+            </svg>
+          </button>
+          <button type="button" id="btn-settings" class="icon-btn" aria-label="Settings" aria-pressed="false">
+            <svg class="pix" viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="7" y="1" width="2" height="2" fill="#ffe66a"/>
+              <rect x="7" y="13" width="2" height="2" fill="#ffe66a"/>
+              <rect x="1" y="7" width="2" height="2" fill="#ffe66a"/>
+              <rect x="13" y="7" width="2" height="2" fill="#ffe66a"/>
+              <rect x="3" y="3" width="2" height="2" fill="#ffe66a"/>
+              <rect x="11" y="3" width="2" height="2" fill="#ffe66a"/>
+              <rect x="3" y="11" width="2" height="2" fill="#ffe66a"/>
+              <rect x="11" y="11" width="2" height="2" fill="#ffe66a"/>
+              <rect x="5" y="5" width="6" height="6" fill="#c6f56a"/>
+              <rect x="6" y="6" width="4" height="4" fill="#1b2412"/>
+              <rect x="7" y="7" width="2" height="2" fill="#ffe66a"/>
+            </svg>
+          </button>
+          <button type="button" id="btn-help-hud" class="icon-btn help-ico" aria-label="Help" aria-pressed="false">?</button>
+        </div>
+      </div>
+      <div id="tasks-row">
+      <div id="tasks">
+        <button type="button" id="tasks-toggle" aria-expanded="false" aria-controls="tasks-menu">
+          <b id="tasks-count">0</b>
+          <span id="tasks-lead">CLEAR</span>
+          <i id="tasks-caret" aria-hidden="true"></i>
+        </button>
+        <div id="tasks-menu" class="hidden">
+          <ul id="tasks-list"></ul>
+        </div>
+      </div>
+      <div id="clock"><b id="clock-phase">DAY</b><span id="clock-day">D1</span></div>
+      </div>
+      <div id="inv" class="panel bag hidden">
+        <div class="bag-flap"><span class="pack-title">BAG</span></div>
+        <div id="bag-grid" class="bag-grid"></div>
+      </div>
+    </div>
+
+    <div id="tip"><div id="tip-name"></div><div class="meter"><span>H2O</span><div class="bar"><div id="tip-water"></div></div></div><div class="meter"><span>GROW</span><div class="bar grow"><div id="tip-grow"></div></div></div><div id="tip-marks"><span class="pair"><b>T</b><i class="mark top"></i></span><span class="pair"><b>R</b><i class="mark train"></i></span><span class="pair"><b>L</b><i class="mark lolli"></i></span></div><div id="tip-grade"></div></div>
+    <div id="badges"></div>
+    <div id="prompt" role="button" tabindex="-1"><kbd id="prompt-key"></kbd><span id="prompt-label"></span></div>
+    <div id="toasts"></div>
+
+    <div id="help" class="panel hidden">
+      <div class="help-head"><span class="help-title">FIELD NOTES</span><button type="button" id="btn-help-close" class="tbtn tiny">CLOSE</button></div>
+      <div class="help-grid help-desk">
+        <b>MOVE</b><span>WASD / ARROWS</span>
+        <b>RUN</b><span>SHIFT</span>
+        <b>ACT</b><span>SPACE</span>
+        <b>STRAIN</b><span>1 / 2 OR THE SEED PILL</span>
+        <b>FARMER</b><span>C</span>
+        <b>CANOPY</b><span>TOP, THEN TRAIN, THEN LOLLIPOP</span>
+        <b>BAG</b><span>BACKPACK SHOWS THE 3D ITEMS YOU CARRY</span>
+        <b>TASKS</b><span>THE LIST UNDER THE STATS</span>
+        <b>SETTINGS</b><span>T OR THE GEAR. WALLET LIVES HERE</span>
+        <b>SPIGOT</b><span>WATERS EVERY PLANT IN THAT BED</span>
+        <b>TIME</b><span>DAWN THROUGH NIGHT, LAMPS COME ON</span>
+        <b>CAMERA</b><span>Q / E / DRAG / WHEEL</span>
+        <b>SCREEN</b><span>FILLS THE BROWSER</span>
+        <b>PIXELS</b><span>[ ] FOR THE CHUNKY LOOK</span>
+      </div>
+      <div class="help-grid help-touch">
+        <b>MOVE</b><span>STICK</span>
+        <b>RUN</b><span>HOLD RUN</span>
+        <b>ACT</b><span>TAP THE PROMPT OR THE SOIL</span>
+        <b>STRAIN</b><span>TAP THE SEED PILL</span>
+        <b>CANOPY</b><span>TOP, TRAIN, LOLLIPOP</span>
+        <b>BAG</b><span>3D ITEMS YOU CARRY</span>
+        <b>TASKS</b><span>THE LIST UNDER THE STATS</span>
+        <b>SETTINGS</b><span>THE GEAR. WALLET LIVES HERE</span>
+        <b>SPIGOT</b><span>WATERS EVERY PLANT IN THAT BED</span>
+        <b>TIME</b><span>DAWN THROUGH NIGHT, LAMPS COME ON</span>
+        <b>CAMERA</b><span>DRAG / PINCH</span>
+        <b>SCREEN</b><span>FILLS THE BROWSER</span>
+      </div>
+      <p class="help-note">EACH PLANT CARRIES A CARD. BLUE IS WATER, GREEN IS GROWTH, AND THAT BAR TURNS WHITE, GOLD, OR AMBER AS THE TRICHOMES RIPEN. T, R, AND L ARE TOP, TRAIN, AND LOLLIPOP. A DRY PLANT DROOPS AND TANS.</p>
+    </div>
+
+    <div id="touch" class="hidden">
+      <div id="stick" aria-label="Move">
+        <div id="stick-knob"></div>
+      </div>
+      <div id="btns">
+        <button type="button" id="btn-cam-l" class="tbtn tiny" aria-label="Camera left">Q</button>
+        <button type="button" id="btn-cam-r" class="tbtn tiny" aria-label="Camera right">E</button>
+        <button type="button" id="btn-run" class="tbtn" aria-label="Run">RUN</button>
+        <button type="button" id="btn-act" class="tbtn act" aria-label="Act">ACT</button>
+        <button type="button" id="btn-help" class="tbtn tiny" aria-label="Help">?</button>
+      </div>
+    </div>
+
+    <div id="title">
+      <div class="top">
+        <div class="logo"><canvas id="leaf-logo" width="8" height="10"></canvas><h1>MOTA<br />MAYHEM</h1></div>
+        <p class="sub">TRIPLE-A BACKYARD FARMING</p>
+      </div>
+      <div class="wallet-box">
+        <p id="wallet-status" class="wallet-status" aria-live="polite">Create an account with email and a password. Your garden is saved to that account.</p>
+        <form id="account-form" class="account-form">
+          <input id="account-email" class="account-field" type="email" name="email" autocomplete="username" inputmode="email" maxlength="120" placeholder="EMAIL" aria-label="Email" required>
+          <input id="account-password" class="account-field" type="password" name="password" autocomplete="current-password" maxlength="72" placeholder="PASSWORD" aria-label="Password" required>
+          <div class="account-actions">
+            <button type="submit" id="btn-email-in" class="tbtn">SIGN IN</button>
+            <button type="button" id="btn-email-new" class="tbtn">CREATE ACCOUNT</button>
+          </div>
+        </form>
+        <button type="button" id="btn-wallet-switch" class="wallet-link hidden">USE A DIFFERENT ACCOUNT</button>
+      </div>
+      <div class="title-actions">
+        <button type="button" id="btn-settings-title" class="icon-btn" aria-label="Settings" aria-pressed="false">
+          <svg class="pix" viewBox="0 0 16 16" aria-hidden="true">
+            <rect x="7" y="1" width="2" height="2" fill="#ffe66a"/>
+            <rect x="7" y="13" width="2" height="2" fill="#ffe66a"/>
+            <rect x="1" y="7" width="2" height="2" fill="#ffe66a"/>
+            <rect x="13" y="7" width="2" height="2" fill="#ffe66a"/>
+            <rect x="3" y="3" width="2" height="2" fill="#ffe66a"/>
+            <rect x="11" y="3" width="2" height="2" fill="#ffe66a"/>
+            <rect x="3" y="11" width="2" height="2" fill="#ffe66a"/>
+            <rect x="11" y="11" width="2" height="2" fill="#ffe66a"/>
+            <rect x="5" y="5" width="6" height="6" fill="#c6f56a"/>
+            <rect x="6" y="6" width="4" height="4" fill="#1b2412"/>
+            <rect x="7" y="7" width="2" height="2" fill="#ffe66a"/>
+          </svg>
+        </button>
+        <button type="button" id="btn-character" class="icon-btn" aria-label="Character" aria-pressed="false">
+          <svg class="pix" viewBox="0 0 16 16" aria-hidden="true">
+            <rect x="5" y="0" width="6" height="2" fill="#2f6a28"/>
+            <rect x="3" y="2" width="10" height="2" fill="#93c85a"/>
+            <rect x="7" y="0" width="2" height="2" fill="#c6f56a"/>
+            <rect x="5" y="4" width="6" height="4" fill="#e8a76b"/>
+            <rect x="6" y="5" width="1" height="1" fill="#1b2412"/>
+            <rect x="9" y="5" width="1" height="1" fill="#1b2412"/>
+            <rect x="4" y="8" width="8" height="2" fill="#b33a32"/>
+            <rect x="7" y="8" width="2" height="2" fill="#7fb44a"/>
+            <rect x="5" y="10" width="6" height="3" fill="#2f7f4a"/>
+            <rect x="4" y="13" width="3" height="2" fill="#5c4030"/>
+            <rect x="9" y="13" width="3" height="2" fill="#5c4030"/>
+          </svg>
+        </button>
+        <button type="button" id="btn-new" class="tbtn hidden">NEW GROW</button>
+      </div>
+      <p id="press-line" class="press hidden"><span id="press-desk" class="press-desk">CLICK OR SPACE TO START</span><span id="press-touch" class="press-touch">TAP TO START</span></p>
+    </div>
+    <div id="strains" class="hidden"></div>
+    <div id="settings" class="hidden">
+      <div class="panel settings-card">
+        <div class="dress-title">SETTINGS</div>
+        <div class="set-row">
+          <span>ACCOUNT</span>
+          <div class="set-actions">
+            <b id="set-account">NOT SIGNED IN</b>
+            <button type="button" id="btn-set-out" class="tbtn tiny hidden">SIGN OUT</button>
+          </div>
+        </div>
+        <div class="set-wallet">
+          <div class="dress-title">KLEVER WALLET</div>
+          <p id="set-wallet-copy" class="set-copy">Sign in with email on the title screen. The wallet connects here.</p>
+          <p id="set-wallet-who" class="set-who" aria-live="polite"></p>
+          <p id="set-wallet-err" class="set-err" role="alert"></p>
+          <div class="set-actions">
+            <button type="button" id="btn-set-wallet" class="tbtn">CONNECT WALLET</button>
+            <button type="button" id="btn-set-unlink" class="tbtn hidden">UNLINK</button>
+          </div>
+          <div id="set-unlink-ask" class="set-ask hidden">
+            <p>Unlink this Klever wallet from the account?</p>
+            <div class="set-actions">
+              <button type="button" id="btn-set-unlink-yes" class="tbtn">UNLINK</button>
+              <button type="button" id="btn-set-unlink-no" class="tbtn">CANCEL</button>
+            </div>
+          </div>
+          <div id="set-wallet-help" class="wallet-help hidden"></div>
+        </div>
+        <div class="set-row">
+          <span>PIXELS</span>
+          <div class="set-px">
+            <button type="button" id="set-px-down" class="tbtn tiny" aria-label="Finer pixels">-</button>
+            <b id="set-px">AUTO</b>
+            <button type="button" id="set-px-up" class="tbtn tiny" aria-label="Chunkier pixels">+</button>
+          </div>
+        </div>
+        <div class="set-row"><span>SCREEN</span><button type="button" id="set-fs" class="tbtn tiny">FULL</button></div>
+        <div class="dress-actions">
+          <button type="button" id="btn-settings-close" class="tbtn">CLOSE</button>
+        </div>
+      </div>
+    </div>
+    <div id="shop" class="hidden">
+      <div class="panel shop-card">
+        <div class="dress-title">SUPPLY COMPUTER</div>
+        <p class="shop-mota">MOTA <b id="shop-mota">0</b></p>
+        <div id="shop-rows"></div>
+        <div class="dress-actions">
+          <button type="button" id="btn-shop-close" class="tbtn">CLOSE</button>
+        </div>
+        <p class="dress-note">SEEDS, NUTRIENTS, AND ROOT CUBES</p>
+      </div>
+    </div>
+    <div id="dress" class="hidden">
+      <div class="panel dress-card">
+        <div class="dress-title">CHARACTER</div>
+        <div id="dress-rows"></div>
+        <div class="dress-actions">
+          <button type="button" id="btn-dress-new" class="tbtn">NEW GROW</button>
+          <button type="button" id="btn-dress-done" class="tbtn">DONE</button>
+        </div>
+        <p class="dress-note">SAVED ON THIS DEVICE</p>
+      </div>
+    </div>
+    <div id="loading"><span>GROWING THE YARD...</span></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

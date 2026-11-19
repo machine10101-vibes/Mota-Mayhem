@@ -1,0 +1,814 @@
+import * as THREE from 'three';
+import { VoxelModel, hash3, mix, shade, toMesh, voxelMaterial } from './voxel.js';
+import { buildPlant, PLANT_VS } from './plants.js';
+
+export const WAREHOUSE_PRICE = 520;
+export const SEED_PACK = { n: 4, cost: 16 };
+export const UNLOCK = { mother: 80, tube: 70, vegWest: 140, vegCenter: 140, bed: 80 };
+export const MOTA_PER_G = { A: 4, AA: 6, AAA: 9, AAAA: 14 };
+
+export function buildMotaToken() {
+  const m = new VoxelModel();
+  const R = 16;
+  const rimColor = (ang) => {
+    const c = Math.cos(ang);
+    const s = Math.sin(ang);
+    const cyan = 0x2ee6d4;
+    const blue = 0x3b8cff;
+    const purple = 0x6a28e6;
+    const violet = 0xb14bff;
+    if (c >= 0) return mix(s >= 0 ? blue : violet, cyan, c);
+    return mix(purple, s >= 0 ? blue : violet, Math.abs(s) * 0.85);
+  };
+  for (let x = -R - 1; x <= R + 1; x++) {
+    for (let y = -R - 1; y <= R + 1; y++) {
+      const d = Math.hypot(x, y);
+      if (d > R + 0.4 || d < R - 2.7) continue;
+      const col = rimColor(Math.atan2(x, y));
+      m.set(x, y, -1, mix(col, 0x24105a, 0.4), 0.02);
+      m.set(x, y, 0, col, 0.015);
+    }
+  }
+  const glyphs = [
+    [0b101, 0b111, 0b101],
+    [0b111, 0b101, 0b101],
+    [0b111, 0b010, 0b010],
+    [0b010, 0b111, 0b101],
+    [0b111, 0b101, 0b111],
+    [0b110, 0b101, 0b011],
+    [0b111, 0b100, 0b111],
+    [0b101, 0b111, 0b010],
+    [0b011, 0b101, 0b110],
+    [0b111, 0b001, 0b111],
+  ];
+  const count = 16;
+  for (let i = 0; i < count; i++) {
+    const ang = (i / count) * Math.PI * 2;
+    const rad = R - 1.25;
+    const cx = Math.sin(ang) * rad;
+    const cy = Math.cos(ang) * rad;
+    const tx = Math.cos(ang);
+    const ty = -Math.sin(ang);
+    const rx = Math.sin(ang);
+    const ry = Math.cos(ang);
+    const glyph = glyphs[i % glyphs.length];
+    const ink = mix(0x7af6ea, rimColor(ang), 0.22);
+    glyph.forEach((bits, row) => {
+      for (let col = 0; col < 3; col++) {
+        if (!(bits & (1 << (2 - col)))) continue;
+        const along = (col - 1) * 1.15;
+        const out = (1 - row) * 1.15;
+        const x = Math.round(cx + tx * along + rx * out);
+        const y = Math.round(cy + ty * along + ry * out);
+        if (Math.hypot(x, y) < R - 3.1) continue;
+        m.set(x, y, 1, ink, 0);
+      }
+    });
+  }
+  const leafAt = (x, y, col) => {
+    for (let z = 0; z <= 2; z++) m.set(x, y, z, z === 2 ? col : mix(col, 0x0d6b28, 0.5), 0.012);
+  };
+  const leaflet = (ang, len, girth) => {
+    const dx = Math.sin(ang);
+    const dy = Math.cos(ang);
+    const px = Math.cos(ang);
+    const py = -Math.sin(ang);
+    for (let t = 0; t <= len; t += 0.25) {
+      const u = t / len;
+      if (t < 1.8) {
+        leafAt(Math.round(dx * t), Math.round(dy * t) - 2, 0x2fbf45);
+        continue;
+      }
+      const env = Math.sin(Math.PI * Math.pow((t - 1.2) / (len - 1.2), 0.85)) * girth;
+      const tooth = Math.floor(t * 1.6) % 2 === 0 ? 0.45 : 1;
+      const w = env * tooth;
+      for (let s = -Math.ceil(w); s <= Math.ceil(w); s++) {
+        if (Math.abs(s) > w + 0.05) continue;
+        const x = Math.round(dx * t + px * s);
+        const y = Math.round(dy * t + py * s) - 2;
+        const vein = s === 0;
+        const edge = Math.abs(s) >= w - 0.45;
+        const tip = u > 0.86;
+        const col = vein ? 0xb6f06a : tip ? 0x7ee85c : edge ? 0x157a30 : 0x2fbf48;
+        leafAt(x, y, col);
+      }
+    }
+  };
+  [
+    [0, 11.4, 1.55],
+    [0.72, 9.4, 1.35],
+    [-0.72, 9.4, 1.35],
+    [1.28, 7.3, 1.15],
+    [-1.28, 7.3, 1.15],
+    [1.9, 5.1, 0.95],
+    [-1.9, 5.1, 0.95],
+  ].forEach(([ang, len, girth]) => leaflet(ang, len, girth));
+  for (let y = -8; y <= 0; y++) leafAt(0, y, y < -5 ? 0x46d255 : 0x3dcf4c);
+  return m;
+}
+export const WH = { x: 30, z: 0, hx: 7, hz: 5.5 };
+export const HOUSE = {
+  half: 16.45,
+  back: -23.2,
+  front: -14.4,
+  walkX: 15.6,
+  walkZ: -22.45,
+};
+export const LOFT = {
+  y: 3.62,
+  x0: -16.15,
+  x1: 16.15,
+  zFront: -14.5,
+  zBack: -23.05,
+};
+export const STAIR = {
+  x0: -16.02,
+  x1: -14.22,
+  z0: -19.15,
+  z1: -15.05,
+  y0: 0.75,
+  y1: LOFT.y,
+};
+export const SUPPLIES = [
+  { id: 'bd', name: 'BLUE DREAM', detail: '4 SEEDS · HYBRID · 9 WK', cost: 12, kind: 'seed', strain: 'bd', n: 4 },
+  { id: 'gdp', name: 'GRANDDADDY PURPLE', detail: '4 SEEDS · INDICA · 9 WK', cost: 12, kind: 'seed', strain: 'gdp', n: 4 },
+  { id: 'gc', name: 'GREEN CRACK', detail: '4 SEEDS · SATIVA · 8 WK', cost: 12, kind: 'seed', strain: 'gc', n: 4 },
+  { id: 'gg', name: 'GORILLA GLUE #4', detail: '4 SEEDS · INDICA · 9.5 WK', cost: 14, kind: 'seed', strain: 'gg', n: 4 },
+  { id: 'lis', name: 'LONG ISLAND SKUNK', detail: '4 SEEDS · HYBRID · 9 WK', cost: 12, kind: 'seed', strain: 'lis', n: 4 },
+  { id: 'uw', name: 'UW PURPLE', detail: '4 SEEDS · INDICA · 8 WK', cost: 12, kind: 'seed', strain: 'uw', n: 4 },
+  { id: 'bb', name: 'DJ SHORT BLUEBERRY', detail: '4 SEEDS · INDICA · 7.5 WK', cost: 14, kind: 'seed', strain: 'bb', n: 4 },
+  { id: 'feed', name: 'NUTRIENTS', detail: 'FEEDS MOTHERS AND VEG', cost: 8, kind: 'nutrient', n: 1 },
+  { id: 'cubes', name: 'ROOT CUBES', detail: '2 CUBES, SPEEDS TUBES', cost: 10, kind: 'cube', n: 2 },
+];
+
+export function stairHeightAt(z) {
+  const t = (z - STAIR.z0) / (STAIR.z1 - STAIR.z0);
+  const c = Math.min(1, Math.max(0, t));
+  return STAIR.y0 + (STAIR.y1 - STAIR.y0) * c;
+}
+
+export function footOnStair(x, z, y = null) {
+  if (!(x > STAIR.x0 + 0.14 && x < STAIR.x1 - 0.14 && z >= STAIR.z0 - 0.08 && z <= STAIR.z1 + 0.06)) return false;
+  if (y == null) return true;
+  return Math.abs(y - stairHeightAt(z)) < 0.9;
+}
+
+export function footOnLoft(x, z) {
+  if (x <= LOFT.x0 + 0.12 || x >= LOFT.x1 - 0.12) return false;
+  if (z >= LOFT.zFront - 0.05 || z <= LOFT.zBack + 0.08) return false;
+  return !footOnStair(x, z);
+}
+
+const GLYPH = {
+  M: ['10001', '11011', '10101', '10001', '10001', '10001', '10001'],
+  O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
+  T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
+  A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
+  B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
+  P: ['11110', '10001', '10001', '11110', '10000', '10000', '10000'],
+  H: ['10001', '10001', '10001', '11111', '10001', '10001', '10001'],
+  E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'],
+  R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+  C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
+  L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
+  N: ['10001', '11001', '10101', '10011', '10001', '10001', '10001'],
+  V: ['10001', '10001', '10001', '10001', '01010', '01010', '00100'],
+  G: ['01111', '10000', '10000', '10111', '10001', '10001', '01111'],
+  W: ['10001', '10001', '10001', '10101', '10101', '01010', '01010'],
+  U: ['10001', '10001', '10001', '10001', '10001', '10001', '01110'],
+  S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'],
+  D: ['11110', '10001', '10001', '10001', '10001', '10001', '11110'],
+  F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
+  Y: ['10001', '10001', '01010', '00100', '00100', '00100', '00100'],
+  '5': ['11111', '10000', '11110', '00001', '00001', '10001', '01110'],
+  '2': ['01110', '10001', '00001', '00010', '00100', '01000', '11111'],
+  '0': ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
+  ' ': ['000', '000', '000', '000', '000', '000', '000'],
+};
+
+function place(group, model, vs, x, y, z, rotY = 0, mat, shadows = true) {
+  const mesh = toMesh(model, vs, [0, 0, 0], mat, shadows);
+  mesh.position.set(x, y, z);
+  mesh.rotation.y = rotY;
+  group.add(mesh);
+  return mesh;
+}
+
+function textSize(text, scale) {
+  let w = 0;
+  for (const ch of text) w += ((GLYPH[ch] || GLYPH[' '])[0].length + 1) * scale;
+  return { w: w - scale, h: 7 * scale };
+}
+
+function paintFlat(m, text, cx, cz, y, scale, col) {
+  const { w, h } = textSize(text, scale);
+  let x = Math.round(cx - w / 2);
+  const far = Math.round(cz - h / 2);
+  for (const ch of text) {
+    const g = GLYPH[ch] || GLYPH[' '];
+    for (let r = 0; r < g.length; r++) {
+      for (let c = 0; c < g[0].length; c++) {
+        if (g[r][c] !== '1') continue;
+        for (let dz = 0; dz < scale; dz++)
+          for (let dx = 0; dx < scale; dx++) m.set(x + c * scale + dx, y, far + r * scale + dz, col, 0.02);
+      }
+    }
+    x += (g[0].length + 1) * scale;
+  }
+}
+
+function paintWall(m, text, cx, cy, z, scale, col) {
+  const { w, h } = textSize(text, scale);
+  let x = Math.round(cx - w / 2);
+  const top = Math.round(cy + h / 2);
+  for (const ch of text) {
+    const g = GLYPH[ch] || GLYPH[' '];
+    for (let r = 0; r < g.length; r++) {
+      for (let c = 0; c < g[0].length; c++) {
+        if (g[r][c] !== '1') continue;
+        for (let dy = 0; dy < scale; dy++)
+          for (let dx = 0; dx < scale; dx++) m.set(x + c * scale + dx, top - r * scale - dy, z, col, 0.02);
+      }
+    }
+    x += (g[0].length + 1) * scale;
+  }
+}
+
+function buildHouseDoor() {
+  const m = new VoxelModel();
+  const wood = (x, y) => (x % 5 === 0 ? 0x5a3d25 : hash3(x, y, 1, 9) > 0.5 ? 0x7a5636 : 0x6d4c30);
+  m.box(0, 0, -1, 18, 26, 1, wood, 0.03);
+  m.box(3, 2, 1, 8, 11, 2, 0x8d6844, 0.03);
+  m.box(10, 2, 1, 16, 11, 2, 0x8d6844, 0.03);
+  m.box(3, 13, 1, 8, 23, 2, 0x8d6844, 0.03);
+  m.box(10, 13, 1, 16, 23, 2, 0x8d6844, 0.03);
+  m.box(14, 11, 1, 16, 15, 3, 0xe9ba3e, 0.02);
+  return m;
+}
+
+function buildPot(big) {
+  const m = new VoxelModel();
+  const r = big ? 7 : 5;
+  const h = big ? 9 : 7;
+  m.box(-r - 3, 0, -r - 3, r + 3, 2, r + 3, 0x6e3b2c, 0.03);
+  m.box(-r - 2, 2, -r - 2, r + 2, 3, r + 2, 0x8a4e38, 0.03);
+  m.box(-r, 2, -r, r, h, r, (x, y) => (y % 3 === 0 ? 0xb85c34 : 0xc2653a), 0.05);
+  m.box(-r - 1, h, -r - 1, r + 1, h + 2, r + 1, 0xd2754a, 0.04);
+  m.box(-r + 1, h + 2, -r + 1, r - 1, h + 3, r - 1, 0x4b3424, 0.05);
+  return m;
+}
+
+function buildSconce() {
+  const m = new VoxelModel();
+  m.box(-1, 0, 0, 2, 10, 2, 0x5c4030, 0.03);
+  m.box(-6, 8, 1, 7, 12, 4, 0x2c2418, 0.02);
+  m.box(-5, 9, 3, 6, 11, 6, 0xfff3c4, 0.01);
+  return m;
+}
+
+function buildLightStand() {
+  const m = new VoxelModel();
+  m.box(-2, 0, -2, 2, 4, 2, 0x3a4046, 0.03);
+  m.box(-1, 4, -1, 1, 30, 1, 0x4a5450, 0.03);
+  m.box(-12, 28, -3, 12, 32, 3, 0x241c14, 0.02);
+  m.box(-10, 29, 2, 10, 31, 5, 0xfff6d0, 0.01);
+  return m;
+}
+
+function buildWateringCan() {
+  const m = new VoxelModel();
+  m.box(-4, 0, -3, 4, 6, 4, 0x3d8f6a, 0.03);
+  m.box(-2, 6, -2, 2, 8, 2, 0x2f7f4a, 0.02);
+  m.box(3, 3, 0, 9, 5, 2, 0x2f7f4a, 0.02);
+  m.box(-6, 4, -1, -3, 8, 1, 0x245c36, 0.02);
+  return m;
+}
+
+function buildChair() {
+  const m = new VoxelModel();
+  m.box(-3, 0, -3, -1, 6, -1, 0x5c4030, 0.03);
+  m.box(1, 0, -3, 3, 6, -1, 0x5c4030, 0.03);
+  m.box(-3, 0, 1, -1, 6, 3, 0x5c4030, 0.03);
+  m.box(1, 0, 1, 3, 6, 3, 0x5c4030, 0.03);
+  m.box(-4, 6, -4, 4, 8, 4, 0x6e5030, 0.02);
+  m.box(-4, 8, -4, 4, 16, -2, 0x6e5030, 0.02);
+  return m;
+}
+
+function buildShelf() {
+  const m = new VoxelModel();
+  m.box(-12, 0, -3, 12, 2, 3, 0x6b4428, 0.03);
+  m.box(-12, 10, -3, 12, 12, 3, 0x6b4428, 0.03);
+  m.box(-12, 20, -3, 12, 22, 3, 0x6b4428, 0.03);
+  addNutrientBottle(m, -10, 2, -2);
+  m.box(-3, 2, -2, 3, 7, 2, 0xe9ba3e, 0.02);
+  m.box(4, 2, -2, 10, 8, 2, 0x3a6ea8, 0.02);
+  m.box(-8, 12, -2, -1, 18, 2, 0xc6f56a, 0.02);
+  m.box(1, 12, -2, 8, 17, 2, 0xb33a32, 0.02);
+  return m;
+}
+
+const TUBE_CUPS = 4;
+const TUBE_SP = 22;
+
+export function addRootCube(m, ox, oy, oz) {
+  m.box(ox - 2, oy, oz - 2, ox + 3, oy + 3, oz + 3, 0x6a8f45, 0.02);
+  m.delBox(ox - 1, oy + 1, oz - 1, ox + 2, oy + 3, oz + 2);
+}
+
+export function buildRootCube() {
+  const m = new VoxelModel();
+  addRootCube(m, 0, 0, 0);
+  return m;
+}
+
+export function addNutrientBottle(m, ox, oy, oz) {
+  m.box(ox, oy, oz, ox + 6, oy + 6, oz + 4, 0x3d8f6a, 0.02);
+  m.box(ox + 2, oy + 6, oz + 1, ox + 4, oy + 8, oz + 3, 0x2f7f4a, 0.02);
+}
+
+export function buildNutrientBottle() {
+  const m = new VoxelModel();
+  addNutrientBottle(m, 0, 0, 0);
+  return m;
+}
+
+function buildReservoir() {
+  const m = new VoxelModel();
+  m.box(-8, 0, -7, 8, 2, 7, 0x3a4046, 0.03);
+  m.box(-9, 2, -8, 9, 12, 8, 0x2a3136, 0.03);
+  m.box(-7, 8, -6, 7, 11, 6, 0x3ec6c0, 0.01);
+  m.box(-8, 12, -7, 8, 14, 7, 0x1c2428, 0.02);
+  m.delBox(-6, 12, -5, 6, 14, 5);
+  m.box(-6, 11, -5, 6, 12, 5, 0x7ee8df, 0.01);
+  m.box(3, 14, -3, 8, 20, 3, 0x4d565e, 0.03);
+  m.box(4, 17, -1, 7, 19, 2, 0x93c85a, 0.01);
+  m.box(8, 9, -2, 16, 12, 2, 0xd5dbd6, 0.02);
+  return m;
+}
+
+function buildNftTube() {
+  const m = new VoxelModel();
+  const x0 = -((TUBE_CUPS * TUBE_SP) / 2);
+  const x1 = -x0;
+  const R = 4;
+  const centers = [];
+  for (let i = 0; i < TUBE_CUPS; i++) centers.push(Math.round(x0 + TUBE_SP / 2 + i * TUBE_SP));
+  for (let x = x0; x < x1; x++) {
+    for (let y = 0; y <= R * 2; y++) {
+      for (let z = -R; z <= R; z++) {
+        const dy = y - R;
+        const d = Math.hypot(dy, z);
+        if (d > R + 0.15 || d < R - 1.45) continue;
+        const nearest = centers.reduce((n, cx) => Math.min(n, Math.abs(x - cx)), 99);
+        if (dy > 1.4 && Math.abs(z) <= 1 && nearest < 3) continue;
+        m.set(x, y, z, z > 1 ? 0xf7faf7 : 0xd0d6d1, 0.02);
+      }
+    }
+    m.set(x, R - 2, 0, 0x3ec6c0, 0);
+    m.set(x, R - 2, 1, 0x218f8a, 0);
+  }
+  m.box(x0 - 1, 1, -3, x0 + 2, R * 2 - 1, 4, 0xc5cbc6, 0.02);
+  m.box(x1 - 2, 1, -3, x1 + 1, R * 2 - 1, 4, 0xc5cbc6, 0.02);
+  for (const cx of centers) {
+    m.box(cx - 3, R * 2 - 1, -3, cx + 4, R * 2 + 2, 4, 0x1c2918, 0.03);
+    addRootCube(m, cx, R * 2 + 1, 0);
+  }
+  for (const lx of [x0 + 8, -2, x1 - 10]) m.box(lx, -5, -1, lx + 2, 1, 2, 0x8d9398, 0.03);
+  return { model: m, centers };
+}
+
+function buildComputer() {
+  const m = new VoxelModel();
+  m.box(-12, 0, -6, 12, 8, 7, 0x5c4030, 0.03);
+  m.box(-14, 8, -7, 14, 10, 8, 0xc4a06a, 0.02);
+  m.box(-7, 10, -6, 7, 22, -3, 0x161c14, 0.02);
+  m.box(-6, 11, -3, 6, 21, -2, 0x9dff6a, 0.01);
+  m.box(-1, 10, -3, 1, 12, -1, 0x2a2a2a, 0.02);
+  m.box(-6, 10, 1, 6, 11, 5, 0x242424, 0.02);
+  m.box(8, 10, -5, 13, 20, 1, 0x2c3338, 0.02);
+  m.box(9, 15, 1, 12, 17, 2, 0x7dff6a, 0.01);
+  return m;
+}
+
+function buildStairs() {
+  const m = new VoxelModel();
+  const vx = (n) => Math.round(n * 16);
+  const x0 = vx(STAIR.x0);
+  const x1 = vx(STAIR.x1);
+  const steps = 11;
+  for (let i = 0; i < steps; i++) {
+    const t0 = i / steps;
+    const t1 = (i + 1) / steps;
+    const zA = vx(STAIR.z0 + (STAIR.z1 - STAIR.z0) * t0);
+    const zB = vx(STAIR.z0 + (STAIR.z1 - STAIR.z0) * t1);
+    const top = vx(STAIR.y0 + (STAIR.y1 - STAIR.y0) * t1);
+    const bot = Math.max(vx(0.7), top - 4);
+    m.box(x0 + 2, bot, zA, x1 - 2, top, zB, i % 2 ? 0xd2b07a : 0xb88958, 0.03);
+  }
+  const rail = (x, zEnd) => {
+    m.box(x, vx(STAIR.y0 + 0.15), vx(STAIR.z0), x + 3, vx(STAIR.y1 + 0.85), vx(zEnd), 0xf3ecdc, 0.02);
+    m.box(x, vx(STAIR.y1 + 0.85), vx(STAIR.z0), x + 3, vx(STAIR.y1 + 1.05), vx(zEnd), 0xfff6df, 0.02);
+  };
+  rail(x0, STAIR.z1);
+  rail(x1 - 3, -16.25);
+  return m;
+}
+
+function buildHouseInterior(group, colliders, cutaway) {
+  const S = 16;
+  const m = new VoxelModel();
+  const vx = (n) => Math.round(n * S);
+  const plaster = 0xe7dcc4;
+  const trim = 0x2f4420;
+  const plasterAt = (x, y, z) => {
+    if (y < 16) return 0x6e5438;
+    if (y > 46 && y < 50) return 0xcbb892;
+    return hash3(x, y, z, 2) > 0.9 ? shade(plaster, 0.93) : plaster;
+  };
+  const zBack = HOUSE.back - 0.05;
+  const zFront = -14.2;
+  const xWest = -HOUSE.half + 0.1;
+  const xEast = HOUSE.half - 0.1;
+  const splitL = -5.48;
+  const splitR = 5.32;
+  const floor = (x0, x1, col) => {
+    m.box(vx(x0), 8, vx(zBack + 0.15), vx(x1), 12, vx(zFront), (x, y, z) => (Math.floor(z / 4) % 2 === 0 ? col : shade(col, 0.9)), 0.04);
+  };
+  floor(xWest, splitL, 0x3f5c34);
+  floor(splitL, splitR, 0xd5ddd4);
+  floor(splitR, xEast, 0xc49a62);
+  const wall = (x0, z0, x1, z1) => m.box(vx(x0), 12, vx(z0), vx(x1), vx(3.34), vx(z1), plasterAt, 0.03);
+  wall(xWest, HOUSE.back - 0.2, xEast, zBack);
+  wall(-HOUSE.half - 0.05, HOUSE.back - 0.2, xWest, -14.25);
+  wall(xEast, HOUSE.back - 0.2, HOUSE.half + 0.05, -14.25);
+  const divider = (x) => {
+    wall(x, zBack, x + 0.28, -19.7);
+    wall(x, -17.3, x + 0.28, -14.4);
+    m.box(vx(x), vx(2.7), vx(zBack), vx(x + 0.28), vx(2.95), vx(-14.4), trim, 0.02);
+    m.box(vx(x) - 2, 12, vx(-19.78), vx(x + 0.28) + 2, vx(2.5), vx(-19.52), 0x8d6844, 0.02);
+    m.box(vx(x) - 2, 12, vx(-17.48), vx(x + 0.28) + 2, vx(2.5), vx(-17.22), 0x8d6844, 0.02);
+  };
+  divider(splitL);
+  divider(splitR);
+  paintWall(m, 'MOTHER', vx(-11), 36, vx(zBack) - 1, 2, 0xf3e7b0);
+  paintWall(m, 'CLONE', vx(0), 36, vx(zBack) - 1, 2, 0x145e6a);
+  paintWall(m, 'VEG', vx(11), 36, vx(zBack) - 1, 2, 0xf3e7b0);
+  m.box(vx(9.6), 12, vx(-20.3), vx(12.4), 13, vx(-19.6), 0x3a4038, 0.02);
+  place(group, m, 1 / S, 0, 0, 0);
+  for (const x of [-14.6, 0.1, 14.4]) place(group, buildSconce(), 1 / S, x, 1.55, -22.55);
+  place(group, buildLightStand(), 1 / S, 6.35, 0.75, -16.35);
+  place(group, buildWateringCan(), 1 / S, -6.4, 0.75, -16.55);
+
+  const push = (r) => colliders.push(r);
+  push({ x0: xWest, x1: xEast, z0: HOUSE.back - 0.25, z1: zBack });
+  push({ x0: -HOUSE.half - 0.1, x1: xWest, z0: HOUSE.back - 0.2, z1: -14.3 });
+  push({ x0: xEast, x1: HOUSE.half + 0.1, z0: HOUSE.back - 0.2, z1: -14.3 });
+  push({ x0: xWest, x1: -1.2, z0: -14.48, z1: -13.92 });
+  push({ x0: 1.2, x1: xEast, z0: -14.48, z1: -13.92 });
+  for (const x0 of [splitL, splitR]) {
+    push({ x0, x1: x0 + 0.28, z0: zBack, z1: -19.7, floor: 0 });
+    push({ x0, x1: x0 + 0.28, z0: -17.3, z1: -14.4, floor: 0 });
+  }
+
+  const door = new THREE.Group();
+  door.add(toMesh(buildHouseDoor(), 1 / 8));
+  door.position.set(-9 / 8, 0.75, -13.9);
+  group.add(door);
+
+  const potBig = buildPot(true);
+  const potSm = buildPot(false);
+  place(group, buildReservoir(), 1 / 16, -3.85, 0.75, -20.2);
+  push({ x0: -4.45, x1: -3.15, z0: -20.75, z1: -19.6 });
+
+  const mothers = [
+    { x: -13.7, z: -21.55 },
+    { x: -8.15, z: -21.55 },
+  ].map((mom, i) => {
+    place(group, potBig, 1 / 14, mom.x, 0.75, mom.z);
+    const plant = toMesh(buildPlant(0, 'bd'), PLANT_VS);
+    plant.position.set(mom.x, 0.75 + 0.78, mom.z);
+    plant.scale.setScalar(0.55);
+    plant.visible = false;
+    plant.castShadow = true;
+    group.add(plant);
+    return { ...mom, state: 'empty', strain: null, stage: 0, prog: 0, water: 1, cool: 0, plant, locked: i === 0 };
+  });
+
+  const tube = buildNftTube();
+  const tubeGeo = tube.model.build(1 / 16);
+  const tubeY = 0.75 + 5 / 16;
+  const trays = [-21.35, -19.15].flatMap((z, row) => {
+    const mesh = new THREE.Mesh(tubeGeo, voxelMaterial);
+    mesh.position.set(0.35, tubeY, z);
+    mesh.castShadow = true;
+    group.add(mesh);
+    return tube.centers.map((cx) => {
+      const x = 0.35 + cx / 16;
+      const plant = toMesh(buildPlant(0, 'bd'), PLANT_VS);
+      plant.position.set(x, tubeY + 0.72, z);
+      plant.scale.setScalar(0.48);
+      plant.visible = false;
+      plant.castShadow = true;
+      group.add(plant);
+      return { x, z, state: 'empty', t: 0, strain: null, plant, locked: row === 0 };
+    });
+  });
+
+  const vegSpots = [
+    [8.15, -21.55],
+    [13.7, -21.55],
+    [8.15, -18.85],
+    [13.7, -18.85],
+  ].map(([x, z]) => addVegPot(group, potSm, x, z, 0.75));
+
+  place(group, buildStairs(), 1 / S, 0, 0, 0);
+  push({ x0: STAIR.x0 - 0.02, x1: STAIR.x0 + 0.18, z0: STAIR.z0, z1: STAIR.z1 });
+  push({ x0: STAIR.x1 - 0.18, x1: STAIR.x1 + 0.02, z0: STAIR.z0, z1: -16.25 });
+  push({ x0: STAIR.x0 + 0.18, x1: STAIR.x1 - 0.18, z0: -16.9, z1: STAIR.z1, floor: 0 });
+  const loft = buildLoft(group, push);
+  vegSpots.push(...loft.veg);
+
+  return {
+    roof: cutaway.roof,
+    facade: cutaway.facade,
+    door,
+    open: false,
+    doorBlock: { x0: -1.15, x1: 1.2, z0: -14.25, z1: -13.72 },
+    mothers,
+    trays,
+    veg: vegSpots,
+    upper: loft.upper,
+    computer: loft.computer,
+    loftY: LOFT.y,
+    mother2: false,
+    tube2: false,
+    vegWest: false,
+    vegCenter: false,
+    onStair: footOnStair,
+    onLoft: footOnLoft,
+    stairHeight: stairHeightAt,
+    contains(x, z) {
+      return x > -HOUSE.half + 0.4 && x < HOUSE.half - 0.4 && z < -14.25 && z > HOUSE.back + 0.32;
+    },
+  };
+}
+
+function addVegPot(parent, pot, x, z, y) {
+  place(parent, pot, 1 / 15, x, y, z);
+  const plant = toMesh(buildPlant(2, 'bd'), PLANT_VS);
+  plant.position.set(x, y + 0.62, z);
+  plant.scale.setScalar(0.78);
+  plant.visible = false;
+  plant.castShadow = true;
+  parent.add(plant);
+  return { x, z, y, up: y > 2, state: 'empty', t: 0, strain: null, plant };
+}
+
+function buildLoft(group, push) {
+  const upper = new THREE.Group();
+  upper.visible = false;
+  group.add(upper);
+  const S = 16;
+  const m = new VoxelModel();
+  const vx = (n) => Math.round(n * S);
+  const y0 = vx(3.36);
+  const y1 = vx(LOFT.y);
+  const x0 = vx(LOFT.x0);
+  const x1 = vx(LOFT.x1);
+  const z0 = vx(LOFT.zBack);
+  const z1 = vx(LOFT.zFront);
+  const splitL = vx(-5.48);
+  const splitR = vx(5.32);
+  m.box(x0, y0, z0, x1, y1, z1, (x, y, z) => {
+    if (y === y0) return 0xe4d8c0;
+    const tile = (Math.floor(x / 8) + Math.floor(z / 8)) % 2;
+    if (x < splitR) return tile ? 0xc49a62 : 0xb58850;
+    const plank = Math.floor(x / 4);
+    return plank % 2 ? 0x8d6a45 : 0xa88358;
+  }, 0.04);
+  m.delBox(vx(STAIR.x0 - 0.04), y0 - 2, vx(STAIR.z0), vx(STAIR.x1 + 0.04), y1 + 2, vx(STAIR.z1 + 0.05));
+  const wallTop = y1 + vx(2.2);
+  const plasterAt = (x, y, z) => {
+    if (y < y1 + 4) return 0x6e5438;
+    if (y > wallTop - 6) return 0xcbb892;
+    return hash3(x, y, z, 2) > 0.9 ? shade(0xe7dcc4, 0.93) : 0xe7dcc4;
+  };
+  const door0 = vx(-19.7);
+  const door1 = vx(-17.3);
+  const divider = (x) => {
+    m.box(x, y1, z0, x + 4, wallTop, door0, plasterAt, 0.03);
+    m.box(x, y1, door1, x + 4, wallTop, z1, plasterAt, 0.03);
+    m.box(x, wallTop - 4, door0, x + 4, wallTop, door1, 0x2f4420, 0.02);
+    m.box(x - 2, y1, door0 - 3, x + 6, y1 + vx(1.7), door0, 0x8d6844, 0.02);
+    m.box(x - 2, y1, door1, x + 6, y1 + vx(1.7), door1 + 3, 0x8d6844, 0.02);
+  };
+  divider(splitL);
+  divider(splitR);
+  const edge = (xa, za, xb, zb) => m.box(xa, y1, za, xb, wallTop, zb, plasterAt, 0.03);
+  edge(x0, z0, x1, z0 + 5);
+  edge(x0, z0, x0 + 5, z1);
+  edge(x1 - 5, z0, x1, z1);
+  edge(x0, z1 - 5, x1, z1);
+  paintFlat(m, 'VEG', vx(-10.4), vx(-16.15), y1, 2, 0xf3e7b0);
+  paintFlat(m, 'VEG', vx(0), vx(-16.15), y1, 2, 0xf3e7b0);
+  paintFlat(m, 'SHOP', vx(11.2), vx(-16.15), y1, 2, 0xc6f56a);
+  m.box(vx(9.2), y1, vx(-17.6), vx(14.2), y1 + 1, vx(-15.7), 0x3a6ea8, 0.02);
+  place(upper, m, 1 / S, 0, 0, 0);
+
+  const pot = buildPot(false);
+  const veg = [
+    [-13.2, -21.7],
+    [-8.5, -21.7],
+    [-13.2, -20.05],
+    [-8.5, -20.05],
+    [-2.6, -21.55],
+    [2.6, -21.55],
+    [-2.6, -18.85],
+    [2.6, -18.85],
+  ].map(([x, z]) => {
+    const spot = addVegPot(upper, pot, x, z, LOFT.y);
+    spot.room = x < -5.4 ? 'west' : 'center';
+    return spot;
+  });
+  place(upper, buildLightStand(), 1 / S, -6.3, LOFT.y, -16.45);
+  place(upper, buildLightStand(), 1 / S, 4.4, LOFT.y, -16.45);
+  for (const x of [-14.8, -0.2, 14.2]) place(upper, buildSconce(), 1 / S, x, LOFT.y + 0.85, -22.4);
+
+  const computer = { x: 11.6, z: -20.15, floorY: LOFT.y };
+  place(upper, buildComputer(), 1 / S, computer.x, LOFT.y, -21.35);
+  place(upper, buildChair(), 1 / S, 13.5, LOFT.y, -19.85);
+  place(upper, buildShelf(), 1 / S, 14.55, LOFT.y, -18.15);
+
+  const up = (r) => push({ ...r, floor: 1 });
+  up({ x0: STAIR.x0 - 0.05, x1: STAIR.x1 + 0.05, z0: STAIR.z0 - 0.45, z1: STAIR.z0 + 0.08 });
+  for (const x of [-5.48, 5.32]) {
+    up({ x0: x, x1: x + 0.28, z0: LOFT.zBack, z1: -19.7 });
+    up({ x0: x, x1: x + 0.28, z0: -17.3, z1: LOFT.zFront });
+  }
+  up({ x0: 10.5, x1: 13.4, z0: -22.6, z1: -20.75 });
+  up({ x0: 13.7, x1: 15.45, z0: -18.85, z1: -17.45 });
+  return { upper, computer, veg };
+}
+
+function buildStandModel() {
+  const m = new VoxelModel();
+  m.box(-12, 0, -7, 12, 14, 7, (x, y) => (y % 4 === 0 ? 0x6e5030 : 0x8a5e36), 0.04);
+  m.box(-13, 14, -8, 13, 16, 8, 0xd7b072, 0.03);
+  m.box(-12, 0, -7, -9, 30, -4, 0xf3ecdc, 0.02);
+  m.box(9, 0, -7, 12, 30, -4, 0xf3ecdc, 0.02);
+  m.box(-14, 28, -9, 14, 31, 8, 0x2f7f4a, 0.03);
+  m.box(-14, 31, -9, 14, 33, -6, 0x3f9a58, 0.02);
+  m.box(-9, 17, 6, 9, 26, 8, 0x1d3318, 0.02);
+  paintWall(m, 'MOTA', 0, 21, 8, 1, 0xf3e7b0);
+  m.box(-2, 16, 2, 2, 17, 6, 0xe9ba3e, 0.02);
+  return m;
+}
+
+function buildLotSign() {
+  const m = new VoxelModel();
+  m.box(-3, 0, -2, 1, 20, 2, 0x7a5230, 0.04);
+  m.box(18, 0, -2, 22, 20, 2, 0x7a5230, 0.04);
+  m.box(-6, 16, -1, 26, 46, 3, (x, y) => (y < 18 || y > 44 || x < -4 || x > 24 ? 0x5d3f24 : 0x2f4420), 0.02);
+  paintWall(m, 'WAREHOUSE', 10, 38, 3, 1, 0xf3e7b0);
+  paintWall(m, '520 MOTA', 10, 26, 3, 1, 0xffe66a);
+  return m;
+}
+
+function buildGate() {
+  const m = new VoxelModel();
+  const wood = (x, y, z) => (y % 5 === 0 ? 0x6e5030 : hash3(x, y, z, 4) > 0.5 ? 0x8a5e36 : 0x7b552f);
+  m.box(-1, 0, 1, 2, 24, 38, wood, 0.04);
+  m.box(-2, 4, 2, 3, 7, 36, 0xc9a06a, 0.03);
+  m.box(-2, 14, 2, 3, 17, 36, 0xc9a06a, 0.03);
+  m.box(0, 9, 30, 3, 13, 34, 0xe9ba3e, 0.02);
+  return m;
+}
+
+function buildRollDoor() {
+  const m = new VoxelModel();
+  m.box(-1, 0, 1, 2, 32, 32, (x, y) => (y % 3 === 0 ? 0xc5ccd3 : 0x8e99a3), 0.03);
+  m.box(-2, 14, 14, 3, 20, 20, 0xe9ba3e, 0.02);
+  return m;
+}
+
+function buildWarehouseParts() {
+  const shell = new VoxelModel();
+  const roof = new VoxelModel();
+  const glass = new VoxelModel();
+  const U = 12;
+  const hx = WH.hx * U;
+  const hz = WH.hz * U;
+  const H = 48;
+  const metal = (x, y, z) => {
+    if (y % 5 === 0) return 0x66707a;
+    return (Math.floor(x / 6) + Math.floor(z / 6)) % 2 === 0 ? 0x8b949e : 0x7a848e;
+  };
+  shell.box(-hx + 2, 0, -hz + 2, hx - 2, 2, hz - 2, (x, y, z) => ((x + z) % 8 === 0 ? 0x8e9398 : 0xa3a8ad), 0.03);
+  const stripe = (x, y, z) => (y > 6 && y < 10 ? 0x2f7f4a : metal(x, y, z));
+  shell.box(-hx, 0, -hz, -hx + 3, H, hz, stripe, 0.03);
+  shell.box(hx - 3, 0, -hz, hx, H, hz, stripe, 0.03);
+  shell.box(-hx, 0, -hz, hx, H, -hz + 3, stripe, 0.03);
+  shell.box(-hx, 0, hz - 3, hx, H, hz, stripe, 0.03);
+  shell.delBox(-hx - 1, 0, -16, -hx + 4, 32, 16);
+  shell.delBox(-hx - 1, 18, 24, -hx + 4, 34, 46);
+  shell.delBox(-hx - 1, 18, -46, -hx + 4, 34, -24);
+  shell.delBox(-20, 18, hz - 4, 20, 34, hz + 1);
+  glass.box(-hx + 1, 18, 24, -hx + 2, 34, 46, 0xc5e7f6, 0.01);
+  glass.box(-hx + 1, 18, -46, -hx + 2, 34, -24, 0xc5e7f6, 0.01);
+  glass.box(-20, 18, hz - 2, 20, 34, hz - 1, 0xc5e7f6, 0.01);
+  for (const lz of [-38, 0, 38]) shell.box(-50, 2, lz - 9, 44, 6, lz + 9, 0x4a5450, 0.03);
+  paintWall(shell, 'WAREHOUSE', 0, 30, hz, 2, 0xf3e7b0);
+  roof.box(-hx - 3, H - 1, -hz - 3, hx + 3, H + 2, hz + 3, 0x3a4450, 0.03);
+  roof.box(-hx - 1, H + 2, -3, hx + 1, H + 5, 3, 0x2f7f4a, 0.02);
+  for (let x = -hx; x <= hx; x += 18) roof.box(x, H - 4, -hz, x + 2, H, hz, 0x2c3540, 0.02);
+  const bulbs = new VoxelModel();
+  for (const lz of [-38, 0, 38]) {
+    bulbs.box(-46, 37, lz - 1, 40, 40, lz + 2, 0xffffff, 0);
+  }
+  const sw = new VoxelModel();
+  sw.box(-80, 14, 22, -77, 24, 28, 0x2c322c, 0.02);
+  sw.box(-77, 17, 24, -76, 21, 26, 0xe7e2d4, 0.01);
+  return { shell, roof, glass, bulbs, sw };
+}
+
+function buildSaleBanner() {
+  const m = new VoxelModel();
+  m.box(-28, 0, 0, 28, 12, 2, 0x1d3318, 0.02);
+  paintWall(m, 'FOR SALE', 0, 6, 2, 1, 0xffe66a);
+  return m;
+}
+
+function buildWarehouse(group, colliders) {
+  const parts = buildWarehouseParts();
+  const U = 12;
+  place(group, parts.shell, 1 / U, WH.x, 0, WH.z);
+  const roof = place(group, parts.roof, 1 / U, WH.x, 0, WH.z);
+  const glassMat = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.32, depthWrite: false });
+  const glass = place(group, parts.glass, 1 / U, WH.x, 0, WH.z, 0, glassMat, false);
+  glass.renderOrder = 2;
+  const bulbMat = new THREE.MeshLambertMaterial({ vertexColors: true, color: 0xb48cff });
+  const bulbs = place(group, parts.bulbs, 1 / U, WH.x, 0, WH.z, 0, bulbMat, false);
+  place(group, parts.sw, 1 / U, WH.x, 0, WH.z);
+  const forSale = place(group, buildSaleBanner(), 1 / 14, WH.x, 1.15, WH.z + WH.hz + 0.08);
+
+  const door = new THREE.Group();
+  door.add(toMesh(buildRollDoor(), 1 / U));
+  door.position.set(WH.x - WH.hx + 0.02, 0, -1.28);
+  group.add(door);
+
+  const gate = new THREE.Group();
+  gate.add(toMesh(buildGate(), 1 / 16));
+  gate.position.set(20.02, 0, -1.2);
+  group.add(gate);
+
+  const x = WH.x;
+  const hz = WH.hz;
+  const west = x - WH.hx;
+  const east = x + WH.hx;
+  colliders.push(
+    { x0: west - 0.12, x1: west + 0.32, z0: -hz, z1: -1.4 },
+    { x0: west - 0.12, x1: west + 0.32, z0: 1.4, z1: hz },
+    { x0: east - 0.32, x1: east + 0.12, z0: -hz, z1: hz },
+    { x0: west, x1: east, z0: hz - 0.32, z1: hz + 0.12 },
+    { x0: west, x1: east, z0: -hz - 0.12, z1: -hz + 0.32 },
+    { x0: 23.38, x1: 23.62, z0: 1.9, z1: 2.35 },
+  );
+
+  const slots = [];
+  for (const lx of [-3.5, -0.3, 2.9]) {
+    for (const lz of [-3.15, 0, 3.15]) slots.push({ x: x + lx, z: lz, y: 0.72 });
+  }
+
+  return {
+    roof,
+    door,
+    gate,
+    forSale,
+    open: false,
+    owned: false,
+    gateOpen: false,
+    lights: 'veg',
+    bulbMat,
+    bulbs,
+    lightSwitch: { x: 24.05, z: 2.1 },
+    slots,
+    doorBlock: { x0: west - 0.05, x1: west + 0.4, z0: -1.35, z1: 1.35 },
+    gateBlock: { x0: 19.7, x1: 20.4, z0: -1.25, z1: 1.25 },
+    contains(px, pz) {
+      return px > west + 0.45 && px < east - 0.4 && pz > -hz + 0.45 && pz < hz - 0.45;
+    },
+  };
+}
+
+export function attachEstate(group, colliders, cutaway) {
+  const house = buildHouseInterior(group, colliders, cutaway);
+  const standMesh = place(group, buildStandModel(), 1 / 16, -3.55, 0.75, -12.65);
+  colliders.push({ x0: -4.4, x1: -2.7, z0: -13.15, z1: -12.15 });
+  const stand = { x: -3.55, z: -11.45, mesh: standMesh };
+  const lotMesh = place(group, buildLotSign(), 1 / 16, 16.15, 0, -1.85);
+  colliders.push({ x0: 15.7, x1: 17.7, z0: -2.15, z1: -1.55 });
+  const lot = { x: 16.4, z: -1.05, mesh: lotMesh };
+  const warehouse = buildWarehouse(group, colliders);
+  return { house, stand, lot, warehouse };
+}
