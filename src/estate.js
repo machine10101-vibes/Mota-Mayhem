@@ -540,6 +540,7 @@ function buildHouseInterior(group, colliders, cutaway) {
     veg: vegSpots,
     upper: loft.upper,
     computer: loft.computer,
+    breeder: loft.breeder,
     loftY: LOFT.y,
     mother2: false,
     tube2: false,
@@ -611,7 +612,7 @@ function buildLoft(group, push) {
   edge(x1 - 5, z0, x1, z1);
   edge(x0, z1 - 5, x1, z1);
   paintFlat(m, 'VEG', vx(-10.4), vx(-16.15), y1, 2, 0xf3e7b0);
-  paintFlat(m, 'VEG', vx(0), vx(-16.15), y1, 2, 0xf3e7b0);
+  paintFlat(m, 'BREED', vx(0), vx(-16.15), y1, 2, 0xc6f56a);
   paintFlat(m, 'SHOP', vx(11.2), vx(-16.15), y1, 2, 0xc6f56a);
   m.box(vx(9.2), y1, vx(-17.6), vx(14.2), y1 + 1, vx(-15.7), 0x3a6ea8, 0.02);
   place(upper, m, 1 / S, 0, 0, 0);
@@ -637,6 +638,15 @@ function buildLoft(group, push) {
 
   const computer = { x: 11.6, z: -20.15, floorY: LOFT.y };
   place(upper, buildComputer(), 1 / S, computer.x, LOFT.y, -21.35);
+  const breeder = { x: 0, z: -16.25, floorY: LOFT.y };
+  const labBench = new VoxelModel();
+  labBench.box(-20, 0, -8, 20, 13, 8, (x, y) => (y % 4 === 0 ? 0x6e5030 : 0x8a5e36), 0.03);
+  labBench.box(-22, 13, -10, 22, 16, 10, 0x3b5140, 0.02);
+  labBench.box(-12, 16, -7, 12, 25, -5, 0x243b35, 0.02);
+  labBench.box(-10, 18, -4, 10, 23, -3, 0x86d8b4, 0.01);
+  labBench.box(-3, 16, 0, 3, 19, 5, 0xc6f56a, 0.02);
+  paintWall(labBench, 'DNA', 0, 34, 9, 1, 0xc6f56a);
+  place(upper, labBench, 1 / S, breeder.x, LOFT.y, -16.25);
   place(upper, buildChair(), 1 / S, 13.5, LOFT.y, -19.85);
   place(upper, buildShelf(), 1 / S, 14.55, LOFT.y, -18.15);
 
@@ -648,7 +658,7 @@ function buildLoft(group, push) {
   }
   up({ x0: 10.5, x1: 13.4, z0: -22.6, z1: -20.75 });
   up({ x0: 13.7, x1: 15.45, z0: -18.85, z1: -17.45 });
-  return { upper, computer, veg };
+  return { upper, computer, breeder, veg };
 }
 
 function buildStandModel() {
