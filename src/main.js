@@ -4285,6 +4285,19 @@ function bindDress() {
   $('tasks-toggle').addEventListener('click', () => {
     setTasksOpen(!tasksOpen);
   });
+  $('btn-league')?.addEventListener('click', () => {
+    const panel = $('league-panel');
+    const open = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', !open);
+    $('btn-league').setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) renderGrowerLeague();
+  });
+  addEventListener('pointerdown', (e) => {
+    if (!e.target.closest?.('#league-panel, #btn-league')) {
+      $('league-panel')?.classList.add('hidden');
+      $('btn-league')?.setAttribute('aria-expanded', 'false');
+    }
+  });
   addEventListener('pointerdown', (e) => {
     if (tasksOpen && !e.target.closest?.('#tasks')) setTasksOpen(false);
   });
