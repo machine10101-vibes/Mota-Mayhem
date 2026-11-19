@@ -2825,11 +2825,27 @@ function addReputation(points, reason = 'GROWER PROGRESS') {
   markDirty();
 }
 
-function makeBuyerOrder(day) {
+const BUYER_CLIENTS = [
+  { at: 0, name: 'LOCAL SHOP', short: 'LOCAL', multiplier: 1, color: '#c9d6b5' },
+  { at: 100, name: 'GREENHOUSE CO-OP', short: 'CO-OP', multiplier: 1.15, color: '#a9db86' },
+  { at: 260, name: 'CRAFT COLLECTIVE', short: 'CRAFT', multiplier: 1.3, color: '#8ed8d0' },
+  { at: 460, name: 'NIGHT MARKET', short: 'NIGHT', multiplier: 1.5, color: '#c4a6ff' },
+  { at: 720, name: 'ROYAL RESERVE', short: 'ROYAL', multiplier: 1.75, color: '#ffe66a' },
+];
+
+function buyerClient(rep = state.reputation | 0) {
+  let client = BUYER_CLIENTS[0];
+  for (const candidate of BUYER_CLIENTS) if (rep >= candidate.at) client = candidate;
+  return client;
+}
+
+function makeBuyerOrder(day, rep = state.reputation | 0) {
   const grades = ['A', 'AA', 'AAA', 'AAAA'];
   const grade = grades[(Math.max(1, day) - 1) % grades.length];
   const count = day % 3 === 0 ? 2 : 1;
-  return { day, grade, count, bonus: Math.min(180, 30 + day * 12), claimed: false };
+  const client = buyerClient(rep);
+  const baseBonus = Math.min(180, 30 + day * 12);
+  return { day, grade, count, customer: client.name, customerTier: client.short, customerColor: client.color, bonus: Math.round(baseBonus * client.multiplier), claimed: false };
 }
 
 function updateBuyerOrderHud() {
@@ -2841,6 +2857,12 @@ function updateBuyerOrderHud() {
     el.textContent = 'BUYER ORDER LOADING';
     root.classList.remove('complete', 'ready');
     return;
+  }
+  const tier = $('buyer-tier');
+  if (tier) {
+    tier.textContent = order.customerTier || buyerClient().short;
+    tier.style.color = order.customerColor || buyerClient().color;
+    tier.title = order.customer || 'Daily buyer';
   }
   if (order.claimed) {
     el.textContent = `D${order.day} COMPLETE · NEXT ORDER AT DAWN`;
@@ -3704,9 +3726,6 @@ function applySave(save) {
   dayClock = Number.isFinite(save.dayClock) ? Math.max(0, save.dayClock) : 0.32;
   const orderDay = Math.floor(dayClock) + 1;
   const savedOrder = save.buyerOrder;
-  state.buyerOrder = savedOrder && savedOrder.day === orderDay && GRADES.includes(savedOrder.grade)
-    ? { ...makeBuyerOrder(orderDay), claimed: !!savedOrder.claimed }
-    : makeBuyerOrder(orderDay);
   taskSig = '';
   clearHybridStrains();
   for (const hybrid of Array.isArray(save.hybrids) ? save.hybrids : []) registerHybridStrain(hybrid);
@@ -3715,6 +3734,10 @@ function applySave(save) {
   state.mota = save.mota | 0;
   state.harvested = save.harvested | 0;
   state.reputation = Math.max(0, Math.min(10000000, save.reputation | 0));
+  const generatedOrder = makeBuyerOrder(orderDay);
+  state.buyerOrder = savedOrder && savedOrder.day === orderDay && GRADES.includes(savedOrder.grade)
+    ? { ...generatedOrder, ...savedOrder, customer: typeof savedOrder.customer === 'string' ? savedOrder.customer : generatedOrder.customer, customerTier: typeof savedOrder.customerTier === 'string' ? savedOrder.customerTier : generatedOrder.customerTier, customerColor: typeof savedOrder.customerColor === 'string' ? savedOrder.customerColor : generatedOrder.customerColor, bonus: Number.isFinite(savedOrder.bonus) ? Math.max(0, savedOrder.bonus | 0) : generatedOrder.bonus, claimed: !!savedOrder.claimed }
+    : generatedOrder;
   for (const g of GRADES) state.jars[g] = Math.max(0, save.jars?.[g] | 0);
   syncCuredGrams();
   state.wet = Array.isArray(save.wet) ? save.wet.slice(0, 12).map((w) => ({ grade: GRADES.includes(w.grade) ? w.grade : 'A', grams: w.grams | 0, strain: strainOf(w.strain).id, trimmed: w.trimmed === undefined ? true : !!w.trimmed })) : [];
