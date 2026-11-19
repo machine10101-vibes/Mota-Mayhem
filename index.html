@@ -9,8 +9,8 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <title>Mota Mayhem</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><rect width='8' height='8' fill='%232f4420'/><path d='M3 0h2v3h-2zM0 2h2v2h-2zM6 2h2v2h-2zM2 3h4v3h-4zM3 6h2v2h-2z' fill='%2393c85a'/></svg>" />
-    <script type="module" crossorigin src="/Mota-Mayhem/assets/index--q5CkaDz.js"></script>
-    <link rel="stylesheet" crossorigin href="/Mota-Mayhem/assets/index-uFa17qEc.css">
+    <script type="module" crossorigin src="/Mota-Mayhem/assets/index-bE2oTpSn.js"></script>
+    <link rel="stylesheet" crossorigin href="/Mota-Mayhem/assets/index-L-fFL4IW.css">
   </head>
   <body>
     <div id="stage"></div>
@@ -136,6 +136,8 @@
         <b>CANOPY</b><span>TOP, THEN TRAIN, THEN LOLLIPOP</span>
         <b>BAG</b><span>I OR THE BACKPACK BUTTON OPENS YOUR 3D INVENTORY</span>
         <b>TASKS</b><span>THE LIST UNDER THE STATS</span>
+        <b>GENETICS</b><span>HARVEST TWO CULTIVARS, THEN CROSS THEM IN THE UPSTAIRS LAB</span>
+        <b>SEED CROPS</b><span>GROW A HYBRID IN THE BREEDING POTS TO COLLECT FOUR SEEDS</span>
         <b>SETTINGS</b><span>T OR THE GEAR. WALLET LIVES HERE</span>
         <b>SPIGOT</b><span>WATERS EVERY PLANT IN THAT BED</span>
         <b>TIME</b><span>DAWN THROUGH NIGHT, LAMPS COME ON</span>
@@ -151,6 +153,8 @@
         <b>CANOPY</b><span>TOP, TRAIN, LOLLIPOP</span>
         <b>BAG</b><span>3D ITEMS YOU CARRY</span>
         <b>TASKS</b><span>THE LIST UNDER THE STATS</span>
+        <b>GENETICS</b><span>HARVEST TWO CULTIVARS, THEN CROSS THEM UPSTAIRS</span>
+        <b>SEED CROPS</b><span>GROW HYBRIDS IN THE BREEDING POTS FOR FOUR SEEDS</span>
         <b>SETTINGS</b><span>THE GEAR. WALLET LIVES HERE</span>
         <b>SPIGOT</b><span>WATERS EVERY PLANT IN THAT BED</span>
         <b>TIME</b><span>DAWN THROUGH NIGHT, LAMPS COME ON</span>
@@ -266,6 +270,28 @@
         <div class="dress-actions">
           <button type="button" id="btn-settings-close" class="tbtn">CLOSE</button>
         </div>
+      </div>
+    </div>
+    <div id="breeding" class="hidden">
+      <div class="panel breed-card" role="dialog" aria-modal="true" aria-labelledby="breed-title">
+        <div class="dress-title" id="breed-title">GENETICS LAB</div>
+        <p class="breed-copy">Harvest a finished plant to read its genetics. Cross two different readings to create a hybrid with blended growth, flower, size, and frost traits.</p>
+        <label class="breed-field">PARENT A
+          <select id="breed-parent-a"></select>
+        </label>
+        <p id="breed-parent-a-readout" class="breed-readout"></p>
+        <label class="breed-field">PARENT B
+          <select id="breed-parent-b"></select>
+        </label>
+        <p id="breed-parent-b-readout" class="breed-readout"></p>
+        <div class="breed-preview-label">OFFSPRING PREVIEW</div>
+        <p id="breed-offspring-readout" class="breed-readout breed-offspring"></p>
+        <p id="breed-status" class="breed-status" aria-live="polite">HARVEST TWO DIFFERENT CULTIVARS TO BUILD YOUR GENETICS LIBRARY.</p>
+        <div class="dress-actions">
+          <button type="button" id="btn-breeding-close" class="tbtn">CLOSE</button>
+          <button type="button" id="btn-breed-cross" class="tbtn welcome-primary" disabled>CREATE HYBRID</button>
+        </div>
+        <p class="dress-note">ONE TRIAL SEED PER CROSS. GROW IT IN A BREEDING POT TO PRODUCE FOUR MORE SEEDS.</p>
       </div>
     </div>
     <div id="shop" class="hidden">
