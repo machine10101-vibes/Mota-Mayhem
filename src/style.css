@@ -518,6 +518,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline:2px so
 /* Daily outdoor conditions make the yard feel alive and clarify when nature helps. */
 .weather { display:flex; align-items:center; min-height:27px; padding:6px 8px; background:linear-gradient(145deg,rgba(20,31,24,.94),rgba(8,14,12,.94)); box-shadow:var(--frame); color:#c9d6b5; font-size:7px; line-height:1.35; letter-spacing:.025em; white-space:nowrap; }
 .weather[data-weather="showers"] { color:#9ed7f5; border-left:2px solid #6fb8e8; }
+.weather[data-weather="cloudy"] { color:#c4d0d8; border-left:2px solid #aab8c5; }
 .weather[data-weather="warm"] { color:#ffd28c; border-left:2px solid #e6a65f; }
 .weather[data-weather="breezy"] { color:#b9e6d5; }
 @media (max-width:560px) { .weather { min-height:25px; padding:4px 6px; font-size:6px; } }

@@ -912,9 +912,9 @@ function presentPlant(mesh, d, i, time, dt, anchor) {
   }
 }
 
-function growTick(d, dt, speed) {
+function growTick(d, dt, speed, waterUse = 1) {
   if (d.stage >= 4) return false;
-  d.water = Math.max(0, d.water - dt / THIRST);
+  d.water = Math.max(0, d.water - (dt / THIRST) * waterUse);
   const dry = d.water <= 0;
   d.age += dt;
   if (dry) d.stress += dt * (d.fromClone ? 0.7 : 1);
@@ -923,6 +923,7 @@ function growTick(d, dt, speed) {
 }
 
 function updatePlants(dt, time) {
+  const outdoorWaterUse = weatherForDay(Math.floor(dayClock) + 1).waterUse;
   slotsData.forEach((d, i) => {
     const mesh = plantMeshes[i];
     const s = world.slots[i];
@@ -932,11 +933,11 @@ function updatePlants(dt, time) {
     } else {
       mesh.visible = true;
       if (d.state === 'ripening') {
-        d.water = Math.max(0, d.water - dt / THIRST);
+        d.water = Math.max(0, d.water - (dt / THIRST) * outdoorWaterUse);
         d.age += dt;
         if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
         d.ripe = Math.min(1.25, (d.ripe || 0) + dt / (RIPE_TIME * strainPace(d.strain, 4)));
-      } else if (d.state === 'growing' && growTick(d, dt, 1)) {
+      } else if (d.state === 'growing' && growTick(d, dt, 1, outdoorWaterUse)) {
         finishStage(d, mesh, false);
         burst(s, d.state === 'ripening' ? 0xfff3a0 : 0xbfe88a);
       }
@@ -2957,13 +2958,13 @@ function renderGrowerLeague() {
 
 function weatherForDay(day) {
   const cycle = [
-    { id: 'clear', label: 'CLEAR', detail: 'BRIGHT SKIES', rain: false },
-    { id: 'cloudy', label: 'CLOUDY', detail: 'SOFT LIGHT', rain: false },
-    { id: 'showers', label: 'SHOWERS', detail: 'YARD WATERED AT DAWN', rain: true },
-    { id: 'breezy', label: 'BREEZY', detail: 'OPEN AIR', rain: false },
-    { id: 'warm', label: 'WARM', detail: 'CHECK SOIL OFTEN', rain: false },
-    { id: 'clear', label: 'CLEAR', detail: 'BRIGHT SKIES', rain: false },
-    { id: 'showers', label: 'SHOWERS', detail: 'YARD WATERED AT DAWN', rain: true },
+    { id: 'clear', label: 'CLEAR', detail: 'BRIGHT SKIES', rain: false, waterUse: 1 },
+    { id: 'cloudy', label: 'CLOUDY', detail: 'SOIL DRIES 8% SLOWER', rain: false, waterUse: 0.92 },
+    { id: 'showers', label: 'SHOWERS', detail: 'RAIN AT DAWN · SLOWER DRYING', rain: true, waterUse: 0.82 },
+    { id: 'breezy', label: 'BREEZY', detail: 'SOIL DRIES 10% FASTER', rain: false, waterUse: 1.1 },
+    { id: 'warm', label: 'WARM', detail: 'SOIL DRIES 25% FASTER', rain: false, waterUse: 1.25 },
+    { id: 'clear', label: 'CLEAR', detail: 'BRIGHT SKIES', rain: false, waterUse: 1 },
+    { id: 'showers', label: 'SHOWERS', detail: 'RAIN AT DAWN · SLOWER DRYING', rain: true, waterUse: 0.82 },
   ];
   return cycle[(Math.max(1, day) - 1) % cycle.length];
 }
@@ -2975,13 +2976,15 @@ function updateWeatherHud(day = Math.floor(dayClock) + 1) {
   el.textContent = `${weather.label} · ${weather.detail}`;
   el.dataset.weather = weather.id;
   el.title = weather.rain
-    ? 'Rain at dawn naturally waters outdoor grow beds. Indoor and warehouse plants still need care.'
-    : 'Outdoor conditions change each in-game day. Check plant cards and the task list for care needs.';
-  el.setAttribute('aria-label', `Day ${day} weather: ${weather.label}. ${weather.detail}.`);
+    ? 'Rain refills active outdoor grow beds at dawn and slows soil drying by 18%. Indoor plants still need care.'
+    : `Outdoor soil dries ${weather.waterUse < 1 ? 'more slowly' : weather.waterUse > 1 ? 'faster' : 'at its normal rate'} today. This affects outdoor grow beds only; indoor and warehouse plants are unchanged.`;
+  el.setAttribute('aria-label', `Day ${day} weather: ${weather.label}. ${weather.detail}. Outdoor soil water use multiplier ${weather.waterUse.toFixed(2)}.`);
 }
 
 function ensureBuyerOrder() {
   const day = Math.floor(dayClock) + 1;
+  const week = Math.floor((day - 1) / 7) + 1;
+  if (week > (state.leagueWeek | 0)) advanceGrowerLeague(week);
   if (state.buyerOrder?.day === day) return false;
   state.buyerOrder = makeBuyerOrder(day);
   taskSig = '';

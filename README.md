@@ -81,3 +81,8 @@ The grower league adds a seven-day harvest competition against three named rival
 ## Living yard conditions
 
 The outdoor yard now follows a repeating in-game weather pattern. Morning showers on selected days automatically refill water in active outdoor grow beds, while indoor and warehouse plants remain on their own care schedule. The HUD displays the day's conditions and explains whether rain will help the yard, so players can plan their rounds around the weather.
+
+
+## Weather and weekly competition updates
+
+The seven-day weather cycle now changes outdoor bed water use: cloudy weather slows soil drying by 8%, showers refill active outdoor beds at dawn and slow drying by 18%, breezy days increase water use by 10%, and warm days increase it by 25%. Clear days use the normal rate. These conditions apply to outdoor grow beds; indoor and warehouse plants keep their own care schedule. The weather HUD and Field Notes explain the current effect. The weekly Grower League advances at the start of each new seven-day week, settles the previous standings once, pays the podium reward, and resets the new week's score.
