@@ -533,3 +533,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline:2px so
 .league-goal-track i { display:block; width:0; height:100%; background:linear-gradient(90deg,#7eb8e4,#93c85a,#ffe66a); box-shadow:0 0 9px rgba(147,200,90,.42); transition:width .25s ease; }
 .league-goal-track[aria-valuenow="120"] i { background:#ffe66a; }
 @media(prefers-reduced-motion:reduce) { .league-goal-track i { transition:none; } }
+
+
+/* Unlockable glasshouse plot and badge accents. */
+.plant-badge[data-zone="gh"] { box-shadow:0 0 0 2px var(--ink),0 0 0 4px rgba(126,216,208,.9); }

@@ -628,6 +628,8 @@ function playLimits() {
     }
     return lim;
   }
+  const insideG = world.greenhouse.owned && world.greenhouse.contains(P.x, P.z);
+  if (insideG) return { x0: -18.65, x1: -13.35, z0: -11.55, z1: -6.25 };
   const insideW = W.contains(P.x, P.z);
   const inGap = Math.abs(P.z) < 1.35 && P.x > 20.8 && P.x < 24.6;
   if (insideW || (W.owned && W.open && inGap)) {
@@ -652,6 +654,8 @@ function resolveCollisions() {
   if (!world.house.open) blocks.push(world.house.doorBlock);
   if (!world.warehouse.gateOpen) blocks.push(world.warehouse.gateBlock);
   if (world.warehouse.owned && !world.warehouse.open) blocks.push(world.warehouse.doorBlock);
+  if (!world.greenhouse.owned) blocks.push(world.greenhouse.block);
+  else blocks.push(...world.greenhouse.walls);
   const upstairs = P.y > 1.85;
   for (let it = 0; it < 3; it++)
     for (const r of blocks) {
@@ -816,6 +820,7 @@ function gramsFor(grade) {
   return grade === 'AAAA' ? 9 : grade === 'AAA' ? 7 : grade === 'AA' ? 5 : 3;
 }
 
+const GREENHOUSE_PRICE = 520;
 const PLANT_TOP = [0.82, 1.36, 1.78, 2.26, 3.28];
 const plantBits = {
   frostGeo: new THREE.SphereGeometry(0.07, 6, 4),
@@ -927,17 +932,18 @@ function updatePlants(dt, time) {
   slotsData.forEach((d, i) => {
     const mesh = plantMeshes[i];
     const s = world.slots[i];
+    if (s.where === 'gh' && !world.greenhouse.owned) { mesh.visible = false; return; }
     if (d.state === 'empty') {
       mesh.visible = false;
       hideRig(mesh);
     } else {
       mesh.visible = true;
       if (d.state === 'ripening') {
-        d.water = Math.max(0, d.water - (dt / THIRST) * outdoorWaterUse);
+        d.water = Math.max(0, d.water - (dt / THIRST) * (s.where === 'gh' ? 0.74 : outdoorWaterUse));
         d.age += dt;
         if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
         d.ripe = Math.min(1.25, (d.ripe || 0) + dt / (RIPE_TIME * strainPace(d.strain, 4)));
-      } else if (d.state === 'growing' && growTick(d, dt, 1, outdoorWaterUse)) {
+      } else if (d.state === 'growing' && growTick(d, dt, s.where === 'gh' ? 1.05 : 1, s.where === 'gh' ? 0.74 : outdoorWaterUse)) {
         finishStage(d, mesh, false);
         burst(s, d.state === 'ripening' ? 0xfff3a0 : 0xbfe88a);
       }
@@ -1002,17 +1008,20 @@ function nearestPlot() {
   const fz = P.z + Math.cos(P.facing) * 0.95;
   let best = null;
   let bd = 1.9 * 1.9;
-  const scan = (slots, data, where) => {
+  const scan = (slots, data, where, offset = 0) => {
     if (where === 'wh' && (!world.warehouse.owned || (!world.warehouse.open && !world.warehouse.contains(P.x, P.z)))) return;
+    if (where === 'gh' && (!world.greenhouse.owned || !world.greenhouse.contains(P.x, P.z))) return;
     slots.forEach((s, i) => {
       const d2 = (s.x - fx) ** 2 + (s.z - fz) ** 2;
       if (d2 < bd) {
         bd = d2;
-        best = { where, i, s, d: data[i], d2: (s.x - P.x) ** 2 + (s.z - P.z) ** 2 };
+        best = { where, i: i + offset, s, d: data[i], d2: (s.x - P.x) ** 2 + (s.z - P.z) ** 2 };
       }
     });
   };
-  scan(world.slots, slotsData, 'yard');
+  const yardSlots = world.slots.filter((s) => s.where !== 'gh');
+  scan(yardSlots, slotsData.slice(0, yardSlots.length), 'yard');
+  scan(world.greenhouse.slots, slotsData.slice(yardSlots.length), 'gh', yardSlots.length);
   scan(world.warehouse.slots, whData, 'wh');
   return best;
 }
@@ -1079,6 +1088,7 @@ function actPlot(plot) {
   const { d, s } = plot;
   const mesh = plotMesh(plot);
   if (plot.where === 'yard' && d.locked) return tryUnlockBed(s.bed);
+  if (plot.where === 'gh' && d.locked) return toast('UNLOCK THE GLASSHOUSE FIRST');
   if (Math.hypot(s.x - P.x, s.z - P.z) > 0.3) P.facing = Math.atan2(s.x - P.x, s.z - P.z);
   if (d.state === 'empty') {
     if (state.clones.length) {
@@ -1278,6 +1288,7 @@ function stationFocus() {
   }
   consider(world.stand.x, world.stand.z, 'stand', null, 1.55);
   for (const tap of world.scenery?.spigots || []) consider(tap.x, tap.z, 'spigot', tap, 1.35);
+  consider(world.greenhouse.door.x, world.greenhouse.door.z, 'greenhouse', null, 1.9, 0.08, 1);
   if (!world.warehouse.owned) consider(world.lot.x, world.lot.z, 'lot', null, 1.7);
   else {
     consider(23.05, 0, 'wh-door', null, 1.85, 0.08, 2);
@@ -1328,6 +1339,7 @@ function actStation(f) {
   if (f.kind === 'stand') return actStand();
   if (f.kind === 'spigot') return actSpigot(f.ref);
   if (f.kind === 'lot') return actBuyWarehouse();
+  if (f.kind === 'greenhouse') return actBuyGreenhouse();
   if (f.kind === 'wh-lights') {
     const W = world.warehouse;
     W.lights = W.lights === 'flower' ? 'veg' : 'flower';
@@ -1711,6 +1723,16 @@ function actSpigot(tap) {
   return true;
 }
 
+function actBuyGreenhouse() {
+  const gh = world.greenhouse;
+  if (gh.owned) return toast('GLASSHOUSE OPEN · FOUR EXTRA GROW POTS');
+  if (state.mota < GREENHOUSE_PRICE) return toast(`NEED ${GREENHOUSE_PRICE} MOTA — GLASSHOUSE`);
+  state.mota -= GREENHOUSE_PRICE; gh.owned = true; gh.forSale.visible = false;
+  const offset = world.slots.length - gh.slots.length;
+  for (let i = 0; i < gh.slots.length; i++) slotsData[offset + i].locked = false;
+  P.cool = 0.4; toast('GLASSHOUSE UNLOCKED — FOUR NEW GROW POTS', 'good'); updateHud(); markDirty(); return true;
+}
+
 function actBuyWarehouse() {
   if (world.warehouse.owned) return true;
   if (state.mota < WAREHOUSE_PRICE) return toast(`NEED ${WAREHOUSE_PRICE} MOTA`);
@@ -2072,7 +2094,9 @@ function collectTasks() {
       else if (d.stage >= 3 && state.nutrients > 0) addTask(6, 'BLOOM FEED', place);
     }
   };
-  eachPlot(slotsData, 'YARD', true);
+  const yardCount = slotsData.length - world.greenhouse.slots.length;
+  eachPlot(slotsData.slice(0, yardCount), 'YARD', true);
+  if (world.greenhouse.owned) eachPlot(slotsData.slice(yardCount), 'GLASSHOUSE', false);
   if (world.warehouse.owned) eachPlot(whData, 'WAREHOUSE', false);
   BEDS.forEach((_, bed) => {
     let n = 0;
@@ -2155,18 +2179,23 @@ function collectTasks() {
   if (offer.n > 0) addTask(5, 'SELL', 'STAND', offer.n);
 
   let emptyYard = 0;
+  let emptyGh = 0;
   let emptyWh = 0;
-  for (const d of slotsData) if (!d.locked && d.state === 'empty') emptyYard++;
+  const emptyYardCount = slotsData.length - world.greenhouse.slots.length;
+  for (const d of slotsData.slice(0, emptyYardCount)) if (!d.locked && d.state === 'empty') emptyYard++;
+  if (world.greenhouse.owned) for (const d of slotsData.slice(emptyYardCount)) if (d.state === 'empty') emptyGh++;
   if (world.warehouse.owned) for (const d of whData) if (d.state === 'empty') emptyWh++;
-  if (emptyYard || emptyWh) {
-    if (state.clones.length) addTask(5, 'PLANT', 'CLONE', Math.min(state.clones.length, emptyYard + emptyWh));
+  if (emptyYard || emptyGh || emptyWh) {
+    if (state.clones.length) addTask(5, 'PLANT', 'CLONE', Math.min(state.clones.length, emptyYard + emptyGh + emptyWh));
     else if (seedTotal(state.seeds) > 0) {
       if (emptyYard) addTask(8, 'PLANT', 'YARD', emptyYard);
+      if (emptyGh) addTask(8, 'PLANT', 'GLASSHOUSE', emptyGh);
       if (emptyWh) addTask(8, 'PLANT', 'WAREHOUSE', emptyWh);
     } else if (state.mota >= SEED_PACK.cost) addTask(8, 'BUY SEEDS', 'STAND');
   }
 
-  if (slotsData.some((d) => d.locked) && state.mota >= UNLOCK.bed) addTask(7, 'UNLOCK BOX', `${UNLOCK.bed} MOTA`);
+  if (slotsData.slice(0, -world.greenhouse.slots.length).some((d) => d.locked) && state.mota >= UNLOCK.bed) addTask(7, 'UNLOCK BOX', `${UNLOCK.bed} MOTA`);
+  if (!world.greenhouse.owned && state.mota >= GREENHOUSE_PRICE) addTask(7, 'UNLOCK GLASSHOUSE', `${GREENHOUSE_PRICE} MOTA`);
   if (!house.mother2 && state.mota >= UNLOCK.mother) addTask(7, 'UNLOCK MOTHER', `${UNLOCK.mother} MOTA`);
   if (!house.tube2 && state.mota >= UNLOCK.tube && !taskRows.has('UNLOCK TUBES')) addTask(7, 'UNLOCK TUBES', `${UNLOCK.tube} MOTA`);
   if (!house.vegWest && state.mota >= UNLOCK.vegWest && !taskRows.has('UNLOCK VEG')) addTask(7, 'UNLOCK VEG', 'WEST');
@@ -2293,10 +2322,12 @@ function slotAtScreen(x, y) {
   ndc.set(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
   const useWh = world.warehouse.owned && (world.warehouse.contains(P.x, P.z) || P.x > 22);
+  const useGh = world.greenhouse.owned && world.greenhouse.contains(P.x, P.z);
   soilPlane.constant = useWh ? -0.55 : -(7 / 16);
   if (!raycaster.ray.intersectPlane(soilPlane, soilHit)) return null;
-  const slots = useWh ? world.warehouse.slots : world.slots;
-  const data = useWh ? whData : slotsData;
+  const yardSlots = world.slots.filter((s) => s.where !== 'gh');
+  const slots = useWh ? world.warehouse.slots : useGh ? world.greenhouse.slots : yardSlots;
+  const data = useWh ? whData : useGh ? slotsData.slice(yardSlots.length) : slotsData.slice(0, yardSlots.length);
   let best = -1;
   let bd = 1.25 * 1.25;
   slots.forEach((s, i) => {
@@ -2308,7 +2339,7 @@ function slotAtScreen(x, y) {
   });
   if (best < 0) return null;
   const s = slots[best];
-  return { where: useWh ? 'wh' : 'yard', i: best, s, d: data[best], d2: 0 };
+  return { where: useWh ? 'wh' : useGh ? 'gh' : 'yard', i: useGh ? best + yardSlots.length : best, s, d: data[best], d2: 0 };
 }
 
 function tryPlotTap(x, y) {
@@ -2405,7 +2436,12 @@ function makeBadge() {
 }
 
 function buildBadges() {
-  world.slots.forEach((s, i) => badges.push({ el: makeBadge(), where: 'yard', i, s, data: slotsData }));
+  world.slots.forEach((s, i) => {
+    const where = s.where === 'gh' ? 'gh' : 'yard';
+    const el = makeBadge();
+    if (where === 'gh') el.dataset.zone = 'gh';
+    badges.push({ el, where, i, s, data: slotsData });
+  });
   world.warehouse.slots.forEach((s, i) => badges.push({ el: makeBadge(), where: 'wh', i, s, data: whData }));
 }
 
@@ -2430,10 +2466,11 @@ function placeBadge(el, x, y, z) {
 function updateBadges() {
   const playing = state.mode === 'play';
   const inWh = world.warehouse.contains(P.x, P.z);
-  const indoors = inWh || world.house.contains(P.x, P.z);
+  const inGh = world.greenhouse.owned && world.greenhouse.contains(P.x, P.z);
+  const indoors = inWh || inGh || world.house.contains(P.x, P.z);
   for (const entry of badges) {
     const d = entry.data[entry.i];
-    const show = playing && d && d.state !== 'empty' && badgeFocus !== entry.where + ':' + entry.i && (entry.where === 'wh' ? inWh : !indoors);
+    const show = playing && d && d.state !== 'empty' && badgeFocus !== entry.where + ':' + entry.i && (entry.where === 'wh' ? inWh : entry.where === 'gh' ? inGh : !indoors);
     if (!show) {
       entry.el.style.display = 'none';
       continue;
@@ -2573,6 +2610,9 @@ function showStation(st) {
 }
 
 function stationUi(st, actLbl) {
+  if (st.kind === 'greenhouse') return world.greenhouse.owned
+    ? { text: 'GLASSHOUSE OPEN · FOUR GROW POTS', btn: 'ENTER' }
+    : { text: state.mota < GREENHOUSE_PRICE ? `GLASSHOUSE  ${state.mota}/${GREENHOUSE_PRICE} MOTA` : `${actLbl}  UNLOCK GLASSHOUSE  ${GREENHOUSE_PRICE} MOTA`, btn: state.mota < GREENHOUSE_PRICE ? 'LOCKED' : 'BUY' };
   if (st.kind === 'shed-door') {
     const open = world.shed.open;
     return { text: open ? `${actLbl}  CLOSE SHED` : `${actLbl}  OPEN SHED`, btn: open ? 'CLOSE' : 'OPEN' };
@@ -3011,8 +3051,9 @@ function ensureBuyerOrder() {
   const weather = weatherForDay(day);
   if (weather.rain && day > 1) {
     let watered = 0;
-    for (const d of slotsData) {
-      if (!d || d.locked || (d.state !== 'growing' && d.state !== 'ripening')) continue;
+    for (let i = 0; i < slotsData.length; i++) {
+      const d = slotsData[i];
+      if (!d || world.slots[i]?.where === 'gh' || d.locked || (d.state !== 'growing' && d.state !== 'ripening')) continue;
       if (d.water < 1) watered++;
       d.water = 1;
     }
@@ -3681,6 +3722,7 @@ function snapshot() {
     pz: P.z,
     facing: P.facing,
     warehouse: !!world.warehouse.owned,
+    greenhouse: !!world.greenhouse.owned,
     lights: world.warehouse.lights === 'flower' ? 'flower' : 'veg',
     plots: slotsData.map(plotSnap),
     wh: whData.map(plotSnap),
@@ -3839,8 +3881,11 @@ function resetWorld() {
   world.house.upper.visible = false;
   P.facing = state.mode === 'dress' ? 0.62 : 0;
   blankPlots(slotsData, plantMeshes);
-  slotsData.forEach((d, i) => { d.locked = (i / 4 | 0) !== 0; });
+  slotsData.forEach((d, i) => { d.locked = i >= world.slots.length - world.greenhouse.slots.length || (i / 4 | 0) !== 0; });
   blankPlots(whData, whMeshes);
+  world.greenhouse.owned = false; world.greenhouse.forSale.visible = true;
+  const ghOffset = world.slots.length - world.greenhouse.slots.length;
+  for (let i = 0; i < world.greenhouse.slots.length; i++) slotsData[ghOffset + i].locked = true;
   const W = world.warehouse;
   W.owned = false;
   W.gateOpen = false;
@@ -3950,6 +3995,10 @@ function applySave(save) {
   });
   world.shed.hooks.forEach((h, i) => restoreItem(h, save.hooks?.[i]));
   world.shed.cureJars.forEach((j, i) => restoreItem(j, save.cure?.[i]));
+  const greenhouseOwned = !!save.greenhouse;
+  world.greenhouse.owned = greenhouseOwned; world.greenhouse.forSale.visible = !greenhouseOwned;
+  const ghOffset = world.slots.length - world.greenhouse.slots.length;
+  for (let i = 0; i < world.greenhouse.slots.length; i++) slotsData[ghOffset + i].locked = !greenhouseOwned;
   const owned = !!save.warehouse;
   world.warehouse.owned = owned;
   world.warehouse.gateOpen = owned;
