@@ -315,6 +315,9 @@ addEventListener('keydown', (e) => {
   if (e.target?.closest?.('input, textarea')) return;
   if ((e.code === 'Space' || e.code === 'Enter') && (state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress' || state.mode === 'settings')) enterFullscreen();
   if ((e.code === 'Space' || e.code === 'Enter') && state.mode === 'title') onTitleConfirm();
+  if (e.code === 'KeyI' && !e.repeat && state.mode === 'play') {
+    setInv($('inv').classList.contains('hidden'));
+  }
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   if (!keys.has(e.code)) pressed.add(e.code);
   keys.add(e.code);
