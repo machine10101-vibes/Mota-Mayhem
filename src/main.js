@@ -2179,13 +2179,17 @@ function collectTasks() {
   if (offer.n > 0) addTask(5, 'SELL', 'STAND', offer.n);
 
   let emptyYard = 0;
+  let emptyGh = 0;
   let emptyWh = 0;
-  for (const d of slotsData) if (!d.locked && d.state === 'empty') emptyYard++;
+  const emptyYardCount = slotsData.length - world.greenhouse.slots.length;
+  for (const d of slotsData.slice(0, emptyYardCount)) if (!d.locked && d.state === 'empty') emptyYard++;
+  if (world.greenhouse.owned) for (const d of slotsData.slice(emptyYardCount)) if (d.state === 'empty') emptyGh++;
   if (world.warehouse.owned) for (const d of whData) if (d.state === 'empty') emptyWh++;
-  if (emptyYard || emptyWh) {
-    if (state.clones.length) addTask(5, 'PLANT', 'CLONE', Math.min(state.clones.length, emptyYard + emptyWh));
+  if (emptyYard || emptyGh || emptyWh) {
+    if (state.clones.length) addTask(5, 'PLANT', 'CLONE', Math.min(state.clones.length, emptyYard + emptyGh + emptyWh));
     else if (seedTotal(state.seeds) > 0) {
       if (emptyYard) addTask(8, 'PLANT', 'YARD', emptyYard);
+      if (emptyGh) addTask(8, 'PLANT', 'GLASSHOUSE', emptyGh);
       if (emptyWh) addTask(8, 'PLANT', 'WAREHOUSE', emptyWh);
     } else if (state.mota >= SEED_PACK.cost) addTask(8, 'BUY SEEDS', 'STAND');
   }
@@ -3042,8 +3046,9 @@ function ensureBuyerOrder() {
   const weather = weatherForDay(day);
   if (weather.rain && day > 1) {
     let watered = 0;
-    for (const d of slotsData) {
-      if (!d || d.locked || (d.state !== 'growing' && d.state !== 'ripening')) continue;
+    for (let i = 0; i < slotsData.length; i++) {
+      const d = slotsData[i];
+      if (!d || world.slots[i]?.where === 'gh' || d.locked || (d.state !== 'growing' && d.state !== 'ripening')) continue;
       if (d.water < 1) watered++;
       d.water = 1;
     }
