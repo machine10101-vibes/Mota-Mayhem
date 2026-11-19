@@ -2884,7 +2884,7 @@ function updateBuyerOrderHud() {
 }
 
 
-const LEAGUE_RIVALS = [
+const LEAGUE_GOAL = 120;\n\nconst LEAGUE_RIVALS = [
   { name: 'MOSSY MILES', style: 'STEADY HAND', base: 54 },
   { name: 'JUNEBUG', style: 'QUALITY FIRST', base: 68 },
   { name: 'THE NIGHT OWL', style: 'LATE BLOOMER', base: 82 },
@@ -2915,10 +2915,15 @@ function advanceGrowerLeague(nextWeek) {
   if (previousWeek > (state.leaguePaidWeek | 0)) {
     const rows = leagueRows(previousWeek);
     const place = rows.findIndex((row) => row.player) + 1;
-    const reward = place === 1 ? 180 : place === 2 ? 90 : place === 3 ? 35 : 0;
+    const podiumReward = place === 1 ? 180 : place === 2 ? 90 : place === 3 ? 35 : 0;
+    const goalReward = (state.leagueScore | 0) >= LEAGUE_GOAL ? 60 : 0;
+    const reward = podiumReward + goalReward;
     state.mota += reward;
     state.leaguePaidWeek = previousWeek;
-    if (state.mode === 'play') toast(reward ? `WEEK ${previousWeek} LEAGUE · PLACE #${place} · +${reward} MOTA` : `WEEK ${previousWeek} LEAGUE · PLACE #${place} · OUTSIDE THE PODIUM`, reward ? 'good' : '');
+    if (state.mode === 'play') {
+      const goalNote = goalReward ? ' · HARVEST GOAL +60' : '';
+      toast(reward ? `WEEK ${previousWeek} LEAGUE · PLACE #${place} · +${reward} MOTA${goalNote}` : `WEEK ${previousWeek} LEAGUE · PLACE #${place} · OUTSIDE THE PODIUM`, reward ? 'good' : '');
+    }
   }
   state.leagueWeek = nextWeek;
   state.leagueScore = 0;
@@ -2935,7 +2940,15 @@ function renderGrowerLeague() {
   const dayInWeek = ((day - 1) % 7) + 1;
   $('league-week').textContent = `WEEK ${week}`;
   $('league-day').textContent = `DAY ${dayInWeek}/7`;
-  $('league-score').textContent = String(state.leagueScore | 0);
+  const score = state.leagueScore | 0;
+  $('league-score').textContent = String(score);
+  const goalFill = $('league-goal-fill');
+  const goalScore = $('league-goal-score');
+  const goalCopy = $('league-goal-copy');
+  if (goalFill) goalFill.style.width = `${Math.min(100, (score / LEAGUE_GOAL) * 100)}%`;
+  if (goalScore) goalScore.textContent = `${Math.min(score, LEAGUE_GOAL)}/${LEAGUE_GOAL}`;
+  if (goalCopy) goalCopy.textContent = score >= LEAGUE_GOAL ? 'HARVEST GOAL COMPLETE · +60 MOTA' : 'WEEKLY HARVEST GOAL · +60 MOTA';
+  if (goalFill) goalFill.parentElement?.setAttribute('aria-label', `Weekly harvest goal: ${score} of ${LEAGUE_GOAL} points`);
   const rows = leagueRows(week);
   list.replaceChildren();
   rows.forEach((row, index) => {
@@ -2951,7 +2964,9 @@ function renderGrowerLeague() {
     list.appendChild(item);
   });
   const place = rows.findIndex((row) => row.player) + 1;
-  $('league-prize').textContent = place === 1 ? '1ST · 180 MOTA PRIZE' : place === 2 ? '2ND · 90 MOTA PRIZE' : place === 3 ? '3RD · 35 MOTA PRIZE' : 'OUTSIDE TOP 3 · NO PRIZE';
+  const podiumPrize = place === 1 ? 180 : place === 2 ? 90 : place === 3 ? 35 : 0;
+  const goalPrize = score >= LEAGUE_GOAL ? 60 : 0;
+  $('league-prize').textContent = `${place === 1 ? '1ST' : place === 2 ? '2ND' : place === 3 ? '3RD' : 'OUTSIDE TOP 3'} · ${podiumPrize + goalPrize} MOTA TOTAL${goalPrize ? ' (GOAL BONUS)' : ''}`;
   $('league-panel').setAttribute('aria-label', `Weekly league standings, you are in place ${place}`);
 }
 
@@ -2982,6 +2997,8 @@ function updateWeatherHud(day = Math.floor(dayClock) + 1) {
 
 function ensureBuyerOrder() {
   const day = Math.floor(dayClock) + 1;
+  const leagueWeek = Math.floor((day - 1) / 7) + 1;
+  if (leagueWeek > (state.leagueWeek || 1)) advanceGrowerLeague(leagueWeek);
   if (state.buyerOrder?.day === day) return false;
   state.buyerOrder = makeBuyerOrder(day);
   taskSig = '';
