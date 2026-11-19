@@ -2221,6 +2221,7 @@ function updateTasks() {
 
 function updateHud() {
   updateBuyerOrderHud();
+  updateWeatherHud();
   renderReputationHud();
   renderGrowerLeague();
   const pick = STRAINS[state.strainPick] ? state.strainPick : 'bd';
@@ -2954,15 +2955,51 @@ function renderGrowerLeague() {
   $('league-panel').setAttribute('aria-label', `Weekly league standings, you are in place ${place}`);
 }
 
+function weatherForDay(day) {
+  const cycle = [
+    { id: 'clear', label: 'CLEAR', detail: 'BRIGHT SKIES', rain: false },
+    { id: 'cloudy', label: 'CLOUDY', detail: 'SOFT LIGHT', rain: false },
+    { id: 'showers', label: 'SHOWERS', detail: 'YARD WATERED AT DAWN', rain: true },
+    { id: 'breezy', label: 'BREEZY', detail: 'OPEN AIR', rain: false },
+    { id: 'warm', label: 'WARM', detail: 'CHECK SOIL OFTEN', rain: false },
+    { id: 'clear', label: 'CLEAR', detail: 'BRIGHT SKIES', rain: false },
+    { id: 'showers', label: 'SHOWERS', detail: 'YARD WATERED AT DAWN', rain: true },
+  ];
+  return cycle[(Math.max(1, day) - 1) % cycle.length];
+}
+
+function updateWeatherHud(day = Math.floor(dayClock) + 1) {
+  const el = $('weather');
+  if (!el) return;
+  const weather = weatherForDay(day);
+  el.textContent = `${weather.label} · ${weather.detail}`;
+  el.dataset.weather = weather.id;
+  el.title = weather.rain
+    ? 'Rain at dawn naturally waters outdoor grow beds. Indoor and warehouse plants still need care.'
+    : 'Outdoor conditions change each in-game day. Check plant cards and the task list for care needs.';
+  el.setAttribute('aria-label', `Day ${day} weather: ${weather.label}. ${weather.detail}.`);
+}
+
 function ensureBuyerOrder() {
   const day = Math.floor(dayClock) + 1;
-  const week = Math.floor(dayClock / 7) + 1;
-  if (week > (state.leagueWeek || 1)) advanceGrowerLeague(week);
   if (state.buyerOrder?.day === day) return false;
   state.buyerOrder = makeBuyerOrder(day);
   taskSig = '';
+  const weather = weatherForDay(day);
+  if (weather.rain && day > 1) {
+    let watered = 0;
+    for (const d of slotsData) {
+      if (!d || d.locked || (d.state !== 'growing' && d.state !== 'ripening')) continue;
+      if (d.water < 1) watered++;
+      d.water = 1;
+    }
+    toast(watered
+      ? `MORNING SHOWERS — ${watered} OUTDOOR PLANT${watered === 1 ? '' : 'S'} WATERED`
+      : 'MORNING SHOWERS — THE YARD IS FRESH', 'good');
+  }
   markDirty();
   updateBuyerOrderHud();
+  updateWeatherHud(day);
   updateTasks();
   if (day > 1 && state.mode === 'play') toast(`NEW DAY ${day} — BUYER WANTS ${state.buyerOrder.count} ${state.buyerOrder.grade} JAR${state.buyerOrder.count > 1 ? 'S' : ''}`, 'good');
   return true;
@@ -3008,6 +3045,7 @@ function updateDay(dt) {
   if (!el) return;
   $('clock-phase').textContent = phase;
   $('clock-day').textContent = `D${1 + Math.floor(dayClock)}`;
+  updateWeatherHud(1 + Math.floor(dayClock));
   el.classList.toggle('night', phase === 'NIGHT');
   el.classList.toggle('dusk', phase === 'DAWN' || phase === 'DUSK');
 }
@@ -3766,6 +3804,7 @@ function resetWorld() {
   state.leagueScore = 0;
   state.leaguePaidWeek = 0;
   state.buyerOrder = makeBuyerOrder(1);
+  updateWeatherHud(1);
   state.wet = [];
   state.genetics = [];
   state.hybrids = [];

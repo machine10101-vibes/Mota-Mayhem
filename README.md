@@ -76,3 +76,8 @@ Daily orders are now tied to your grower reputation. The Local Shop is the start
 
 ## Weekly Grower League
 The grower league adds a seven-day harvest competition against three named rival growers. Harvesting higher-grade flower earns more league points; standings update as you work, and a MOTA prize is paid automatically when the next week begins. League week, score, and paid-week state are included in saves, with older gardens migrated safely.
+
+
+## Living yard conditions
+
+The outdoor yard now follows a repeating in-game weather pattern. Morning showers on selected days automatically refill water in active outdoor grow beds, while indoor and warehouse plants remain on their own care schedule. The HUD displays the day's conditions and explains whether rain will help the yard, so players can plan their rounds around the weather.
