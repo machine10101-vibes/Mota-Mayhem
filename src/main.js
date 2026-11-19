@@ -3670,7 +3670,6 @@ function blankPlots(list, meshes) {
 
 function resetWorld() {
   dayClock = 0.32;
-  state.buyerOrder = makeBuyerOrder(1);
   taskSig = '';
   state.seeds = starterSeeds();
   state.clones = [];
@@ -3681,6 +3680,7 @@ function resetWorld() {
   state.grams = 0;
   state.harvested = 0;
   state.reputation = 0;
+  state.buyerOrder = makeBuyerOrder(1);
   state.wet = [];
   state.genetics = [];
   state.hybrids = [];
