@@ -53,7 +53,10 @@ const post = new THREE.ShaderMaterial({
       float edge = smoothstep(0.03 * d + 0.45, 0.03 * d + 1.35, e);
       vec3 col = c.rgb;
       float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
-      col = mix(vec3(luma), col, 1.08);
+      col = mix(vec3(luma), col, 1.12);
+      // A restrained warm lift and contrast curve make the voxel palette feel richer.
+      col = (col - 0.5) * 1.045 + 0.5;
+      col += vec3(0.006, 0.005, 0.002);
       col = mix(col, col * vec3(0.28, 0.32, 0.36), edge * 0.4);
       vec3 skyCol = mix(horizon, zenith, clamp(vUv.y * 1.2, 0.0, 1.0));
       col = mix(col, skyCol, smoothstep(far * 0.84, far * 0.995, d));
@@ -2787,6 +2790,7 @@ function updateDay(dt) {
 /* -------------------------------------------------------------------- loop */
 let last = performance.now();
 let smokeT = 0;
+let pollenT = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000);
@@ -2840,6 +2844,26 @@ function frame(now) {
     smokeT = 0.32;
     const a = world.smokeAt;
     particles.emit({ x: a.x + (Math.random() - 0.5) * 0.5, y: a.y, z: a.z + (Math.random() - 0.5) * 0.5, vx: 0.45 + Math.random() * 0.2, vy: 0.9 + Math.random() * 0.3, vz: 0.25, life: 4, size: 0.34, grow: 1.6, color: 0xe9eef2, color2: 0xb9d3e6, g: 0 });
+  }
+  // Slow, sparse pollen motes catch the changing light and add scale to the yard.
+  pollenT -= dt;
+  if (pollenT <= 0 && state.mode !== 'loading') {
+    pollenT = 0.28;
+    const night = $('clock')?.classList.contains('night');
+    particles.emit({
+      x: (Math.random() - 0.5) * 34,
+      y: 0.55 + Math.random() * 2.35,
+      z: -8.5 + Math.random() * 21,
+      vx: (Math.random() - 0.5) * 0.12,
+      vy: 0.025 + Math.random() * 0.035,
+      vz: (Math.random() - 0.5) * 0.1,
+      life: 4.8 + Math.random() * 2,
+      size: 0.025 + Math.random() * 0.018,
+      color: night ? 0xc9ef9b : 0xfff0b0,
+      color2: night ? 0x8fdc91 : 0xffffff,
+      g: 0,
+      drag: 0.02,
+    });
   }
   particles.update(dt);
   updateCamera(dt);
