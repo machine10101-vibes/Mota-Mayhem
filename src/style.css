@@ -484,3 +484,14 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline:2px so
 .wallet-box { padding:14px 16px; background:linear-gradient(145deg,rgba(17,28,14,.72),rgba(7,12,8,.56)); box-shadow:0 0 0 1px rgba(198,245,106,.18),0 12px 40px rgba(0,0,0,.2); backdrop-filter:blur(8px); }
 @media (max-width: 820px) { .reputation { min-width:min(240px, calc(100vw - 24px)); } .reputation-head span { font-size:5px; } }
 @media (prefers-reduced-motion: reduce) { .reputation, .reputation-track i, button { transition:none !important; } }
+
+
+/* Buyer network tiers: compact client insignia and warm premium highlights. */
+#buyer-order { max-width:min(390px, 48vw); border-left:3px solid #93c85a; background:linear-gradient(112deg,rgba(34,48,25,.97),rgba(10,17,11,.96)); box-shadow:var(--frame),0 5px 18px rgba(0,0,0,.16); }
+#buyer-order .buyer-tier { display:inline-flex; align-items:center; justify-content:center; flex:none; padding:3px 4px; border:1px solid currentColor; background:rgba(255,255,255,.045); font-size:6px; font-style:normal; line-height:1.2; letter-spacing:.05em; }
+#buyer-order.complete { border-left-color:#8da1bd; }
+#buyer-order.ready { border-left-color:#ffe66a; }
+.buyer-order, .reputation, .panel, .stat, .vitals, #clock { position:relative; isolation:isolate; }
+.panel::after, .buyer-order::after, .reputation::after { content:""; position:absolute; inset:1px; pointer-events:none; z-index:-1; background:linear-gradient(125deg,rgba(255,255,255,.055),transparent 38%,rgba(198,245,106,.025)); }
+@media (max-width: 560px) { #buyer-order { max-width:calc(100vw - 142px); } #buyer-order .buyer-tier { font-size:5px; padding:2px 3px; } }
+@media (prefers-reduced-motion: reduce) { #buyer-order, .panel, .stat, .vitals, #clock { transition:none !important; } }
