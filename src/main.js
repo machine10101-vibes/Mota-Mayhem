@@ -2088,7 +2088,6 @@ function collectTasks() {
     const openPot = house.veg.some((v) => v.room !== 'center' && vegOpen(v) && v.state === 'empty');
     if (openPot) addTask(4, 'MOVE TO VEG', 'HOUSE', rooted);
     else if (!house.vegWest && state.mota >= UNLOCK.vegWest) addTask(4, 'UNLOCK VEG', 'WEST');
-    else if (!house.vegCenter && state.mota >= UNLOCK.vegCenter) addTask(4, 'UNLOCK VEG', 'CENTER');
     else addTask(4, 'MOVE TO VEG', 'POTS FULL', rooted);
   }
 
@@ -2097,6 +2096,7 @@ function collectTasks() {
     if (pot.room === 'center') {
       if (pot.state === 'ready') addTask(1, 'COLLECT SEEDS', strainOf(pot.strain).short);
       else if (pot.state === 'growing' && state.nutrients > 0) addTask(6, 'FEED SEED CROP', strainOf(pot.strain).short);
+      else if (pot.state === 'empty' && STRAIN_IDS.some((id) => STRAINS[id]?.hybrid && (state.seeds[id] | 0) > 0)) addTask(4, 'PLANT HYBRID', 'BREEDING LAB');
       continue;
     }
     if (pot.state === 'ready' && state.clones.length < 8) addTask(4, 'TAKE CLONE', strainOf(pot.strain).short);
@@ -2136,7 +2136,7 @@ function collectTasks() {
   if (!house.mother2 && state.mota >= UNLOCK.mother) addTask(7, 'UNLOCK MOTHER', `${UNLOCK.mother} MOTA`);
   if (!house.tube2 && state.mota >= UNLOCK.tube && !taskRows.has('UNLOCK TUBES')) addTask(7, 'UNLOCK TUBES', `${UNLOCK.tube} MOTA`);
   if (!house.vegWest && state.mota >= UNLOCK.vegWest && !taskRows.has('UNLOCK VEG')) addTask(7, 'UNLOCK VEG', 'WEST');
-  if (!house.vegCenter && state.mota >= UNLOCK.vegCenter) addTask(7, 'UNLOCK VEG', 'CENTER');
+  if (!house.vegCenter && state.mota >= UNLOCK.vegCenter) addTask(7, 'UNLOCK BREEDING LAB', `${UNLOCK.vegCenter} MOTA`);
   if (!world.warehouse.owned && state.mota >= WAREHOUSE_PRICE) addTask(7, 'BUY WAREHOUSE', `${WAREHOUSE_PRICE} MOTA`);
 
   return [...taskRows.values()].sort((a, b) => a.rank - b.rank || a.verb.localeCompare(b.verb));
