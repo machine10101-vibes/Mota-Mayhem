@@ -2914,10 +2914,10 @@ function advanceGrowerLeague(nextWeek) {
   if (previousWeek > (state.leaguePaidWeek | 0)) {
     const rows = leagueRows(previousWeek);
     const place = rows.findIndex((row) => row.player) + 1;
-    const reward = place === 1 ? 180 : place === 2 ? 90 : 35;
+    const reward = place === 1 ? 180 : place === 2 ? 90 : place === 3 ? 35 : 0;
     state.mota += reward;
     state.leaguePaidWeek = previousWeek;
-    if (state.mode === 'play') toast(`WEEK ${previousWeek} LEAGUE · PLACE #${place} · +${reward} MOTA`, place === 1 ? 'good' : '');
+    if (state.mode === 'play') toast(reward ? `WEEK ${previousWeek} LEAGUE · PLACE #${place} · +${reward} MOTA` : `WEEK ${previousWeek} LEAGUE · PLACE #${place} · OUTSIDE THE PODIUM`, reward ? 'good' : '');
   }
   state.leagueWeek = nextWeek;
   state.leagueScore = 0;
@@ -2950,7 +2950,7 @@ function renderGrowerLeague() {
     list.appendChild(item);
   });
   const place = rows.findIndex((row) => row.player) + 1;
-  $('league-prize').textContent = place === 1 ? 'LEADING · 180 MOTA PRIZE' : place === 2 ? '2ND · 90 MOTA PRIZE' : 'TOP 3 · 35 MOTA PRIZE';
+  $('league-prize').textContent = place === 1 ? '1ST · 180 MOTA PRIZE' : place === 2 ? '2ND · 90 MOTA PRIZE' : place === 3 ? '3RD · 35 MOTA PRIZE' : 'OUTSIDE TOP 3 · NO PRIZE';
   $('league-panel').setAttribute('aria-label', `Weekly league standings, you are in place ${place}`);
 }
 
