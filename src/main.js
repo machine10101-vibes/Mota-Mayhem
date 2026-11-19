@@ -260,13 +260,14 @@ function spawnTokens() {
     const x = lockedTrays.reduce((n, t) => n + t.x, 0) / lockedTrays.length;
     add(x, 2.7, lockedTrays[0].z, scene, () => !trayOpen(lockedTrays[0]), 1.05);
   }
-  for (const room of ['west', 'center']) {
-    const pots = world.house.veg.filter((v) => v.room === room);
-    if (!pots.length) continue;
-    const x = pots.reduce((n, p) => n + p.x, 0) / pots.length;
-    const z = pots.reduce((n, p) => n + p.z, 0) / pots.length;
-    add(x, pots[0].y + 1.65, z, world.house.upper, () => !vegOpen(pots[0]), 1.05);
+  const westPots = world.house.veg.filter((v) => v.room === 'west');
+  if (westPots.length) {
+    const x = westPots.reduce((n, p) => n + p.x, 0) / westPots.length;
+    const z = westPots.reduce((n, p) => n + p.z, 0) / westPots.length;
+    add(x, westPots[0].y + 1.65, z, world.house.upper, () => !vegOpen(westPots[0]), 1.05);
   }
+  const breedPots = world.house.veg.filter((v) => v.room === 'center');
+  if (breedPots.length) add(0, breedPots[0].y + 1.65, -20.1, world.house.upper, () => !world.house.vegCenter, 1.05);
   BEDS.forEach((b, bed) => add(b.x, 2.55, b.z, scene, () => !!slotsData[bed * 4]?.locked, 1.45));
 }
 
@@ -1790,6 +1791,18 @@ function updateShed(dt) {
     }
   }
   for (const pot of house.veg) {
+    if (pot.room === 'center') {
+      if (pot.state !== 'growing') continue;
+      pot.t += dt / strainPace(pot.strain, 2);
+      pot.plant.scale.setScalar((0.72 + 0.18 * Math.min(1, pot.t / VEG_TIME)) * (strainOf(pot.strain).stature || 1));
+      if (pot.t >= VEG_TIME) {
+        pot.state = 'ready';
+        pot.plant.scale.setScalar(0.9 * (strainOf(pot.strain).stature || 1));
+        toast(`${strainOf(pot.strain).short} SEED CROP READY — COLLECT SEEDS`, 'good');
+        markDirty();
+      }
+      continue;
+    }
     if (pot.state !== 'veg') continue;
     pot.t += dt / strainPace(pot.strain, 2);
     pot.plant.scale.setScalar((0.72 + 0.18 * Math.min(1, pot.t / VEG_TIME)) * (strainOf(pot.strain).stature || 1));
@@ -2071,7 +2084,7 @@ function collectTasks() {
     else if (tray.state === 'rooting' && state.nutrients > 0) addTask(6, 'FEED', 'TUBE');
   }
   if (rooted) {
-    const openPot = house.veg.some((v) => vegOpen(v) && v.state === 'empty');
+    const openPot = house.veg.some((v) => v.room !== 'center' && vegOpen(v) && v.state === 'empty');
     if (openPot) addTask(4, 'MOVE TO VEG', 'HOUSE', rooted);
     else if (!house.vegWest && state.mota >= UNLOCK.vegWest) addTask(4, 'UNLOCK VEG', 'WEST');
     else if (!house.vegCenter && state.mota >= UNLOCK.vegCenter) addTask(4, 'UNLOCK VEG', 'CENTER');
@@ -2080,9 +2093,15 @@ function collectTasks() {
 
   for (const pot of house.veg) {
     if (!vegOpen(pot)) continue;
+    if (pot.room === 'center') {
+      if (pot.state === 'ready') addTask(1, 'COLLECT SEEDS', strainOf(pot.strain).short);
+      else if (pot.state === 'growing' && state.nutrients > 0) addTask(6, 'FEED SEED CROP', strainOf(pot.strain).short);
+      continue;
+    }
     if (pot.state === 'ready' && state.clones.length < 8) addTask(4, 'TAKE CLONE', strainOf(pot.strain).short);
     else if (pot.state === 'veg' && state.nutrients > 0) addTask(6, 'FEED', 'VEG');
   }
+  if (house.vegCenter && state.genetics.length >= 2 && !state.hybrids.length) addTask(5, 'CROSS GENETICS', 'BREEDING LAB');
 
   let trim = 0;
   let hang = 0;
@@ -2771,6 +2790,7 @@ function frame(now) {
   if (state.mode === 'title' && (pressed.has('Space') || pressed.has('Enter'))) onTitleConfirm();
   if (pressed.has('Escape') && state.mode === 'dress') closeDress();
   if (pressed.has('Escape') && state.mode === 'shop') closeShop();
+  if (pressed.has('Escape') && state.mode === 'breeding') closeBreeding();
   if (pressed.has('Escape') && state.mode === 'settings') closeSettings();
   if (pressed.has('KeyT') && state.mode !== 'dress' && state.mode !== 'shop' && state.mode !== 'loading') {
     if (state.mode === 'settings') closeSettings();
@@ -2822,7 +2842,7 @@ function frame(now) {
   updateTasks();
   renderBagIcons(time);
   saveClock += dt;
-  if ((state.mode === 'play' || state.mode === 'dress' || state.mode === 'shop' || (state.mode === 'settings' && state.returnMode === 'play')) && saveClock > 4) {
+  if ((state.mode === 'play' || state.mode === 'dress' || state.mode === 'shop' || state.mode === 'breeding' || (state.mode === 'settings' && state.returnMode === 'play')) && saveClock > 4) {
     saveClock = 0;
     saveDirty = true;
   }
@@ -3326,6 +3346,8 @@ function snapshot() {
     harvested: state.harvested | 0,
     jars: { AAAA: state.jars.AAAA | 0, AAA: state.jars.AAA | 0, AA: state.jars.AA | 0, A: state.jars.A | 0 },
     wet: state.wet.slice(0, 12).map((w) => ({ grade: w.grade, grams: w.grams | 0, strain: w.strain || 'bd', trimmed: !!w.trimmed })),
+    hybrids: hybridDefinitions(),
+    genetics: [...new Set(state.genetics)].filter((id) => !!STRAINS[id]),
     seeds: Object.fromEntries(STRAIN_IDS.map((id) => [id, state.seeds[id] | 0])),
     clones: state.clones.slice(0, 8).map((c) => ({ strain: strainOf(c.strain).id })),
     nutrients: state.nutrients | 0,
@@ -3348,7 +3370,8 @@ function snapshot() {
       cool: m.cool || 0,
     })),
     trays: world.house.trays.map((t) => ({ state: t.state, strain: t.strain, t: t.t || 0 })),
-    veg: world.house.veg.map((v) => ({ state: v.state, strain: v.strain, t: v.t || 0 })),
+    veg: world.house.veg.filter((v) => v.room !== 'center').map((v) => ({ state: v.state, strain: v.strain, t: v.t || 0 })),
+    breed: world.house.veg.filter((v) => v.room === 'center').map((v) => ({ state: v.state, strain: v.strain, t: v.t || 0 })),
     hooks: world.shed.hooks.map((h) => itemSnap(h.item)),
     cure: world.shed.cureJars.map((j) => itemSnap(j.item)),
     unlocks: {
@@ -3475,6 +3498,9 @@ function resetWorld() {
   state.grams = 0;
   state.harvested = 0;
   state.wet = [];
+  state.genetics = [];
+  state.hybrids = [];
+  clearHybridStrains();
   state.strainPick = 'bd';
   P.x = 0;
   P.z = -6.3;
@@ -3513,6 +3539,10 @@ function resetWorld() {
 }
 
 function applySave(save) {
+  clearHybridStrains();
+  for (const hybrid of Array.isArray(save.hybrids) ? save.hybrids : []) registerHybridStrain(hybrid);
+  state.hybrids = hybridDefinitions();
+  state.genetics = Array.isArray(save.genetics) ? [...new Set(save.genetics.filter((id) => STRAINS[id]))] : [];
   state.mota = save.mota | 0;
   state.harvested = save.harvested | 0;
   for (const g of GRADES) state.jars[g] = Math.max(0, save.jars?.[g] | 0);
@@ -3550,11 +3580,17 @@ function applySave(save) {
     tray.strain = on ? strainOf(snap.strain).id : null;
     tray.t = Number(snap.t) || 0;
   });
+  const westPots = world.house.veg.filter((pot) => pot.room !== 'center');
+  const breedPots = world.house.veg.filter((pot) => pot.room === 'center');
   world.house.veg.forEach((pot, i) => {
-    const snap = save.veg?.[i];
+    const snap = pot.room === 'center'
+      ? (save.breed?.[breedPots.indexOf(pot)] || save.veg?.[i])
+      : (save.veg?.[westPots.indexOf(pot)] || save.veg?.[i]);
     if (!snap) return;
-    const on = snap.state === 'veg' || snap.state === 'ready';
-    pot.state = on ? snap.state : 'empty';
+    const on = pot.room === 'center'
+      ? ['growing', 'veg', 'ready'].includes(snap.state)
+      : ['veg', 'ready'].includes(snap.state);
+    pot.state = !on ? 'empty' : pot.room === 'center' ? (snap.state === 'ready' ? 'ready' : 'growing') : snap.state;
     pot.strain = on ? strainOf(snap.strain).id : null;
     pot.t = Number(snap.t) || 0;
   });
