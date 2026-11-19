@@ -75,7 +75,7 @@ Daily orders are now tied to your grower reputation. The Local Shop is the start
 
 
 ## Weekly Grower League
-The grower league adds a seven-day harvest competition against three named rival growers. Harvesting higher-grade flower earns more league points; standings update as you work, and a MOTA prize is paid automatically when the next week begins. League week, score, and paid-week state are included in saves, with older gardens migrated safely.
+The grower league adds a seven-day harvest competition against three named rival growers. Harvesting higher-grade flower earns 12–42 points; reach the 120-point weekly harvest goal for a 60 MOTA bonus, stacked with the 180 / 90 / 35 MOTA podium prizes. Standings update as you work, and the previous week's result pays automatically at the first dawn of the next week. Week rollover is tied to the in-game day, and league week, score, and paid-week state are included in saves.
 
 
 ## Living yard conditions
