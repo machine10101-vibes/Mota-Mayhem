@@ -312,6 +312,12 @@ function walletReady() {
 }
 
 addEventListener('keydown', (e) => {
+  if (e.code === 'Escape' && tasksOpen) {
+    setTasksOpen(false);
+    $('tasks-toggle')?.focus({ preventScroll: true });
+    e.preventDefault();
+    return;
+  }
   if (e.target?.closest?.('input, textarea')) return;
   if ((e.code === 'Space' || e.code === 'Enter') && (state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress' || state.mode === 'settings')) enterFullscreen();
   if ((e.code === 'Space' || e.code === 'Enter') && state.mode === 'title') onTitleConfirm();
@@ -3790,14 +3796,11 @@ function bindDress() {
     if (state.mode !== 'play') return;
     toggleHelp();
   };
-  $('tasks').addEventListener('pointerdown', (e) => {
-    e.stopPropagation();
-    if (!e.target.closest('#tasks-toggle')) return;
-    if (e.cancelable) e.preventDefault();
+  $('tasks-toggle').addEventListener('click', () => {
     setTasksOpen(!tasksOpen);
   });
-  addEventListener('pointerdown', () => {
-    if (tasksOpen) setTasksOpen(false);
+  addEventListener('pointerdown', (e) => {
+    if (tasksOpen && !e.target.closest?.('#tasks')) setTasksOpen(false);
   });
   $('btn-help-hud').addEventListener('pointerdown', helpBtn);
   $('btn-help-close').addEventListener('pointerdown', helpBtn);

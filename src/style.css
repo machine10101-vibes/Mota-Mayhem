@@ -33,6 +33,8 @@ canvas#leaf-icon, canvas#leaf-logo { image-rendering:pixelated; }
 #tasks-toggle b { color:var(--ink); background:var(--gold); padding:4px 5px; box-shadow:2px 2px 0 var(--ink); font-weight:normal; }
 #tasks.open #tasks-toggle, #tasks-toggle.hot { box-shadow:var(--frame-gold); }
 #tasks-toggle.hot b { background:#ff8b6a; }
+#tasks-toggle:focus-visible { outline:3px solid #fff3c4; outline-offset:4px; box-shadow:var(--frame-gold); }
+#tasks-toggle { -webkit-tap-highlight-color:transparent; }
 #tasks-caret { width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid var(--gold); }
 #tasks.open #tasks-caret { transform:rotate(180deg); }
 #tasks-menu { position:absolute; top:calc(100% + 6px); left:0; width:max-content; min-width:100%; max-width:min(260px, calc(100vw - var(--safe-l) - var(--safe-r) - 16px)); max-height:168px; overflow:auto; background:var(--panel); box-shadow:var(--frame); padding:4px; touch-action:pan-y; }
