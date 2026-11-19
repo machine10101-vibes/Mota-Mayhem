@@ -1557,6 +1557,7 @@ function actBreedPot(pot) {
   if (pot.state === 'empty') {
     const pick = seedChoice();
     if (!pick.ok) return toast(pick.text);
+    if (!strainOf(pick.id).hybrid) return toast('CROSS TWO GENETICS FIRST — THE LAB GROWS HYBRIDS');
     state.seeds[pick.id] = Math.max(0, (state.seeds[pick.id] | 0) - 1);
     pot.state = 'growing'; pot.t = 0; pot.strain = pick.id;
     pot.plant.geometry = plantGeo(2, pick.id); pot.plant.visible = true; pot.plant.scale.setScalar(0.72);
@@ -2798,11 +2799,11 @@ function frame(now) {
   if (pressed.has('Escape') && state.mode === 'shop') closeShop();
   if (pressed.has('Escape') && state.mode === 'breeding') closeBreeding();
   if (pressed.has('Escape') && state.mode === 'settings') closeSettings();
-  if (pressed.has('KeyT') && state.mode !== 'dress' && state.mode !== 'shop' && state.mode !== 'loading') {
+  if (pressed.has('KeyT') && state.mode !== 'dress' && state.mode !== 'shop' && state.mode !== 'breeding' && state.mode !== 'loading') {
     if (state.mode === 'settings') closeSettings();
     else openSettings();
   }
-  if (pressed.has('KeyC') && state.mode !== 'dress' && state.mode !== 'shop' && state.mode !== 'settings' && state.mode !== 'loading') openDress();
+  if (pressed.has('KeyC') && state.mode !== 'dress' && state.mode !== 'shop' && state.mode !== 'breeding' && state.mode !== 'settings' && state.mode !== 'loading') openDress();
   if (state.mode === 'play' && (pressed.has('Digit1') || pressed.has('Numpad1') || pressed.has('Digit2') || pressed.has('Numpad2'))) {
     const dir = pressed.has('Digit2') || pressed.has('Numpad2') ? 1 : -1;
     const i = Math.max(0, STRAIN_IDS.indexOf(state.strainPick));
@@ -2995,7 +2996,7 @@ function toggleSettings() {
 }
 
 function openSettings() {
-  if (!player || state.mode === 'loading' || state.mode === 'settings' || state.mode === 'dress' || state.mode === 'shop') return;
+  if (!player || state.mode === 'loading' || state.mode === 'settings' || state.mode === 'dress' || state.mode === 'shop' || state.mode === 'breeding') return;
   state.returnMode = state.mode === 'play' ? 'play' : 'title';
   state.mode = 'settings';
   $('settings').classList.remove('hidden');
@@ -3685,7 +3686,7 @@ function setInv(open) {
 }
 
 function openDress() {
-  if (!player || state.mode === 'loading' || state.mode === 'dress' || state.mode === 'shop' || state.mode === 'settings') return;
+  if (!player || state.mode === 'loading' || state.mode === 'dress' || state.mode === 'shop' || state.mode === 'settings' || state.mode === 'breeding') return;
   state.returnMode = state.mode === 'play' ? 'play' : 'title';
   state.mode = 'dress';
   dressFacing = P.facing;
