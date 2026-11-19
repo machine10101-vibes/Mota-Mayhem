@@ -53,9 +53,9 @@ const post = new THREE.ShaderMaterial({
       float edge = smoothstep(0.03 * d + 0.45, 0.03 * d + 1.35, e);
       vec3 col = c.rgb;
       float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
-      col = mix(vec3(luma), col, 1.12);
+      col = mix(vec3(luma), col, 1.16);
       // A restrained warm lift and contrast curve make the voxel palette feel richer.
-      col = (col - 0.5) * 1.045 + 0.5;
+      col = (col - 0.5) * 1.06 + 0.5;
       col += vec3(0.006, 0.005, 0.002);
       col = mix(col, col * vec3(0.28, 0.32, 0.36), edge * 0.4);
       vec3 skyCol = mix(horizon, zenith, clamp(vUv.y * 1.2, 0.0, 1.0));
@@ -109,7 +109,7 @@ scene.background = new THREE.Color(0x7eb8e4);
 scene.fog = new THREE.Fog(SKY, 62, 138);
 const camera = new THREE.PerspectiveCamera(33, 16 / 9, 1, 220);
 
-const hemi = new THREE.HemisphereLight(0xe7f4ff, 0x7d9a52, 1.35);
+const hemi = new THREE.HemisphereLight(0xe7f4ff, 0x7d9a52, 1.43);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0cf, 2.35);
 sun.position.set(-18, 34, 14);
@@ -127,7 +127,7 @@ sc.far = 110;
 sun.shadow.bias = -0.00035;
 sun.shadow.normalBias = 0.04;
 scene.add(sun, sun.target);
-const fill = new THREE.DirectionalLight(0xc9e2ff, 0.62);
+const fill = new THREE.DirectionalLight(0xc9e2ff, 0.72);
 fill.position.set(22, 14, -18);
 scene.add(fill);
 
@@ -144,6 +144,7 @@ const state = {
   jars: { AAAA: 0, AAA: 0, AA: 0, A: 0 },
   grams: 0,
   harvested: 0,
+  reputation: 0,
   wet: [],
   buyerOrder: null,
   look: null,
@@ -1166,6 +1167,8 @@ function actPlot(plot) {
     const id = strainOf(d.strain).id;
     state.wet.push({ grade, grams, strain: id, trimmed: false });
     state.harvested++;
+    const repByGrade = { A: 8, AA: 12, AAA: 18, AAAA: 26 };
+    addReputation(repByGrade[grade] || 8, `${grade} HARVEST`);
     state.seeds[id] = (state.seeds[id] | 0) + 1;
     if (!state.genetics.includes(id)) {
       state.genetics.push(id);
@@ -1584,6 +1587,7 @@ function actBreedPot(pot) {
   pot.state = 'empty'; pot.t = 0; pot.strain = null; pot.plant.visible = false;
   P.cool = 0.4; player.playAction('harvest');
   toast(`+4 ${strainOf(id).short} SEEDS — GENETICS BANKED`, 'good');
+  addReputation(16, 'HYBRID SEED CROP');
   state.strainPick = id; updateHud(); markDirty(); return true;
 }
 
@@ -1629,6 +1633,7 @@ function actStand() {
     const payout = base + order.bonus;
     order.claimed = true;
     state.mota += payout;
+    addReputation(35, 'BUYER ORDER');
     toast(`BUYER ORDER FILLED — +${payout} MOTA (${order.bonus} BONUS)`, 'good');
     markDirty();
     updateHud();
@@ -2212,6 +2217,7 @@ function updateTasks() {
 
 function updateHud() {
   updateBuyerOrderHud();
+  renderReputationHud();
   const pick = STRAINS[state.strainPick] ? state.strainPick : 'bd';
   const held = strainOf(pick);
   $('mota').textContent = state.mota;
@@ -2765,6 +2771,59 @@ function updateCamera(dt) {
 
 let dayClock = 0.32;
 const DAY_LEN = 240;
+
+const GROWER_RANKS = [
+  { name: 'SEEDLING', at: 0 },
+  { name: 'CULTIVATOR', at: 100 },
+  { name: 'CRAFT GROWER', at: 260 },
+  { name: 'MASTER GROWER', at: 460 },
+  { name: 'MOTA LEGEND', at: 720 },
+];
+
+function growerRank(rep = state.reputation | 0) {
+  let index = 0;
+  for (let i = 1; i < GROWER_RANKS.length; i++) if (rep >= GROWER_RANKS[i].at) index = i;
+  return { ...GROWER_RANKS[index], index, next: GROWER_RANKS[index + 1] || null };
+}
+
+function renderReputationHud() {
+  const rank = growerRank();
+  const total = Math.max(0, state.reputation | 0);
+  const start = rank.at;
+  const end = rank.next?.at ?? rank.at;
+  const pct = rank.next ? Math.max(0, Math.min(100, ((total - start) / (end - start)) * 100)) : 100;
+  const label = $('reputation-rank');
+  const copy = $('reputation-copy');
+  const fill = $('reputation-fill');
+  const root = $('reputation');
+  if (!root || !label || !copy || !fill) return;
+  label.textContent = rank.name;
+  copy.textContent = rank.next ? `${total} REP · ${Math.max(0, rank.next.at - total)} TO NEXT` : `${total} REP · MAX RANK`;
+  fill.style.width = `${pct}%`;
+  root.setAttribute('aria-valuenow', String(total));
+  root.setAttribute('aria-valuemax', String(rank.next?.at ?? rank.at));
+  root.setAttribute('aria-label', `${rank.name}, ${total} reputation${rank.next ? `, ${rank.next.at - total} to ${rank.next.name}` : ', maximum rank'}`);
+  root.classList.toggle('max-rank', !rank.next);
+}
+
+function addReputation(points, reason = 'GROWER PROGRESS') {
+  const before = growerRank().index;
+  state.reputation = Math.max(0, (state.reputation | 0) + Math.max(0, points | 0));
+  const after = growerRank().index;
+  if (after > before) {
+    let bonus = 0;
+    for (let i = before + 1; i <= after; i++) bonus += 35 + i * 25;
+    state.mota += bonus;
+    const rank = growerRank();
+    toast(`RANK UP — ${rank.name} · +${bonus} MOTA`, 'good');
+    $('reputation')?.classList.add('rank-up');
+    setTimeout(() => $('reputation')?.classList.remove('rank-up'), 1200);
+  } else {
+    toast(`+${points} REP · ${reason}`, 'good');
+  }
+  renderReputationHud();
+  markDirty();
+}
 
 function makeBuyerOrder(day) {
   const grades = ['A', 'AA', 'AAA', 'AAAA'];
@@ -3442,6 +3501,7 @@ function snapshot() {
     mota: state.mota | 0,
     grams: state.grams | 0,
     harvested: state.harvested | 0,
+    reputation: state.reputation | 0,
     jars: { AAAA: state.jars.AAAA | 0, AAA: state.jars.AAA | 0, AA: state.jars.AA | 0, A: state.jars.A | 0 },
     wet: state.wet.slice(0, 12).map((w) => ({ grade: w.grade, grams: w.grams | 0, strain: w.strain || 'bd', trimmed: !!w.trimmed })),
     hybrids: hybridDefinitions(),
@@ -3598,6 +3658,7 @@ function resetWorld() {
   state.jars = { AAAA: 0, AAA: 0, AA: 0, A: 0 };
   state.grams = 0;
   state.harvested = 0;
+  state.reputation = 0;
   state.wet = [];
   state.genetics = [];
   state.hybrids = [];
@@ -3653,6 +3714,7 @@ function applySave(save) {
   state.genetics = Array.isArray(save.genetics) ? [...new Set(save.genetics.filter((id) => STRAINS[id]))] : [];
   state.mota = save.mota | 0;
   state.harvested = save.harvested | 0;
+  state.reputation = Math.max(0, Math.min(10000000, save.reputation | 0));
   for (const g of GRADES) state.jars[g] = Math.max(0, save.jars?.[g] | 0);
   syncCuredGrams();
   state.wet = Array.isArray(save.wet) ? save.wet.slice(0, 12).map((w) => ({ grade: GRADES.includes(w.grade) ? w.grade : 'A', grams: w.grams | 0, strain: strainOf(w.strain).id, trimmed: w.trimmed === undefined ? true : !!w.trimmed })) : [];
@@ -3972,6 +4034,7 @@ function crossGenetics() {
   state.strainPick = hybrid.id;
   $('breed-status').textContent = `NEW CROSS: ${hybrid.name}. ONE TRIAL SEED ADDED TO YOUR BAG.`;
   toast(`${hybrid.short} HYBRID CREATED — PLANT THE TRIAL SEED IN A BREEDING POT`, 'good');
+  addReputation(24, 'NEW HYBRID');
   updateHud();
   markDirty();
 }
