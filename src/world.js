@@ -926,6 +926,47 @@ function buildSign() {
   return m;
 }
 
+
+function buildMoonGarden() {
+  const m = new VoxelModel();
+  // A quiet moonwell courtyard: midnight stone, a crescent arch, and cool lanterns.
+  m.box(-46, 0, -42, 46, 1, 42, 0x34445b, 0.03);
+  m.box(-40, 1, -36, 40, 2, 36, 0x52617a, 0.025);
+  for (let x = -34; x <= 34; x += 17) {
+    for (let z = -28; z <= 28; z += 14) {
+      m.box(x - 5, 2, z - 4, x + 5, 3, z + 4, 0x28374d, 0.03);
+      m.box(x - 3, 3, z - 2, x + 3, 4, z + 2, 0x71829a, 0.02);
+    }
+  }
+  // Central reflecting well with a luminous water surface.
+  m.box(-13, 2, -13, 13, 5, 13, 0x26354b, 0.04);
+  m.box(-10, 5, -10, 10, 6, 10, 0x71829a, 0.02);
+  m.box(-8, 6, -8, 8, 7, 8, 0x72c8d8, 0.015);
+  m.box(-5, 7, -5, 5, 8, 5, 0xb3eff0, 0.01);
+  // Crescent-like arch at the rear of the courtyard.
+  m.box(-2, 8, -31, 2, 47, -29, 0x9bb5d2, 0.025);
+  m.box(-20, 43, -31, 20, 47, -29, 0x9bb5d2, 0.025);
+  m.box(-20, 24, -31, -16, 43, -29, 0x9bb5d2, 0.025);
+  m.box(16, 24, -31, 20, 43, -29, 0x9bb5d2, 0.025);
+  m.box(-16, 20, -31, -11, 25, -29, 0x8fd7df, 0.02);
+  m.box(11, 20, -31, 16, 25, -29, 0x8fd7df, 0.02);
+  for (const [x, z] of [[-34, -24], [34, -24], [-34, 24], [34, 24]]) {
+    m.box(x - 2, 2, z - 2, x + 2, 18, z + 2, 0x34445b, 0.03);
+    m.box(x - 4, 18, z - 4, x + 4, 22, z + 4, 0x8fd7df, 0.02);
+    m.box(x - 2, 22, z - 2, x + 2, 25, z + 2, 0xd7f6ed, 0.01);
+  }
+  const flowers = [0x9b8fe8, 0x82c9e0, 0xd7d8ff, 0x75b9a4];
+  for (let i = 0; i < 18; i++) {
+    const x = Math.round((hash3(i, 1, 2, 744) - 0.5) * 72);
+    const z = Math.round((hash3(i, 3, 4, 745) - 0.5) * 58);
+    if (Math.abs(x) < 15 && Math.abs(z) < 15) continue;
+    m.box(x - 2, 2, z - 2, x + 2, 4, z + 2, 0x365d55, 0.03);
+    m.set(x, 5, z, flowers[i % flowers.length], 0.015);
+    m.set(x + 1, 5, z, flowers[(i + 1) % flowers.length], 0.015);
+  }
+  return m;
+}
+
 /* ------------------------------------------------------------------- world */
 
 export function buildWorld() {
@@ -1077,8 +1118,15 @@ export function buildWorld() {
   const greenhouseForSale = place(group, signModel, 1 / 16, -13.75, 0, -5.15);
   const greenhouse = { owned: false, forSale: greenhouseForSale, block: greenhouseBlock, walls: greenhouseWalls, slots: greenhouseSlots, door: { x: -16, z: -5.65 }, contains(x, z) { return x > -18.65 && x < -13.35 && z > -11.55 && z < -6.25; } };
 
-  place(group, buildPicnic(), 1 / 16, -16.5, 0, 6.5, 0.15);
+  place(group, buildMoonGarden(), 1 / 16, -16.5, 0, 6.5);
   colliders.push({ x0: -19.2, x1: -13.8, z0: 4.4, z1: 8.9 });
+  const moonSignModel = new VoxelModel();
+  moonSignModel.box(-12, 0, -2, 12, 28, 2, 0x35445c, 0.03);
+  moonSignModel.box(-17, 24, -3, 17, 35, 3, 0x9adbe5, 0.02);
+  moonSignModel.set(-5, 30, 4, 0x28374d, 0);
+  moonSignModel.set(-3, 32, 4, 0x28374d, 0);
+  moonSignModel.set(-1, 34, 4, 0x28374d, 0);
+  const moonForSale = place(group, moonSignModel, 1 / 16, -13.15, 0, 6.5);
 
   const barrel = place(group, buildBarrel(), 1 / 16, 12, 0, -6.2);
   void barrel;
@@ -1119,5 +1167,5 @@ export function buildWorld() {
     return 0;
   }
 
-  return { group, colliders, slots, groundHeight, smokeAt, shed, scenery, greenhouse, ...estate };
+  return { group, colliders, slots, groundHeight, smokeAt, shed, scenery, greenhouse, moonGarden: { owned: false, forSale: moonForSale, station: { x: -13.1, z: 6.5 } }, ...estate };
 }
