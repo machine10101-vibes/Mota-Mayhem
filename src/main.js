@@ -145,6 +145,7 @@ const state = {
   grams: 0,
   harvested: 0,
   wet: [],
+  buyerOrder: null,
   look: null,
   strainPick: 'bd',
   returnMode: 'title',
@@ -1618,8 +1619,22 @@ function actVeg(pot) {
 }
 
 function actStand() {
-  const offer = motaInJars();
+  ensureBuyerOrder();
   P.cool = 0.35;
+  const order = state.buyerOrder;
+  if (order && !order.claimed && (state.jars[order.grade] | 0) >= order.count) {
+    state.jars[order.grade] -= order.count;
+    syncCuredGrams();
+    const base = order.count * gramsFor(order.grade) * MOTA_PER_G[order.grade];
+    const payout = base + order.bonus;
+    order.claimed = true;
+    state.mota += payout;
+    toast(`BUYER ORDER FILLED — +${payout} MOTA (${order.bonus} BONUS)`, 'good');
+    markDirty();
+    updateHud();
+    return true;
+  }
+  const offer = motaInJars();
   if (offer.n > 0) {
     for (const g of GRADES) state.jars[g] = 0;
     syncCuredGrams();
@@ -2107,6 +2122,12 @@ function collectTasks() {
   }
   if (house.vegCenter && state.genetics.length >= 2) addTask(5, 'CROSS GENETICS', 'BREEDING LAB');
 
+  const order = state.buyerOrder;
+  if (order && !order.claimed) {
+    const stocked = state.jars[order.grade] | 0;
+    addTask(stocked >= order.count ? 1 : 5, 'FILL BUYER ORDER', `${Math.min(stocked, order.count)}/${order.count} ${order.grade} · STAND`);
+  }
+
   let trim = 0;
   let hang = 0;
   for (const bud of state.wet) {
@@ -2190,6 +2211,7 @@ function updateTasks() {
 }
 
 function updateHud() {
+  updateBuyerOrderHud();
   const pick = STRAINS[state.strainPick] ? state.strainPick : 'bd';
   const held = strainOf(pick);
   $('mota').textContent = state.mota;
@@ -2743,6 +2765,48 @@ function updateCamera(dt) {
 
 let dayClock = 0.32;
 const DAY_LEN = 240;
+
+function makeBuyerOrder(day) {
+  const grades = ['A', 'AA', 'AAA', 'AAAA'];
+  const grade = grades[(Math.max(1, day) - 1) % grades.length];
+  const count = day % 3 === 0 ? 2 : 1;
+  return { day, grade, count, bonus: Math.min(180, 30 + day * 12), claimed: false };
+}
+
+function updateBuyerOrderHud() {
+  const el = $('buyer-order-copy');
+  const root = $('buyer-order');
+  if (!el || !root) return;
+  const order = state.buyerOrder;
+  if (!order) {
+    el.textContent = 'BUYER ORDER LOADING';
+    root.classList.remove('complete', 'ready');
+    return;
+  }
+  if (order.claimed) {
+    el.textContent = `D${order.day} COMPLETE · NEXT ORDER AT DAWN`;
+    root.classList.add('complete');
+    root.classList.remove('ready');
+    return;
+  }
+  const stocked = state.jars[order.grade] | 0;
+  const ready = stocked >= order.count;
+  el.textContent = `D${order.day} · ${order.grade} ×${order.count} · ${Math.min(stocked, order.count)}/${order.count} · +${order.bonus} BONUS`;
+  root.classList.toggle('ready', ready);
+  root.classList.remove('complete');
+}
+
+function ensureBuyerOrder() {
+  const day = Math.floor(dayClock) + 1;
+  if (state.buyerOrder?.day === day) return false;
+  state.buyerOrder = makeBuyerOrder(day);
+  taskSig = '';
+  markDirty();
+  updateBuyerOrderHud();
+  updateTasks();
+  if (day > 1 && state.mode === 'play') toast(`NEW DAY ${day} — BUYER WANTS ${state.buyerOrder.count} ${state.buyerOrder.grade} JAR${state.buyerOrder.count > 1 ? 'S' : ''}`, 'good');
+  return true;
+}
 let clockLabel = '';
 const COL_DAY_Z = new THREE.Color(0x7eb8e4);
 const COL_NIGHT_Z = new THREE.Color(0x10182c);
@@ -2753,6 +2817,7 @@ const COL_NIGHT_H = new THREE.Color(0x1a2038);
 function updateDay(dt) {
   if (!world || state.mode === 'loading') return;
   dayClock += dt / DAY_LEN;
+  ensureBuyerOrder();
   const t = dayClock % 1;
   const elev = Math.sin(t * Math.PI * 2);
   const az = t * Math.PI * 2 + Math.PI;
@@ -3371,6 +3436,8 @@ function itemSnap(it) {
 
 function snapshot() {
   return {
+    dayClock,
+    buyerOrder: state.buyerOrder ? { ...state.buyerOrder } : null,
     look: state.look || player.getLook(),
     mota: state.mota | 0,
     grams: state.grams | 0,
@@ -3520,6 +3587,9 @@ function blankPlots(list, meshes) {
 }
 
 function resetWorld() {
+  dayClock = 0.32;
+  state.buyerOrder = makeBuyerOrder(1);
+  taskSig = '';
   state.seeds = starterSeeds();
   state.clones = [];
   state.nutrients = 0;
@@ -3570,6 +3640,13 @@ function resetWorld() {
 }
 
 function applySave(save) {
+  dayClock = Number.isFinite(save.dayClock) ? Math.max(0, save.dayClock) : 0.32;
+  const orderDay = Math.floor(dayClock) + 1;
+  const savedOrder = save.buyerOrder;
+  state.buyerOrder = savedOrder && savedOrder.day === orderDay && GRADES.includes(savedOrder.grade)
+    ? { ...makeBuyerOrder(orderDay), claimed: !!savedOrder.claimed }
+    : makeBuyerOrder(orderDay);
+  taskSig = '';
   clearHybridStrains();
   for (const hybrid of Array.isArray(save.hybrids) ? save.hybrids : []) registerHybridStrain(hybrid);
   state.hybrids = hybridDefinitions();
