@@ -2948,7 +2948,10 @@ function renderGrowerLeague() {
   if (goalFill) goalFill.style.width = `${Math.min(100, (score / LEAGUE_GOAL) * 100)}%`;
   if (goalScore) goalScore.textContent = `${Math.min(score, LEAGUE_GOAL)}/${LEAGUE_GOAL}`;
   if (goalCopy) goalCopy.textContent = score >= LEAGUE_GOAL ? 'HARVEST GOAL COMPLETE · +60 MOTA' : 'WEEKLY HARVEST GOAL · +60 MOTA';
-  if (goalFill) goalFill.parentElement?.setAttribute('aria-label', `Weekly harvest goal: ${score} of ${LEAGUE_GOAL} points`);
+  if (goalFill) {
+    goalFill.parentElement?.setAttribute('aria-label', `Weekly harvest goal: ${score} of ${LEAGUE_GOAL} points`);
+    goalFill.parentElement?.setAttribute('aria-valuenow', String(Math.min(score, LEAGUE_GOAL)));
+  }
   const rows = leagueRows(week);
   list.replaceChildren();
   rows.forEach((row, index) => {
