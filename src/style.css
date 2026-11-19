@@ -433,3 +433,30 @@ button:disabled, .tbtn:disabled, .icon-btn:disabled {
   .tbtn { transition:none; }
   #title .press { animation:none; }
 }
+
+
+/* Daily buyer orders add a compact, always-visible gameplay target. */
+#buyer-order {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  max-width:min(330px, 42vw);
+  min-height:27px;
+  padding:5px 8px;
+  background:linear-gradient(145deg, rgba(24,34,19,.94), rgba(8,13,8,.94));
+  box-shadow:var(--frame);
+  border-left:2px solid rgba(255,230,106,.7);
+  color:#d5e2c4;
+  font-size:7px;
+  line-height:1.45;
+  pointer-events:none;
+}
+#buyer-order b { color:var(--gold); font-weight:normal; letter-spacing:.08em; flex:none; }
+#buyer-order span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#buyer-order.ready { border-left-color:#c6f56a; }
+#buyer-order.ready span { color:#c6f56a; }
+#buyer-order.complete { border-left-color:#8da1bd; }
+#buyer-order.complete span { color:#b9c8dc; }
+@media (max-width: 560px) {
+  #buyer-order { max-width:calc(100vw - 150px); min-height:25px; padding:4px 6px; font-size:6px; gap:5px; }
+}
