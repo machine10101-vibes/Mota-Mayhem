@@ -1051,18 +1051,31 @@ export function buildWorld() {
   const glassMat = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.3, depthWrite: false });
   const glassMesh = place(group, gh.glass, 1 / 16, -16, 0, -9, 0, [0, 0, 0], glassMat, false);
   glassMesh.renderOrder = 2;
-  colliders.push({ x0: -19.1, x1: -12.9, z0: -12.1, z1: -5.9 });
+  const greenhouseBlock = { x0: -19.1, x1: -12.9, z0: -12.1, z1: -5.9 };
+  const greenhouseWalls = [
+    { x0: -19.1, x1: -18.45, z0: -12.1, z1: -5.9 }, { x0: -13.55, x1: -12.9, z0: -12.1, z1: -5.9 },
+    { x0: -18.45, x1: -13.55, z0: -12.1, z1: -11.5 }, { x0: -18.45, x1: -16.7, z0: -6.55, z1: -5.9 },
+    { x0: -15.3, x1: -13.55, z0: -6.55, z1: -5.9 },
+  ];
+  const greenhouseSlots = [];
   const potModel = new VoxelModel();
-  potModel.box(-4, 0, -4, 4, 6, 4, 0xc2653a, 0.05);
-  potModel.box(-5, 6, -5, 5, 8, 5, 0xd2754a, 0.05);
-  potModel.box(-4, 8, -4, 4, 9, 4, 0x4b3424, 0.05);
-  [-1.7, -0.55, 0.6, 1.75].forEach((px, i) => {
-    place(group, potModel, 1 / 16, -16 + px, 17 / 16, -9 - 1.9 + 0.1);
-    const pl = toMesh(buildPlant(1 + (i % 2), STRAIN_IDS[i % STRAIN_IDS.length]), PLANT_VS);
-    pl.position.set(-16 + px, 17 / 16 + 9 / 16, -9 - 1.8);
-    pl.scale.setScalar(0.5);
-    group.add(pl);
-  });
+  potModel.box(-8, 0, -8, 8, 5, 8, 0x9b6a3c, 0.05);
+  potModel.box(-9, 5, -9, 9, 7, 9, 0xc18a50, 0.04);
+  potModel.box(-7, 7, -7, 7, 8, 7, 0x4b3424, 0.04);
+  const ghPatch = buildSoilPatch();
+  for (const [x, z] of [[-17.55, -10], [-14.45, -10], [-17.55, -7.85], [-14.45, -7.85]]) {
+    place(group, potModel, 1 / 16, x, 0, z);
+    const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    const patch = place(group, ghPatch, PVS, x, 8 / 16, z, 0, [0, 0, 0], mat, false);
+    patch.castShadow = false;
+    greenhouseSlots.push({ x, z, y: 8 / 16, bed: -1, index: slots.length + greenhouseSlots.length, patch, patchMat: mat, where: 'gh' });
+  }
+  slots.push(...greenhouseSlots);
+  const signModel = new VoxelModel();
+  signModel.box(-12, 0, -2, 12, 28, 2, 0x704522, 0.04);
+  signModel.box(-15, 24, -3, 15, 34, 3, 0xffdf72, 0.04);
+  const greenhouseForSale = place(group, signModel, 1 / 16, -13.75, 0, -5.15);
+  const greenhouse = { owned: false, forSale: greenhouseForSale, block: greenhouseBlock, walls: greenhouseWalls, slots: greenhouseSlots, door: { x: -16, z: -5.65 }, contains(x, z) { return x > -18.65 && x < -13.35 && z > -11.55 && z < -6.25; } };
 
   place(group, buildPicnic(), 1 / 16, -16.5, 0, 6.5, 0.15);
   colliders.push({ x0: -19.2, x1: -13.8, z0: 4.4, z1: 8.9 });
@@ -1106,5 +1119,5 @@ export function buildWorld() {
     return 0;
   }
 
-  return { group, colliders, slots, groundHeight, smokeAt, shed, scenery, ...estate };
+  return { group, colliders, slots, groundHeight, smokeAt, shed, scenery, greenhouse, ...estate };
 }
