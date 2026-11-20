@@ -1125,6 +1125,9 @@ export function buildWorld() {
   // The Moon Garden is an open courtyard. Only its raised well and lantern plinths block movement.
   colliders.push(
     { x0: -17.4, x1: -15.6, z0: 5.6, z1: 7.4 },
+    { x0: -17.9, x1: -17.3, z0: 4.45, z1: 4.85 },
+    { x0: -16.7, x1: -16.3, z0: 4.45, z1: 4.85 },
+    { x0: -15.7, x1: -15.1, z0: 4.45, z1: 4.85 },
     { x0: -18.85, x1: -18.35, z0: 4.75, z1: 5.25 },
     { x0: -14.65, x1: -14.15, z0: 4.75, z1: 5.25 },
     { x0: -18.85, x1: -18.35, z0: 7.75, z1: 8.25 },
