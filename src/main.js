@@ -1772,13 +1772,13 @@ function actBuyGreenhouse() {
 
 function actBuyMoonGarden() {
   const garden = world.moonGarden;
-  if (garden.owned) return toast('MOON GARDEN OPEN · GLASSHOUSE BONUS ACTIVE');
+  if (garden.owned) return toast(world.greenhouse.owned ? 'MOON GARDEN BONUS ACTIVE' : 'MOON GARDEN BONUS READY WHEN GLASSHOUSE IS UNLOCKED');
   if (state.mota < MOON_GARDEN_PRICE) return toast(`NEED ${MOON_GARDEN_PRICE} MOTA — MOON GARDEN`);
   state.mota -= MOON_GARDEN_PRICE;
   garden.owned = true;
   garden.forSale.visible = false;
   P.cool = 0.4;
-  toast('MOON GARDEN UNLOCKED — GLASSHOUSE GROWS 10% FASTER', 'good');
+  toast(world.greenhouse.owned ? 'MOON GARDEN UNLOCKED — GLASSHOUSE +10% GROWTH' : 'MOON GARDEN UNLOCKED — GLASSHOUSE BONUS READY', 'good');
   updateHud();
   markDirty();
   return true;
@@ -2665,7 +2665,7 @@ function stationUi(st, actLbl) {
     ? { text: 'GLASSHOUSE OPEN · FOUR GROW POTS', btn: 'ENTER' }
     : { text: state.mota < GREENHOUSE_PRICE ? `GLASSHOUSE  ${state.mota}/${GREENHOUSE_PRICE} MOTA` : `${actLbl}  UNLOCK GLASSHOUSE  ${GREENHOUSE_PRICE} MOTA`, btn: state.mota < GREENHOUSE_PRICE ? 'LOCKED' : 'BUY' };
   if (st.kind === 'moon-garden') return world.moonGarden.owned
-    ? { text: 'MOON GARDEN OPEN · GLASSHOUSE +10% GROWTH', btn: 'OPEN' }
+    ? { text: world.greenhouse.owned ? 'MOON GARDEN OWNED · GLASSHOUSE +10% GROWTH' : 'MOON GARDEN OWNED · BONUS WHEN GLASSHOUSE UNLOCKED', btn: 'OWNED' }
     : { text: state.mota < MOON_GARDEN_PRICE ? `MOON GARDEN  ${state.mota}/${MOON_GARDEN_PRICE} MOTA` : `${actLbl}  UNLOCK MOON GARDEN  ${MOON_GARDEN_PRICE} MOTA`, btn: state.mota < MOON_GARDEN_PRICE ? 'LOCKED' : 'BUY' };
   if (st.kind === 'shed-door') {
     const open = world.shed.open;
