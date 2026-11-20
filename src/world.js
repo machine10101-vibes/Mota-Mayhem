@@ -1119,19 +1119,8 @@ export function buildWorld() {
   const greenhouse = { owned: false, forSale: greenhouseForSale, block: greenhouseBlock, walls: greenhouseWalls, slots: greenhouseSlots, door: { x: -16, z: -5.65 }, contains(x, z) { return x > -18.65 && x < -13.35 && z > -11.55 && z < -6.25; } };
 
   place(group, buildMoonGarden(), 1 / 16, -16.5, 0, 6.5);
-  // The courtyard stays closed until purchase, but its outside remains walkable.
-  const moonGateModel = new VoxelModel();
-  moonGateModel.box(-2, 0, -38, 2, 24, -34, 0x34445b, 0.03);
-  moonGateModel.box(-2, 0, 34, 2, 24, 38, 0x34445b, 0.03);
-  moonGateModel.box(-2, 20, -38, 2, 24, 38, 0x9adbe5, 0.02);
-  moonGateModel.box(-1, 0, -34, 1, 18, 34, 0x53647d, 0.03);
-  moonGateModel.box(-2, 4, -34, 2, 6, 34, 0x8fd7df, 0.01);
-  const moonGate = place(group, moonGateModel, 1 / 16, -13.65, 0, 6.5);
-  const moonGateBlock = { x0: -13.9, x1: -13.4, z0: 4.55, z1: 8.45 };
+  // The Moon Garden is an open courtyard. Only its raised well and lantern plinths block movement.
   colliders.push(
-    { x0: -13.9, x1: -13.4, z0: 4.0, z1: 4.55 },
-    { x0: -13.9, x1: -13.4, z0: 8.45, z1: 9.0 },
-    // Reflecting well and the four raised lantern plinths.
     { x0: -17.4, x1: -15.6, z0: 5.6, z1: 7.4 },
     { x0: -18.85, x1: -18.35, z0: 4.75, z1: 5.25 },
     { x0: -14.65, x1: -14.15, z0: 4.75, z1: 5.25 },
@@ -1185,5 +1174,5 @@ export function buildWorld() {
     return 0;
   }
 
-  return { group, colliders, slots, groundHeight, smokeAt, shed, scenery, greenhouse, moonGarden: { owned: false, forSale: moonForSale, gate: moonGate, block: moonGateBlock, station: { x: -13.1, z: 6.5 } }, ...estate };
+  return { group, colliders, slots, groundHeight, smokeAt, shed, scenery, greenhouse, moonGarden: { owned: false, forSale: moonForSale, station: { x: -13.1, z: 6.5 } }, ...estate };
 }
