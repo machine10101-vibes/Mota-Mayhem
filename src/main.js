@@ -638,6 +638,11 @@ function bindPrompt() {
     go(e);
   });
   el.addEventListener('click', (e) => { if (e.detail === 0) go(e); });
+  el.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space' && e.code !== 'Enter') return;
+    e.preventDefault();
+    if (!e.repeat) go(e);
+  });
 }
 
 /* ------------------------------------------------------------------ player */
@@ -3147,6 +3152,7 @@ function updateDay(dt) {
   scene.fog.color.copy(post.uniforms.horizon.value);
   const glow = THREE.MathUtils.smoothstep(night, 0.2, 0.75);
   for (const lamp of world.scenery?.night || []) lamp.intensity = glow * 2.3;
+  if (world.moonGarden?.glow) world.moonGarden.glow.intensity = glow * 1.45;
   let phase = 'DAY';
   if (elev < -0.02) phase = 'NIGHT';
   else if (elev < 0.45 && rising) phase = 'DAWN';
