@@ -15,6 +15,8 @@ test('Moon Garden is an open courtyard with solid raised features and night ligh
   assert.ok(world.includes('glow: moonGlow'));
   assert.ok(main.includes('moonGarden: !!world.moonGarden.owned'));
   assert.ok(main.includes('world.moonGarden.owned = !!save.moonGarden'));
+  assert.ok(main.includes('MOON GARDEN BONUS READY WHEN GLASSHOUSE IS UNLOCKED'));
+  assert.ok(main.includes('MOON GARDEN OWNED · BONUS WHEN GLASSHOUSE UNLOCKED'));
   assert.ok(main.includes('if (world.moonGarden?.glow) world.moonGarden.glow.intensity = glow * 1.45;'));
   assert.ok(!main.includes('world.moonGarden.block') && !main.includes('moonGarden.gate'));
 });
