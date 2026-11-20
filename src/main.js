@@ -18,6 +18,13 @@ const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const coarse = matchMedia('(pointer: coarse)').matches;
 
+function readPreference(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function writePreference(key, value) {
+  try { localStorage.setItem(key, String(value)); return true; } catch { return false; }
+}
+
 /* ---------------------------------------------------------------- renderer */
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: params.has('shot') });
 renderer.shadowMap.enabled = true;
@@ -25,7 +32,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.NoToneMapping;
 $('stage').appendChild(renderer.domElement);
 
-let pixelScale = Number(params.get('px')) || Number(localStorage.getItem('mm-pixel')) || 0;
+let pixelScale = Number(params.get('px')) || Number(readPreference('mm-pixel')) || 0;
 const autoScale = () => Math.max(2, Math.round(viewSize().h / 440));
 const bufSize = new THREE.Vector2();
 let rt = null;
@@ -329,7 +336,8 @@ addEventListener('keydown', (e) => {
     e.preventDefault();
     return;
   }
-  if (e.target?.closest?.('input, textarea')) return;
+  if ((e.code === 'Space' || e.code === 'Enter') && e.target?.closest?.('button, a, input, textarea, select, [role="button"], [contenteditable="true"]')) return;
+  if (e.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
   if ((e.code === 'Space' || e.code === 'Enter') && (state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress' || state.mode === 'settings')) enterFullscreen();
   if ((e.code === 'Space' || e.code === 'Enter') && state.mode === 'title') onTitleConfirm();
   if (e.code === 'KeyI' && !e.repeat && state.mode === 'play') {
@@ -519,6 +527,25 @@ addEventListener('touchcancel', onCamUp);
 
 function bindHold(el, on, off) {
   let heldId = null;
+  let keyboardHeld = false;
+  el.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space' && e.code !== 'Enter') return;
+    e.preventDefault();
+    if (keyboardHeld || e.repeat) return;
+    keyboardHeld = true;
+    el.classList.add('held');
+    on();
+  });
+  const releaseKeyboard = () => {
+    if (!keyboardHeld) return;
+    keyboardHeld = false;
+    el.classList.remove('held');
+    off?.();
+  };
+  el.addEventListener('keyup', (e) => {
+    if (e.code === 'Space' || e.code === 'Enter') releaseKeyboard();
+  });
+  el.addEventListener('blur', releaseKeyboard);
   bindPress(el, {
     down: (p) => {
       if (heldId != null) return;
@@ -578,6 +605,7 @@ function bindStick() {
 }
 
 function bindTap(el, fn) {
+  el.addEventListener('click', (e) => { if (e.detail === 0) fn(); });
   bindPress(el, {
     down: () => fn(),
     up: () => {},
@@ -608,6 +636,12 @@ function bindPrompt() {
   el.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'touch' || isGhostMouse(e)) return;
     go(e);
+  });
+  el.addEventListener('click', (e) => { if (e.detail === 0) go(e); });
+  el.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space' && e.code !== 'Enter') return;
+    e.preventDefault();
+    if (!e.repeat) go(e);
   });
 }
 
@@ -3118,6 +3152,7 @@ function updateDay(dt) {
   scene.fog.color.copy(post.uniforms.horizon.value);
   const glow = THREE.MathUtils.smoothstep(night, 0.2, 0.75);
   for (const lamp of world.scenery?.night || []) lamp.intensity = glow * 2.3;
+  if (world.moonGarden?.glow) world.moonGarden.glow.intensity = glow * 1.45;
   let phase = 'DAY';
   if (elev < -0.02) phase = 'NIGHT';
   else if (elev < 0.45 && rising) phase = 'DAWN';
@@ -3166,7 +3201,7 @@ function frame(now) {
   if (pressed.has('BracketLeft') || pressed.has('BracketRight')) {
     const cur = pixelScale || autoScale();
     pixelScale = THREE.MathUtils.clamp(cur + (pressed.has('BracketRight') ? 1 : -1), 1, 5);
-    localStorage.setItem('mm-pixel', pixelScale);
+    writePreference('mm-pixel', pixelScale);
     resize();
   }
   if (state.mode === 'play' && (pressed.has('Space') || pressed.has('KeyF'))) act();
@@ -3312,7 +3347,7 @@ function pixelLabel() {
 function stepPixels(dir) {
   const cur = pixelScale || autoScale();
   pixelScale = THREE.MathUtils.clamp(cur + dir, 1, 5);
-  localStorage.setItem('mm-pixel', String(pixelScale));
+  writePreference('mm-pixel', pixelScale);
   resize();
   paintSettings();
 }
@@ -3646,15 +3681,15 @@ function bindWallet() {
   $('btn-set-unlink-no')?.addEventListener('click', () => $('set-unlink-ask')?.classList.add('hidden'));
   $('btn-set-unlink-yes')?.addEventListener('click', () => unlinkWallet());
   $('btn-set-out')?.addEventListener('click', () => signOutAccount());
-  $('btn-settings')?.addEventListener('pointerdown', (e) => {
+  $('btn-settings')?.addEventListener('click', (e) => {
     swallow(e);
     toggleSettings();
   });
-  $('btn-settings-title')?.addEventListener('pointerdown', (e) => {
+  $('btn-settings-title')?.addEventListener('click', (e) => {
     swallow(e);
     toggleSettings();
   });
-  $('btn-settings-close')?.addEventListener('pointerdown', (e) => {
+  $('btn-settings-close')?.addEventListener('click', (e) => {
     swallow(e);
     closeSettings();
   });
@@ -4306,11 +4341,11 @@ function closeBreeding() {
 }
 
 function bindBreeding() {
-  $('btn-breeding-close').addEventListener('pointerdown', (e) => {
+  $('btn-breeding-close').addEventListener('click', (e) => {
     swallow(e);
     closeBreeding();
   });
-  $('btn-breed-cross').addEventListener('pointerdown', (e) => {
+  $('btn-breed-cross').addEventListener('click', (e) => {
     swallow(e);
     crossGenetics();
   });
@@ -4378,11 +4413,11 @@ function buySupply(id) {
 }
 
 function bindShop() {
-  $('btn-shop-close').addEventListener('pointerdown', (e) => {
+  $('btn-shop-close').addEventListener('click', (e) => {
     swallow(e);
     closeShop();
   });
-  $('shop-rows').addEventListener('pointerdown', (e) => {
+  $('shop-rows').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-buy]');
     if (!btn) return;
     swallow(e);
@@ -4396,14 +4431,14 @@ function bindDress() {
     if (state.mode === 'dress') closeDress();
     else openDress();
   };
-  $('btn-character').addEventListener('pointerdown', open);
-  $('btn-you').addEventListener('pointerdown', open);
-  $('btn-inv').addEventListener('pointerdown', (e) => {
+  $('btn-character').addEventListener('click', open);
+  $('btn-you').addEventListener('click', open);
+  $('btn-inv').addEventListener('click', (e) => {
     swallow(e);
     if (state.mode !== 'play') return;
     setInv($('inv').classList.contains('hidden'));
   });
-  $('strain-now').addEventListener('pointerdown', (e) => {
+  $('strain-now').addEventListener('click', (e) => {
     swallow(e);
     if (state.mode !== 'play') return;
     const i = Math.max(0, STRAIN_IDS.indexOf(state.strainPick));
@@ -4435,21 +4470,21 @@ function bindDress() {
   addEventListener('pointerdown', (e) => {
     if (tasksOpen && !e.target.closest?.('#tasks')) setTasksOpen(false);
   });
-  $('btn-help-hud').addEventListener('pointerdown', helpBtn);
-  $('btn-help-close').addEventListener('pointerdown', helpBtn);
-  $('btn-dress-done').addEventListener('pointerdown', (e) => {
+  $('btn-help-hud').addEventListener('click', helpBtn);
+  $('btn-help-close').addEventListener('click', helpBtn);
+  $('btn-dress-done').addEventListener('click', (e) => {
     swallow(e);
     closeDress();
   });
-  $('btn-new').addEventListener('pointerdown', (e) => {
+  $('btn-new').addEventListener('click', (e) => {
     swallow(e);
     armReset($('btn-new'));
   });
-  $('btn-dress-new').addEventListener('pointerdown', (e) => {
+  $('btn-dress-new').addEventListener('click', (e) => {
     swallow(e);
     armReset($('btn-dress-new'));
   });
-  $('dress-rows').addEventListener('pointerdown', (e) => {
+  $('dress-rows').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-k]');
     if (!btn) return;
     swallow(e);

@@ -1119,7 +1119,20 @@ export function buildWorld() {
   const greenhouse = { owned: false, forSale: greenhouseForSale, block: greenhouseBlock, walls: greenhouseWalls, slots: greenhouseSlots, door: { x: -16, z: -5.65 }, contains(x, z) { return x > -18.65 && x < -13.35 && z > -11.55 && z < -6.25; } };
 
   place(group, buildMoonGarden(), 1 / 16, -16.5, 0, 6.5);
-  colliders.push({ x0: -19.2, x1: -13.8, z0: 4.4, z1: 8.9 });
+  const moonGlow = new THREE.PointLight(0x8fd7df, 0, 8, 2);
+  moonGlow.position.set(-16.5, 1.25, 6.5);
+  group.add(moonGlow);
+  // The Moon Garden is an open courtyard. Only its raised well and lantern plinths block movement.
+  colliders.push(
+    { x0: -17.4, x1: -15.6, z0: 5.6, z1: 7.4 },
+    { x0: -17.9, x1: -17.3, z0: 4.45, z1: 4.85 },
+    { x0: -16.7, x1: -16.3, z0: 4.45, z1: 4.85 },
+    { x0: -15.7, x1: -15.1, z0: 4.45, z1: 4.85 },
+    { x0: -18.85, x1: -18.35, z0: 4.75, z1: 5.25 },
+    { x0: -14.65, x1: -14.15, z0: 4.75, z1: 5.25 },
+    { x0: -18.85, x1: -18.35, z0: 7.75, z1: 8.25 },
+    { x0: -14.65, x1: -14.15, z0: 7.75, z1: 8.25 },
+  );
   const moonSignModel = new VoxelModel();
   moonSignModel.box(-12, 0, -2, 12, 28, 2, 0x35445c, 0.03);
   moonSignModel.box(-17, 24, -3, 17, 35, 3, 0x9adbe5, 0.02);
@@ -1167,5 +1180,5 @@ export function buildWorld() {
     return 0;
   }
 
-  return { group, colliders, slots, groundHeight, smokeAt, shed, scenery, greenhouse, moonGarden: { owned: false, forSale: moonForSale, station: { x: -13.1, z: 6.5 } }, ...estate };
+  return { group, colliders, slots, groundHeight, smokeAt, shed, scenery, greenhouse, moonGarden: { owned: false, forSale: moonForSale, glow: moonGlow, station: { x: -13.1, z: 6.5 } }, ...estate };
 }
