@@ -93,4 +93,4 @@ The west-yard glasshouse is an unlockable expansion for 520 MOTA. Buying it open
 
 ## Moon Garden
 
-The Moon Garden is a second unlockable outdoor environment built around a moonwell courtyard, cool stonework, crescent arch, and lantern flowers. Unlock it for 360 MOTA at its sign beside the courtyard. Owning it gives the glasshouse a further 10% growth boost and reduces its crop water use from 0.74 to 0.68. The unlock is saved with the garden; older saves start with the Moon Garden locked.
+The Moon Garden is a second unlockable outdoor environment built around a moonwell courtyard, cool stonework, crescent arch, and lantern flowers. Unlock it for 360 MOTA at its sign beside the courtyard. Owning it gives the glasshouse a further 10% growth boost and reduces its crop water use from 0.74 to 0.68. The unlock is saved with the garden; older saves start with the Moon Garden locked. The courtyard is walkable from the yard; its raised moonwell, lantern plinths, and crescent supports have solid collisions, and the moonwell casts a soft blue glow after dark.
