@@ -24,6 +24,7 @@ test('keyboard users can activate pointer-driven interface controls', () => {
   assert.match(main, /if \(e\.detail === 0\) fn\(\)/);
   assert.match(main, /let keyboardHeld = false/);
   assert.match(html, /id="prompt" role="button" tabindex="0"/);
+  assert.match(main, /el\\.addEventListener\\('keydown', \\(e\\) => \\{\\s*if \\(e\\.code !== 'Space' && e\\.code !== 'Enter'\\)/);
 });
 
 test('pixel preference access tolerates blocked browser storage', () => {
