@@ -7,14 +7,13 @@ const world = readFileSync(new URL('../src/world.js', import.meta.url), 'utf8');
 const fx = readFileSync(new URL('../src/fx.js', import.meta.url), 'utf8');
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
-test('Moon Garden has a gated entrance and walkable courtyard after purchase', () => {
-  assert.match(world, /const moonGateBlock = \{ x0: -13\.9, x1: -13\.4, z0: 4\.55, z1: 8\.45 \}/);
-  assert.match(world, /gate: moonGate, block: moonGateBlock/);
+test('Moon Garden is an open courtyard with solid raised features', () => {
+  assert.match(world, /place\(group, buildMoonGarden\(\), 1 \/ 16, -16\.5, 0, 6\.5\)/);
   assert.doesNotMatch(world, /colliders\.push\(\{ x0: -19\.2, x1: -13\.8, z0: 4\.4, z1: 8\.9 \}\)/);
-  assert.match(main, /if \(!world\.moonGarden\.owned\) blocks\.push\(world\.moonGarden\.block\)/);
-  assert.match(main, /garden\.gate\.visible = false/);
-  assert.match(main, /world\.moonGarden\.gate\.visible = true/);
-  assert.match(main, /world\.moonGarden\.gate\.visible = !world\.moonGarden\.owned/);
+  assert.match(world, /x0: -17\.4, x1: -15\.6, z0: 5\.6, z1: 7\.4/);
+  assert.match(main, /moonGarden: !!world\.moonGarden\.owned/);
+  assert.match(main, /world\.moonGarden\.owned = !!save\.moonGarden/);
+  assert.doesNotMatch(main, /world\.moonGarden\.block|moonGarden\.gate/);
 });
 
 test('keyboard users can activate pointer-driven interface controls', () => {
