@@ -7,24 +7,26 @@ const world = readFileSync(new URL('../src/world.js', import.meta.url), 'utf8');
 const fx = readFileSync(new URL('../src/fx.js', import.meta.url), 'utf8');
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
-test('Moon Garden is an open courtyard with solid raised features', () => {
+test('Moon Garden is an open courtyard with solid raised features and night lighting', () => {
   assert.match(world, /place\(group, buildMoonGarden\(\), 1 \/ 16, -16\.5, 0, 6\.5\)/);
   assert.doesNotMatch(world, /colliders\.push\(\{ x0: -19\.2, x1: -13\.8, z0: 4\.4, z1: 8\.9 \}\)/);
   assert.match(world, /x0: -17\.4, x1: -15\.6, z0: 5\.6, z1: 7\.4/);
+  assert.match(world, /new THREE\.PointLight\(0x8fd7df, 0, 8, 2\)/);
   assert.match(main, /moonGarden: !!world\.moonGarden\.owned/);
   assert.match(main, /world\.moonGarden\.owned = !!save\.moonGarden/);
+  assert.match(main, /world\.moonGarden\?\.glow\.intensity = glow \* 1\.45/);
   assert.doesNotMatch(main, /world\.moonGarden\.block|moonGarden\.gate/);
 });
 
 test('keyboard users can activate pointer-driven interface controls', () => {
   for (const id of ['btn-settings', 'btn-breeding-close', 'btn-breed-cross', 'btn-shop-close', 'btn-character', 'btn-you', 'btn-inv', 'strain-now', 'btn-help-hud', 'btn-dress-done']) {
-    assert.match(main, new RegExp('\\$\\(' + id + '\\).*addEventListener\\(\\'click\\''));
+    assert.match(main, new RegExp("\\$\\('" + id + "'\\).*addEventListener\\('click'"));
   }
   assert.match(main, /e\.target\?\.closest\?\.\('button, a, input, textarea, select, \[role="button"\]/);
   assert.match(main, /if \(e\.detail === 0\) fn\(\)/);
   assert.match(main, /let keyboardHeld = false/);
   assert.match(html, /id="prompt" role="button" tabindex="0"/);
-  assert.match(main, /el\\.addEventListener\\('keydown', \\(e\\) => \\{\\s*if \\(e\\.code !== 'Space' && e\\.code !== 'Enter'\\)/);
+  assert.match(main, /el\.addEventListener\('keydown', \(e\) => \{\s*if \(e\.code !== 'Space' && e\.code !== 'Enter'\)/);
 });
 
 test('pixel preference access tolerates blocked browser storage', () => {
