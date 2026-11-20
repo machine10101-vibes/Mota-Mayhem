@@ -684,7 +684,6 @@ function resolveCollisions() {
   if (!world.warehouse.gateOpen) blocks.push(world.warehouse.gateBlock);
   if (world.warehouse.owned && !world.warehouse.open) blocks.push(world.warehouse.doorBlock);
   if (!world.greenhouse.owned) blocks.push(world.greenhouse.block);
-  if (!world.moonGarden.owned) blocks.push(world.moonGarden.block);
   else blocks.push(...world.greenhouse.walls);
   const upstairs = P.y > 1.85;
   for (let it = 0; it < 3; it++)
@@ -1773,7 +1772,6 @@ function actBuyMoonGarden() {
   state.mota -= MOON_GARDEN_PRICE;
   garden.owned = true;
   garden.forSale.visible = false;
-  garden.gate.visible = false;
   P.cool = 0.4;
   toast('MOON GARDEN UNLOCKED — GLASSHOUSE GROWS 10% FASTER', 'good');
   updateHud();
@@ -3936,7 +3934,7 @@ function resetWorld() {
   slotsData.forEach((d, i) => { d.locked = i >= world.slots.length - world.greenhouse.slots.length || (i / 4 | 0) !== 0; });
   blankPlots(whData, whMeshes);
   world.greenhouse.owned = false; world.greenhouse.forSale.visible = true;
-  world.moonGarden.owned = false; world.moonGarden.forSale.visible = true; world.moonGarden.gate.visible = true;
+  world.moonGarden.owned = false; world.moonGarden.forSale.visible = true;
   const ghOffset = world.slots.length - world.greenhouse.slots.length;
   for (let i = 0; i < world.greenhouse.slots.length; i++) slotsData[ghOffset + i].locked = true;
   const W = world.warehouse;
@@ -4050,7 +4048,7 @@ function applySave(save) {
   world.shed.cureJars.forEach((j, i) => restoreItem(j, save.cure?.[i]));
   const greenhouseOwned = !!save.greenhouse;
   world.greenhouse.owned = greenhouseOwned; world.greenhouse.forSale.visible = !greenhouseOwned;
-  world.moonGarden.owned = !!save.moonGarden; world.moonGarden.forSale.visible = !world.moonGarden.owned; world.moonGarden.gate.visible = !world.moonGarden.owned;
+  world.moonGarden.owned = !!save.moonGarden; world.moonGarden.forSale.visible = !world.moonGarden.owned;
   const ghOffset = world.slots.length - world.greenhouse.slots.length;
   for (let i = 0; i < world.greenhouse.slots.length; i++) slotsData[ghOffset + i].locked = !greenhouseOwned;
   const owned = !!save.warehouse;
