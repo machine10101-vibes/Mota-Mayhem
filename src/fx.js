@@ -33,7 +33,7 @@ export class Particles {
       size: o.size || 0.08,
       grow: o.grow || 0,
       color: o.color === undefined ? 0xffffff : o.color,
-      color2: o.color2,
+      color2: o.color2 === undefined ? null : new THREE.Color(o.color2),
       drag: o.drag || 0,
     });
   }
@@ -68,7 +68,7 @@ export class Particles {
       this.tmp.updateMatrix();
       this.mesh.setMatrixAt(n, this.tmp.matrix);
       this.col.set(p.color);
-      if (p.color2 !== undefined) this.col.lerp(new THREE.Color(p.color2), t);
+      if (p.color2) this.col.lerp(p.color2, t);
       this.mesh.setColorAt(n, this.col);
       l[n] = p;
       n++;
