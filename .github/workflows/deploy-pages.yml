@@ -27,6 +27,13 @@ jobs:
         run: npm ci
       - name: Run automated tests
         run: npm test
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Test Supabase wallet verification
+        working-directory: supabase/functions/grower
+        run: deno test verify_test.ts
       - name: Build production site
         run: npm run build
       - name: Publish GitHub Pages
