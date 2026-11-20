@@ -1119,6 +1119,9 @@ export function buildWorld() {
   const greenhouse = { owned: false, forSale: greenhouseForSale, block: greenhouseBlock, walls: greenhouseWalls, slots: greenhouseSlots, door: { x: -16, z: -5.65 }, contains(x, z) { return x > -18.65 && x < -13.35 && z > -11.55 && z < -6.25; } };
 
   place(group, buildMoonGarden(), 1 / 16, -16.5, 0, 6.5);
+  const moonGlow = new THREE.PointLight(0x8fd7df, 0, 8, 2);
+  moonGlow.position.set(-16.5, 1.25, 6.5);
+  group.add(moonGlow);
   // The Moon Garden is an open courtyard. Only its raised well and lantern plinths block movement.
   colliders.push(
     { x0: -17.4, x1: -15.6, z0: 5.6, z1: 7.4 },
@@ -1174,5 +1177,5 @@ export function buildWorld() {
     return 0;
   }
 
-  return { group, colliders, slots, groundHeight, smokeAt, shed, scenery, greenhouse, moonGarden: { owned: false, forSale: moonForSale, station: { x: -13.1, z: 6.5 } }, ...estate };
+  return { group, colliders, slots, groundHeight, smokeAt, shed, scenery, greenhouse, moonGarden: { owned: false, forSale: moonForSale, glow: moonGlow, station: { x: -13.1, z: 6.5 } }, ...estate };
 }
