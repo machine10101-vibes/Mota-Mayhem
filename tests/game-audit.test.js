@@ -52,3 +52,17 @@ test('camera zoom supports a much wider view on mouse wheel and touch pinch', as
   assert.match(main, /Math\.sign\(e\.deltaY\) \* 2\.2, 12, 72/);
   assert.match(main, /\(pinch0 - d\) \* 0\.055, 12, 72/);
 });
+
+
+test('inventory can filter seeds, harvested goods, and supplies accessibly', () => {
+  for (const filter of ['all', 'seeds', 'harvest', 'supplies']) {
+    assert.ok(html.includes(`data-bag-filter="${filter}"`));
+  }
+  assert.ok(html.includes('aria-label="Filter inventory"'));
+  assert.ok(main.includes("let bagFilter = 'all'"));
+  assert.ok(main.includes("if (bagFilter !== 'all' && item.category !== bagFilter) return;"));
+  assert.ok(main.includes("item.category === bagFilter") === false);
+  assert.ok(main.includes("filter.setAttribute('aria-pressed', active ? 'true' : 'false')"));
+  assert.ok(main.includes("addBagSlot(grid, { category: 'harvest'"));
+  assert.ok(main.includes("addBagSlot(grid, { category: 'supplies'"));
+});
