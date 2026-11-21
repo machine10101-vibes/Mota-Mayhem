@@ -4577,6 +4577,11 @@ function boot() {
   matchMedia('(max-width: 820px)').addEventListener('change', syncInputLayout);
   matchMedia('(pointer: coarse)').addEventListener('change', syncInputLayout);
   state.mode = 'title';
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'hidden') return;
+    flushSave();
+    flushCloud();
+  });
   addEventListener('pagehide', () => {
     flushSave();
     flushCloud();
