@@ -6,6 +6,7 @@ const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
 const world = readFileSync(new URL('../src/world.js', import.meta.url), 'utf8');
 const fx = readFileSync(new URL('../src/fx.js', import.meta.url), 'utf8');
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
 
 test('Moon Garden is an open courtyard with solid raised features and night lighting', () => {
   assert.ok(world.includes('place(group, buildMoonGarden(), 1 / 16, -16.5, 0, 6.5)'));
