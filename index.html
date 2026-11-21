@@ -114,8 +114,14 @@
         <p class="league-foot">Grade A–AAAA harvests earn 12–42 points. Reach 120 points for +60 MOTA; podium prizes stack on top at the next week.</p>
       </section>
       <div id="inv" class="panel bag hidden">
-        <div class="bag-flap"><span class="pack-title">BAG</span></div>
-        <div id="bag-grid" class="bag-grid"></div>
+        <div class="bag-flap"><span class="pack-title">BAG</span><span class="bag-hint">FILTER YOUR GEAR</span></div>
+        <div id="bag-filters" class="bag-filters" role="group" aria-label="Filter inventory">
+          <button type="button" class="bag-filter on" data-bag-filter="all" aria-pressed="true">ALL</button>
+          <button type="button" class="bag-filter" data-bag-filter="seeds" aria-pressed="false">SEEDS</button>
+          <button type="button" class="bag-filter" data-bag-filter="harvest" aria-pressed="false">HARVEST</button>
+          <button type="button" class="bag-filter" data-bag-filter="supplies" aria-pressed="false">SUPPLIES</button>
+        </div>
+        <div id="bag-grid" class="bag-grid" aria-live="polite"></div>
       </div>
     </div>
 
