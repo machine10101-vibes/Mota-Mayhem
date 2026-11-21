@@ -43,3 +43,13 @@ test('particle fade colors are allocated once at emission, not every frame', () 
   assert.ok(fx.includes('if (p.color2) this.col.lerp(p.color2, t)'));
   assert.ok(!fx.includes('new THREE.Color(p.color2)'));
 });
+
+
+test('camera zoom supports a much wider view on mouse wheel and touch pinch', async () => {
+  const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
+  assert.match(source, /far: \{ value: 280 \}/);
+  assert.match(source, /new THREE\.Fog\(SKY, 96, 190\)/);
+  assert.match(source, /new THREE\.PerspectiveCamera\(33, 16 \/ 9, 1, 280\)/);
+  assert.match(source, /Math\.sign\(e\.deltaY\) \* 2\.2, 12, 72/);
+  assert.match(source, /\(pinch0 - d\) \* 0\.055, 12, 72/);
+});
