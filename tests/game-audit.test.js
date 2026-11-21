@@ -89,3 +89,13 @@ test('responsive input layout switches cleanly between touch and desktop', () =>
   assert.ok(css.includes('@media (orientation: landscape) and (max-height: 500px)'));
   assert.ok(css.includes('env(safe-area-inset-top)'));
 });
+
+
+test('mobile backgrounding flushes local and cloud saves before suspension', () => {
+  const handler = main.indexOf("document.addEventListener('visibilitychange'");
+  const hidden = main.indexOf("document.visibilityState !== 'hidden'", handler);
+  const localFlush = main.indexOf('flushSave();', hidden);
+  const cloudFlush = main.indexOf('flushCloud();', localFlush);
+  assert.ok(handler >= 0 && hidden > handler);
+  assert.ok(localFlush > hidden && cloudFlush > localFlush);
+});
