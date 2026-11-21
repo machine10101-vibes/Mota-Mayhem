@@ -66,3 +66,14 @@ test('inventory can filter seeds, harvested goods, and supplies accessibly', () 
   assert.ok(main.includes("addBagSlot(grid, { category: 'harvest'"));
   assert.ok(main.includes("addBagSlot(grid, { category: 'supplies'"));
 });
+
+
+test('thirsty ripening plants can be watered without losing their harvest window', () => {
+  const waterAction = main.indexOf("d.state === 'growing' || d.state === 'ripening'");
+  const harvestAction = main.indexOf("} else if (d.state === 'ready' || d.state === 'ripening')");
+  assert.ok(waterAction >= 0 && harvestAction > waterAction);
+  assert.ok(main.includes("toast(d.state === 'ripening' ? 'FLOWER WATERED — RIPENING CONTINUES' : 'PLANT WATERED', 'good')"));
+  const promptWater = main.indexOf("d.state === 'ripening' && d.water <= 0.7");
+  const promptHarvest = main.indexOf("} else if (d.state === 'ripening')", promptWater);
+  assert.ok(promptWater >= 0 && promptHarvest > promptWater);
+});
