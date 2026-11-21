@@ -542,3 +542,41 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline:2px so
 
 /* Unlockable glasshouse plot and badge accents. */
 .plant-badge[data-zone="gh"] { box-shadow:0 0 0 2px var(--ink),0 0 0 4px rgba(126,216,208,.9); }
+
+
+/* Responsive viewport and touch-layout safeguards. */
+#title {
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  min-height:100dvh;
+}
+#title > .top, #title > .title-actions, #title > #press-line {
+  flex-shrink:0;
+}
+@media (max-width: 560px) {
+  #title {
+    justify-content:flex-start;
+    gap:clamp(12px, 3dvh, 24px);
+    padding-top:max(16px, env(safe-area-inset-top));
+    padding-bottom:max(18px, env(safe-area-inset-bottom));
+  }
+  #title .top { gap:clamp(10px, 2.5dvh, 18px); }
+  .wallet-box { padding:12px; }
+  .wallet-status { overflow-wrap:anywhere; }
+  .title-actions { width:100%; }
+  #strains { width:calc(100vw - var(--safe-l) - var(--safe-r)); }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  #title {
+    flex-direction:row;
+    align-items:center;
+    justify-content:space-evenly;
+    gap:16px;
+    overflow-y:auto;
+  }
+  #title .top { max-width:min(48vw, 520px); }
+  #title .logo { gap:10px; }
+  #title .wallet-box { max-width:min(46vw, 440px); }
+  #title .wallet-status { font-size:8px; }
+  #title .title-actions { flex:none; }
+}

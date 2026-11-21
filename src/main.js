@@ -4573,7 +4573,9 @@ function boot() {
   bindBreeding();
   bindWallet();
   setTouchUI(shouldTouch());
-  matchMedia('(max-width: 820px)').addEventListener('change', () => setTouchUI(shouldTouch() || touchUI));
+  const syncInputLayout = () => setTouchUI(shouldTouch());
+  matchMedia('(max-width: 820px)').addEventListener('change', syncInputLayout);
+  matchMedia('(pointer: coarse)').addEventListener('change', syncInputLayout);
   state.mode = 'title';
   addEventListener('pagehide', () => {
     flushSave();

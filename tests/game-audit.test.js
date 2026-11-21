@@ -77,3 +77,14 @@ test('thirsty ripening plants can be watered without losing their harvest window
   const promptHarvest = main.indexOf("} else if (d.state === 'ripening')", promptWater);
   assert.ok(promptWater >= 0 && promptHarvest > promptWater);
 });
+
+
+test('responsive input layout switches cleanly between touch and desktop', () => {
+  assert.ok(main.includes('const syncInputLayout = () => setTouchUI(shouldTouch())'));
+  assert.ok(main.includes("matchMedia('(max-width: 820px)').addEventListener('change', syncInputLayout)"));
+  assert.ok(main.includes("matchMedia('(pointer: coarse)').addEventListener('change', syncInputLayout)"));
+  assert.ok(!main.includes('shouldTouch() || touchUI'));
+  assert.ok(css.includes('#title {\n  overflow-y:auto;'));
+  assert.ok(css.includes('@media (orientation: landscape) and (max-height: 500px)'));
+  assert.ok(css.includes('env(safe-area-inset-top)'));
+});
