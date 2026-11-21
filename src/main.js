@@ -1334,16 +1334,6 @@ function stationFocus() {
   return best;
 }
 
-function motaInJars() {
-  let n = 0;
-  let mota = 0;
-  for (const g of GRADES) {
-    n += state.jars[g];
-    mota += state.jars[g] * gramsFor(g) * MOTA_PER_G[g];
-  }
-  return { n, mota };
-}
-
 function actStation(f) {
   P.facing = Math.atan2(f.x - P.x, f.z - P.z);
   const shed = world.shed;
