@@ -42,7 +42,7 @@ const post = new THREE.ShaderMaterial({
     tDepth: { value: null },
     res: { value: new THREE.Vector2(1, 1) },
     near: { value: 1 },
-    far: { value: 220 },
+    far: { value: 280 },
     horizon: { value: new THREE.Color(0xb7e4c8) },
     zenith: { value: new THREE.Color(0x7eb8e4) },
   },
@@ -113,8 +113,8 @@ function resize() {
 const scene = new THREE.Scene();
 const SKY = 0xb7e4c8;
 scene.background = new THREE.Color(0x7eb8e4);
-scene.fog = new THREE.Fog(SKY, 62, 138);
-const camera = new THREE.PerspectiveCamera(33, 16 / 9, 1, 220);
+scene.fog = new THREE.Fog(SKY, 96, 190);
+const camera = new THREE.PerspectiveCamera(33, 16 / 9, 1, 280);
 
 const hemi = new THREE.HemisphereLight(0xe7f4ff, 0x7d9a52, 1.43);
 scene.add(hemi);
@@ -361,7 +361,7 @@ const cam = { yaw: 0, yawT: 0, pitch: 0.85, dist: 30, distT: 28, target: new THR
 addEventListener(
   'wheel',
   (e) => {
-    cam.distT = THREE.MathUtils.clamp(cam.distT + Math.sign(e.deltaY) * 1.6, 12, 36);
+    cam.distT = THREE.MathUtils.clamp(cam.distT + Math.sign(e.deltaY) * 2.2, 12, 72);
   },
   { passive: true }
 );
@@ -430,7 +430,7 @@ function onCamMove(e) {
     cur.y = p.y;
     if (pointers.size >= 2 && pinch0) {
       const d = pinchDist();
-      cam.distT = THREE.MathUtils.clamp(cam.distT + (pinch0 - d) * 0.04, 12, 36);
+      cam.distT = THREE.MathUtils.clamp(cam.distT + (pinch0 - d) * 0.055, 12, 72);
       pinch0 = d;
       return;
     }
