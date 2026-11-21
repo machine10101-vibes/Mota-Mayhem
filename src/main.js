@@ -2003,15 +2003,18 @@ function iconFrame(geo, pad = 1.16) {
   return { center, cam, half: half * pad };
 }
 
+let bagFilter = 'all';
+
 function bagSignature(pick) {
   const clones = state.clones.map((c) => c.strain).join(',');
   const wet = state.wet.map((w) => `${w.strain}:${w.grade}`).join(',');
   const seeds = STRAIN_IDS.map((id) => state.seeds[id] | 0).join(',');
   const jars = GRADES.map((g) => state.jars[g] | 0).join(',');
-  return [pick, seeds, clones, wet, jars, state.nutrients | 0, state.cubes | 0].join('|');
+  return [pick, bagFilter, seeds, clones, wet, jars, state.nutrients | 0, state.cubes | 0].join('|');
 }
 
 function addBagSlot(grid, item) {
+  if (bagFilter !== 'all' && item.category !== bagFilter) return;
   const el = document.createElement(item.select ? 'button' : 'div');
   if (item.select) el.type = 'button';
   el.className = 'bag-slot' + (item.on ? ' on' : '');
@@ -2024,7 +2027,7 @@ function addBagSlot(grid, item) {
   count.textContent = String(item.count);
   el.append(canvas, name, count);
   if (item.select) {
-    el.addEventListener('pointerdown', (e) => {
+    el.addEventListener('click', (e) => {
       swallow(e);
       state.strainPick = item.id;
       $('bag-grid').dataset.sig = '';
@@ -2048,11 +2051,11 @@ function paintBag(pick) {
   for (const id of STRAIN_IDS) {
     const n = state.seeds[id] | 0;
     if (!n) continue;
-    addBagSlot(grid, { select: true, id, label: strainOf(id).short, count: n, geo: cannabisSeedGeo(id), on: id === pick, rock: true, pad: 1.04 });
+    addBagSlot(grid, { category: 'seeds', select: true, id, label: strainOf(id).short, count: n, geo: cannabisSeedGeo(id), on: id === pick, rock: true, pad: 1.04 });
   }
   const clones = new Map();
   for (const c of state.clones) clones.set(c.strain, (clones.get(c.strain) || 0) + 1);
-  for (const [id, n] of clones) addBagSlot(grid, { label: `${strainOf(id).short} CLONE`, count: n, geo: plantGeo(2, id) });
+  for (const [id, n] of clones) addBagSlot(grid, { category: 'seeds', label: `${strainOf(id).short} CLONE`, count: n, geo: plantGeo(2, id) });
   const wet = new Map();
   for (const bud of state.wet) {
     const key = `${bud.strain}:${bud.grade}`;
@@ -2062,17 +2065,17 @@ function paintBag(pick) {
     const [id, grade] = key.split(':');
     const geo = world?.shed?.nugGeo?.[id];
     if (!geo) continue;
-    addBagSlot(grid, { label: `${strainOf(id).short} ${grade}`, count: n, geo });
+    addBagSlot(grid, { category: 'harvest', label: `${strainOf(id).short} ${grade}`, count: n, geo });
   }
   const jarGeo = world?.shed?.cureJars?.[0]?.mesh?.geometry;
   if (jarGeo) {
     for (const grade of ['AAAA', 'AAA', 'AA', 'A']) {
       const n = state.jars[grade] | 0;
-      if (n) addBagSlot(grid, { label: grade, count: n, geo: jarGeo });
+      if (n) addBagSlot(grid, { category: 'harvest', label: grade, count: n, geo: jarGeo });
     }
   }
-  if (state.nutrients > 0) addBagSlot(grid, { label: 'FEED', count: state.nutrients | 0, geo: feedGeo });
-  if (state.cubes > 0) addBagSlot(grid, { label: 'CUBE', count: state.cubes | 0, geo: cubeGeo });
+  if (state.nutrients > 0) addBagSlot(grid, { category: 'supplies', label: 'FEED', count: state.nutrients | 0, geo: feedGeo });
+  if (state.cubes > 0) addBagSlot(grid, { category: 'supplies', label: 'CUBE', count: state.cubes | 0, geo: cubeGeo });
   if (!grid.childElementCount) {
     const empty = document.createElement('p');
     empty.className = 'bag-empty';
@@ -4451,6 +4454,20 @@ function bindDress() {
     if (state.mode !== 'play') return;
     toggleHelp();
   };
+  $('bag-filters')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-bag-filter]');
+    if (!btn) return;
+    const next = btn.dataset.bagFilter;
+    if (!['all', 'seeds', 'harvest', 'supplies'].includes(next) || next === bagFilter) return;
+    bagFilter = next;
+    $('bag-grid').dataset.sig = '';
+    for (const filter of $('bag-filters').querySelectorAll('button[data-bag-filter]')) {
+      const active = filter === btn;
+      filter.setAttribute('aria-pressed', active ? 'true' : 'false');
+      filter.classList.toggle('on', active);
+    }
+    paintBag(state.strainPick);
+  });
   $('tasks-toggle').addEventListener('click', () => {
     setTasksOpen(!tasksOpen);
   });
