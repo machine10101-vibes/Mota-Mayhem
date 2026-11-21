@@ -56,6 +56,11 @@ canvas#leaf-icon, canvas#leaf-logo { image-rendering:pixelated; }
 .pack { width:min(440px, calc(100vw - var(--safe-l) - var(--safe-r) - 8px)); max-height:min(62vh, 520px); overflow:auto; pointer-events:auto; display:flex; flex-direction:column; gap:8px; }
 .bag { width:min(392px, calc(100vw - var(--safe-l) - var(--safe-r) - 8px)); max-height:min(62vh, 560px); overflow:auto; pointer-events:auto; display:flex; flex-direction:column; gap:8px; padding:0 10px 12px; background:#3a2618; box-shadow:var(--frame), inset 0 0 0 6px #5a3a22, inset 0 0 0 9px #2a1a10; }
 .bag-flap { margin:0 -10px; padding:10px 12px 8px; background:#6b4428; box-shadow:inset 0 -4px 0 #2a1a10; }
+.bag-hint { float:right; color:#e1c59a; font-size:6px; line-height:2; }
+.bag-filters { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:4px; }
+.bag-filter { min-height:28px; border:0; padding:5px 2px; color:#d9c4a6; background:rgba(8,6,4,.55); box-shadow:inset 0 0 0 2px #2a1c12; font:6px 'Press Start 2P', monospace; cursor:pointer; touch-action:manipulation; }
+.bag-filter.on { color:#1b2412; background:var(--gold); box-shadow:inset 0 0 0 2px #fff0a0; }
+.bag-filter:focus-visible { outline:2px solid #fff; outline-offset:2px; }
 .bag-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; }
 .bag-slot { position:relative; appearance:none; -webkit-appearance:none; border:0; font-family:inherit; color:#f3f1df; background:rgba(8,6,4,.55); min-height:92px; padding:4px 2px 6px; display:flex; flex-direction:column; align-items:center; gap:2px; box-shadow:inset 0 0 0 2px #2a1c12; touch-action:manipulation; }
 .bag-slot canvas { width:min(68px, 100%); height:auto; aspect-ratio:1; image-rendering:pixelated; image-rendering:crisp-edges; }
