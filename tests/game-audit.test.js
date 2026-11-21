@@ -99,3 +99,19 @@ test('mobile backgrounding flushes local and cloud saves before suspension', () 
   assert.ok(handler >= 0 && hidden > handler);
   assert.ok(localFlush > hidden && cloudFlush > localFlush);
 });
+
+test('sales stand preserves partial stock reserved for an unfinished buyer order', async () => {
+  const { saleableJars } = await import('../src/economy.js');
+  const jars = { A: 4, AA: 2, AAA: 5, AAAA: 1 };
+  assert.deepEqual(saleableJars(jars, { grade: 'AAA', count: 2, claimed: false }), {
+    A: 4, AA: 2, AAA: 3, AAAA: 1,
+  });
+  assert.deepEqual(saleableJars(jars, { grade: 'AAA', count: 6, claimed: false }), {
+    A: 4, AA: 2, AAA: 0, AAAA: 1,
+  });
+  assert.deepEqual(saleableJars(jars, { grade: 'AAA', count: 2, claimed: true }), jars);
+  assert.deepEqual(saleableJars(jars, null), jars);
+  assert.deepEqual(saleableJars({ AAA: -3, A: 2.8 }, { grade: 'AAA', count: 2, claimed: false }), {
+    A: 2, AA: 0, AAA: 0, AAAA: 0,
+  });
+});

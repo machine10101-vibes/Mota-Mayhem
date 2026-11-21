@@ -10,6 +10,7 @@ import { buildMotaToken, buildNutrientBottle, buildRootCube, HOUSE, LOFT, MOTA_P
 import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace, createHybridStrain, registerHybridStrain, hybridDefinitions, clearHybridStrains } from './strains.js';
 import { loadSave, writeSave, adoptAddress, unbindAddress } from './save.js';
+import { saleableJars } from './economy.js';
 import { clearKleverLogin, clearSession, inKleverHandoff, isMobile, launchKleverApp, markPrompt, promptIsCooling, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
 import { accountLabel, accountProblem, clearAccountSession, createAccount, freshAccessToken, readAccountSession, rememberWallet, signInAccount } from './wallet/account.js';
 import { clearCloudToken, flushCloud, schedulePush, syncGarden } from './wallet/cloud.js';
@@ -1333,16 +1334,6 @@ function stationFocus() {
   return best;
 }
 
-function motaInJars() {
-  let n = 0;
-  let mota = 0;
-  for (const g of GRADES) {
-    n += state.jars[g];
-    mota += state.jars[g] * gramsFor(g) * MOTA_PER_G[g];
-  }
-  return { n, mota };
-}
-
 function actStation(f) {
   P.facing = Math.atan2(f.x - P.x, f.z - P.z);
   const shed = world.shed;
@@ -1693,14 +1684,26 @@ function actStand() {
     updateHud();
     return true;
   }
-  const offer = motaInJars();
+  const sale = saleableJars(state.jars, order);
+  const offer = GRADES.reduce((total, grade) => {
+    const count = sale[grade] | 0;
+    total.n += count;
+    total.mota += count * gramsFor(grade) * MOTA_PER_G[grade];
+    return total;
+  }, { n: 0, mota: 0 });
   if (offer.n > 0) {
-    for (const g of GRADES) state.jars[g] = 0;
+    for (const g of GRADES) state.jars[g] = Math.max(0, (state.jars[g] | 0) - (sale[g] | 0));
     syncCuredGrams();
     state.mota += offer.mota;
-    toast(`+${offer.mota} MOTA`, 'good');
+    const held = order && !order.claimed ? Math.min(state.jars[order.grade] | 0, order.count | 0) : 0;
+    const note = held ? ` · ${held}/${order.count} ${order.grade} SAVED FOR ORDER` : '';
+    toast(`+${offer.mota} MOTA${note}`, 'good');
     markDirty();
     updateHud();
+    return true;
+  }
+  if (order && !order.claimed && (state.jars[order.grade] | 0) > 0) {
+    toast(`SAVING ${Math.min(state.jars[order.grade] | 0, order.count | 0)}/${order.count} ${order.grade} FOR BUYER ORDER`);
     return true;
   }
   if (seedTotal(state.seeds) < 4) {
