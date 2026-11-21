@@ -1143,16 +1143,16 @@ function actPlot(plot) {
       for (let k = 0; k < 12; k++) particles.emit({ x: s.x, y: s.y + 0.15, z: s.z, vx: (Math.random() - 0.5) * 2, vy: 1 + Math.random() * 1.4, vz: (Math.random() - 0.5) * 2, life: 0.55, size: 0.08, color: 0x6e5034, g: -9 });
     });
     updateHud();
+  } else if ((d.state === 'growing' || d.state === 'ripening') && d.water <= 0.7) {
+    d.water = 1;
+    P.cool = 0.75;
+    player.playAction('water');
+    toast(d.state === 'ripening' ? 'FLOWER WATERED — RIPENING CONTINUES' : 'PLANT WATERED', 'good');
+    markDirty();
+    for (let k = 0; k < 26; k++)
+      later(0.2 + k * 0.016, () => particles.emit({ x: P.x + Math.sin(P.facing) * 0.95 + (Math.random() - 0.5) * 0.15, y: 1.25, z: P.z + Math.cos(P.facing) * 0.95 + (Math.random() - 0.5) * 0.15, vx: Math.sin(P.facing) * 0.5, vy: -0.5, vz: Math.cos(P.facing) * 0.5, life: 0.5, size: 0.065, color: 0x7ec8f2, color2: 0x3f86c8, g: -9 }));
+    return;
   } else if (d.state === 'growing') {
-    if (d.water <= 0.7) {
-      d.water = 1;
-      P.cool = 0.75;
-      player.playAction('water');
-      markDirty();
-      for (let k = 0; k < 26; k++)
-        later(0.2 + k * 0.016, () => particles.emit({ x: P.x + Math.sin(P.facing) * 0.95 + (Math.random() - 0.5) * 0.15, y: 1.25, z: P.z + Math.cos(P.facing) * 0.95 + (Math.random() - 0.5) * 0.15, vx: Math.sin(P.facing) * 0.5, vy: -0.5, vz: Math.cos(P.facing) * 0.5, life: 0.5, size: 0.065, color: 0x7ec8f2, color2: 0x3f86c8, g: -9 }));
-      return;
-    }
     if (d.holdVeg && !nextTrain(d)) return toast('FLIP THE WAREHOUSE TO 12/12');
     const step = nextTrain(d);
     if (step === 'top') {
@@ -2586,6 +2586,9 @@ function updateTarget() {
       text = pick.ok ? `${actLbl}  ${pick.text}` : pick.text;
       btn = pick.ok ? 'PLANT' : 'ACT';
     }
+  } else if (d.state === 'ripening' && d.water <= 0.7) {
+    text = `${actLbl}  WATER — KEEP FLOWER HEALTHY`;
+    btn = 'WATER';
   } else if (d.state === 'ripening') {
     const band = trichomeBand(d.ripe || 0);
     text = `${actLbl}  HARVEST — ${band.label}`;
