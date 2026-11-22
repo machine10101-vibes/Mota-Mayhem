@@ -9,3 +9,16 @@ export function saleableJars(jars = {}, order = null) {
     return [grade, stocked - protectedCount];
   }));
 }
+
+export function burpJar(item) {
+  if (!item || item.sealed || !item.needsBurp || item.burped || item.missed) return null;
+  const cure = Number(item.cure);
+  if (!Number.isFinite(cure) || cure < 0.4 || cure >= 0.62) return null;
+  const perfect = cure <= 0.46;
+  const index = GRADES.indexOf(item.grade);
+  const upgraded = perfect && index >= 0 && index < GRADES.length - 1;
+  if (upgraded) item.grade = GRADES[index + 1];
+  item.burped = true;
+  item.needsBurp = false;
+  return { perfect, upgraded };
+}
