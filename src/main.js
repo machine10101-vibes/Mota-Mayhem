@@ -10,7 +10,7 @@ import { buildMotaToken, buildNutrientBottle, buildRootCube, HOUSE, LOFT, MOTA_P
 import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace, createHybridStrain, registerHybridStrain, hybridDefinitions, clearHybridStrains } from './strains.js';
 import { loadSave, writeSave, adoptAddress, unbindAddress } from './save.js';
-import { saleableJars } from './economy.js';
+import { saleableJars, burpJar } from './economy.js';
 import { clearKleverLogin, clearSession, inKleverHandoff, isMobile, launchKleverApp, markPrompt, promptIsCooling, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
 import { accountLabel, accountProblem, clearAccountSession, createAccount, freshAccessToken, readAccountSession, rememberWallet, signInAccount } from './wallet/account.js';
 import { clearCloudToken, flushCloud, schedulePush, syncGarden } from './wallet/cloud.js';
@@ -1427,10 +1427,13 @@ function actStation(f) {
   }
   const it = f.ref.item;
   if (it?.needsBurp && !it.burped && !it.missed) {
-    it.burped = true;
-    it.needsBurp = false;
+    const result = burpJar(it);
+    if (!result) return toast('WAIT FOR THE BURP WINDOW');
+    if (result.upgraded) it.grams = gramsFor(it.grade);
     P.cool = 0.3;
-    toast('BURPED — CURE STAYS ON TRACK', 'good');
+    toast(result.perfect
+      ? (result.upgraded ? `PERFECT BURP — GRADE BOOSTED TO ${it.grade}` : 'PERFECT BURP — TOP GRADE LOCKED')
+      : 'BURPED — CURE STAYS ON TRACK', 'good');
     markDirty();
     return true;
   }
@@ -2721,7 +2724,7 @@ function stationUi(st, actLbl) {
   if (st.kind === 'jar') {
     const it = st.ref.item;
     const pct = Math.round((it?.cure || 0) * 100);
-    if (it?.needsBurp && !it.burped && !it.missed) return { text: `${actLbl}  BURP JAR`, btn: 'BURP' };
+    if (it?.needsBurp && !it.burped && !it.missed) return { text: (it?.cure || 0) <= 0.46 ? `${actLbl}  BURP NOW · PERFECT WINDOW` : `${actLbl}  BURP JAR`, btn: 'BURP' };
     if (it?.missed) return { text: `BURP MISSED · CURING ${pct}%`, btn: 'ACT' };
     if (!it?.burped && (it?.cure || 0) >= 0.2) return { text: `CURING ${pct}% · BURP SOON`, btn: 'ACT' };
     return { text: `CURING ${pct}%`, btn: 'ACT' };
