@@ -115,3 +115,31 @@ test('sales stand preserves partial stock reserved for an unfinished buyer order
     A: 2, AA: 0, AAA: 0, AAAA: 0,
   });
 });
+
+test('perfect cure burps reward timing while late-window burps preserve grade', async () => {
+  const { burpJar } = await import('../src/economy.js');
+  const perfect = { grade: 'AAA', cure: 0.43, needsBurp: true, burped: false, missed: false };
+  assert.deepEqual(burpJar(perfect), { perfect: true, upgraded: true });
+  assert.equal(perfect.grade, 'AAAA');
+  assert.equal(perfect.burped, true);
+  assert.equal(perfect.needsBurp, false);
+
+  const steady = { grade: 'AA', cure: 0.55, needsBurp: true, burped: false, missed: false };
+  assert.deepEqual(burpJar(steady), { perfect: false, upgraded: false });
+  assert.equal(steady.grade, 'AA');
+
+  const capped = { grade: 'AAAA', cure: 0.42, needsBurp: true, burped: false, missed: false };
+  assert.deepEqual(burpJar(capped), { perfect: true, upgraded: false });
+  assert.equal(capped.grade, 'AAAA');
+
+  for (const blocked of [
+    null,
+    { grade: 'AAA', cure: 0.5, needsBurp: false },
+    { grade: 'AAA', cure: 0.5, needsBurp: true, burped: true },
+    { grade: 'AAA', cure: 0.5, needsBurp: true, missed: true },
+    { grade: 'AAA', cure: 0.62, needsBurp: true },
+    { grade: 'AAA', cure: 0.2, needsBurp: true },
+    { grade: 'AAA', cure: Number.NaN, needsBurp: true },
+    { grade: 'AAA', cure: 0.5, needsBurp: true, sealed: true },
+  ]) assert.equal(burpJar(blocked), null);
+});
