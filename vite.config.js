@@ -6,6 +6,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
   },
+  build: { rollupOptions: { input: { main: 'index.html', brands: 'brands.html' } } },
   preview: {
     host: '0.0.0.0',
   },
