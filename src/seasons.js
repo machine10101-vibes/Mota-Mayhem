@@ -20,17 +20,17 @@ const SEASONS = [
   },
   {
     id: 'summer', name: 'SUMMER', description: 'LONG DAYS · HIGH WATER DEMAND',
-    growth: 1.04, water: 1.18, market: 1.1, color: '#ffd27c',
+    growth: 1.04, water: 1.1, market: 1.1, color: '#ffd27c',
     events: [
       { name: 'LONG DAYS', detail: 'Extended daylight helps outdoor plants push through growth.', growth: 1.08, water: 1, market: 1 },
-      { name: 'HEAT WATCH', detail: 'The grower co-op warns of heat stress. Watch outdoor soil closely.', growth: 0.96, water: 1.12, market: 1.02 },
+      { name: 'HEAT WATCH', detail: 'The grower co-op warns of heat stress. Watch outdoor soil closely.', growth: 0.96, water: 1.08, market: 1.02 },
       { name: 'NIGHT MARKET', detail: 'Late-night buyers pay a premium for carefully cured jars.', growth: 1, water: 1, market: 1.2 },
       { name: 'SOLSTICE FAIR', detail: 'The biggest summer gathering brings strong buyer demand.', growth: 1.04, water: 1, market: 1.16 },
     ],
     weather: [
       { id: 'clear', label: 'CLEAR', detail: 'STRONG SUN · SOIL DRIES FASTER', waterUse: 1.12, growth: 1.04 },
       { id: 'warm', label: 'HOT', detail: 'HIGH HEAT · CHECK OUTDOOR WATER', waterUse: 1.2, growth: 1.02 },
-      { id: 'heatwave', label: 'HEATWAVE', detail: 'INTENSE SUN · RAPID WATER LOSS', waterUse: 1.35, growth: 0.94 },
+      { id: 'heatwave', label: 'HEATWAVE', detail: 'INTENSE SUN · RAPID WATER LOSS', waterUse: 1.22, growth: 0.94 },
       { id: 'clear', label: 'CLEAR', detail: 'STRONG SUN · SOIL DRIES FASTER', waterUse: 1.12, growth: 1.04 },
       { id: 'breezy', label: 'BREEZY', detail: 'WARM WIND · FASTER DRYING', waterUse: 1.18, growth: 1 },
       { id: 'showers', label: 'SHOWERS', detail: 'SUMMER RAIN AT DAWN', waterUse: 0.9, growth: 1, rain: true },
@@ -81,7 +81,8 @@ const SEASON_LENGTH = 28;
 const YEAR_LENGTH = SEASON_LENGTH * SEASONS.length;
 
 export function seasonForDay(day = 1) {
-  const safeDay = Math.max(1, Math.floor(Number(day) || 1));
+  const numericDay = Number(day);
+  const safeDay = Number.isFinite(numericDay) ? Math.max(1, Math.floor(numericDay)) : 1;
   const year = Math.floor((safeDay - 1) / YEAR_LENGTH) + 1;
   const dayOfYear = ((safeDay - 1) % YEAR_LENGTH) + 1;
   const index = Math.floor((dayOfYear - 1) / SEASON_LENGTH);
@@ -102,7 +103,7 @@ export function seasonForDay(day = 1) {
 export function weatherForDay(day = 1) {
   const calendar = seasonForDay(day);
   const season = SEASONS.find((item) => item.id === calendar.id);
-  const index = (Math.max(1, Math.floor(Number(day) || 1)) - 1) % 7;
+  const index = (calendar.dayOfYear - 1) % 7;
   return { ...season.weather[index], waterUse: season.weather[index].waterUse * calendar.water, growth: season.weather[index].growth * calendar.growth };
 }
 
