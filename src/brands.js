@@ -54,6 +54,13 @@ function render(catalog) {
       const list = node('div', 'strain-list');
       for (const strain of strains) {
         const item = node('section', 'strain-card');
+        if (safeHttpsUrl(strain.image_url)) {
+          const image = node('img', 'strain-image');
+          image.src = strain.image_url;
+          image.alt = `${strain.name} strain artwork`;
+          image.loading = 'lazy';
+          item.append(image);
+        }
         item.append(node('h4', '', strain.name));
         item.append(node('p', 'lineage', strain.lineage));
         item.append(node('p', 'strain-description', strain.description));
