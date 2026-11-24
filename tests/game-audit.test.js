@@ -211,6 +211,11 @@ test('seasonal climates affect outdoor plants and buyer pricing while indoor roo
   assert.ok(main.includes('seasonalMarketMultiplier(order.day)'));
   assert.ok(main.includes('seasonalMarketMultiplier(Math.floor(dayClock) + 1)'));
   assert.ok(main.includes('Greenhouse and warehouse growing conditions are climate controlled.'));
+  assert.ok(main.includes('SEASON_SKY[calendar.id]'));
+  assert.ok(main.includes('SEASON_HORIZON[calendar.id]'));
+  assert.ok(main.includes('SEASON_GROUND[calendar.id]'));
+  assert.ok(main.includes('calendar.event.name} — ${calendar.event.detail}'));
+  assert.ok(main.includes('seasonEl.textContent = `${calendar.name} · ${calendar.event.name}`'));
   assert.ok(html.includes('id="season"'));
   assert.ok(css.includes('.season[data-season="summer"]'));
   assert.ok(css.includes('.weather[data-weather="frost"]'));
