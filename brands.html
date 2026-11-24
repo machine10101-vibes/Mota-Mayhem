@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#10160c" />
+    <title>Mota Mayhem — Enterprise Brand Directory</title>
+    <meta name="description" content="Approved Mota Mayhem Enterprise brand profiles and genetics." />
+  </head>
+  <body>
+    <main class="directory-shell">
+      <nav class="site-nav"><a href="./">← MOTA MAYHEM</a><span>ENTERPRISE BRAND DIRECTORY</span></nav>
+      <header class="hero">
+        <p class="eyebrow">MOTA MAYHEM ENTERPRISE</p>
+        <h1>GENETICS, MEET THE WORLD.</h1>
+        <p class="hero-copy">Discover approved genetics companies and the strains they have submitted to the Mota Mayhem community.</p>
+        <p class="disclaimer">Sponsored and brand content is informational only. No products are offered for sale here. External links lead to company websites. Availability and advertising rules vary by location.</p>
+      </header>
+      <p id="directory-status" aria-live="polite">Preparing the directory…</p>
+      <section id="brand-directory" aria-label="Approved Enterprise brands" hidden></section>
+    </main>
+    <section id="age-gate" aria-modal="true" role="dialog" aria-labelledby="age-title">
+      <div class="age-card">
+        <p class="eyebrow">AGE-RESTRICTED BRAND CONTENT</p>
+        <h2 id="age-title">ARE YOU 21 OR OLDER?</h2>
+        <p>This directory may contain cannabis genetics brand information. Confirm that you are at least 21 and that viewing this content is permitted where you are.</p>
+        <p class="disclaimer">This is a self-attestation, not identity or age verification. It does not replace local legal requirements.</p>
+        <div class="age-actions">
+          <button type="button" class="primary" id="age-confirm">I AM 21+ — CONTINUE</button>
+          <button type="button" id="age-leave">LEAVE DIRECTORY</button>
+        </div>
+      </div>
+    </section>
+    <script type="module" src="/src/brands.js"></script>
+  </body>
+</html>

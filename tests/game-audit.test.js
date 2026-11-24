@@ -143,3 +143,27 @@ test('perfect cure burps reward timing while late-window burps preserve grade', 
     { grade: 'AAA', cure: 0.5, needsBurp: true, sealed: true },
   ]) assert.equal(burpJar(blocked), null);
 });
+
+
+test('Enterprise signup and promotion surfaces are tied to the upstairs computer and a reviewed public catalog', async () => {
+  const { safeHttpsUrl, slugifyBrand } = await import('../src/enterprise.js');
+  assert.equal(safeHttpsUrl('https://example.com/brand'), 'https://example.com/brand');
+  assert.equal(safeHttpsUrl('http://example.com'), null);
+  assert.equal(safeHttpsUrl('javascript:alert(1)'), null);
+  assert.equal(safeHttpsUrl('', true), null);
+  assert.equal(slugifyBrand('  Green Valley Genetics! '), 'green-valley-genetics');
+  assert.ok(html.includes('id="btn-enterprise-open"'));
+  assert.ok(html.includes('id="enterprise-application-form"'));
+  assert.ok(html.includes('id="enterprise-strain-form"'));
+  assert.ok(html.includes('id="enterprise-campaign-form"'));
+  assert.ok(html.includes('id="enterprise-ad"'));
+  assert.ok(main.includes("if (f.kind === 'computer') return openShop();"));
+  assert.ok(main.includes('loadSponsoredCampaign'));
+  assert.ok(main.includes('setAdultAttested(enabled)'));
+  assert.ok(main.includes('bindEnterprise();'));
+  assert.ok(css.includes('.enterprise-ad-label'));
+  const migration = readFileSync(new URL('../supabase/migrations/20261124050000_enterprise_brand_system.sql', import.meta.url), 'utf8');
+  assert.match(migration, /enable row level security/);
+  assert.match(migration, /status = 'approved'/);
+  assert.match(migration, /with check \([\s\S]*status = 'pending'/);
+});
