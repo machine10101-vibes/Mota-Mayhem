@@ -9,9 +9,9 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <title>Mota Mayhem</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><rect width='8' height='8' fill='%232f4420'/><path d='M3 0h2v3h-2zM0 2h2v2h-2zM6 2h2v2h-2zM2 3h4v3h-4zM3 6h2v2h-2z' fill='%2393c85a'/></svg>" />
-    <script type="module" crossorigin src="/Mota-Mayhem/assets/main-CJrcZSte.js"></script>
+    <script type="module" crossorigin src="/Mota-Mayhem/assets/main-CUFH51v_.js"></script>
     <link rel="modulepreload" crossorigin href="/Mota-Mayhem/assets/enterprise-Bq2O-k7O.js">
-    <link rel="stylesheet" crossorigin href="/Mota-Mayhem/assets/main-D3xod5tu.css">
+    <link rel="stylesheet" crossorigin href="/Mota-Mayhem/assets/main-Ba-b8BDa.css">
   </head>
   <body>
     <div id="stage"></div>
@@ -113,7 +113,12 @@
         <div class="reputation-head"><b id="reputation-rank">SEEDLING</b><span id="reputation-copy">0 REP · 100 TO NEXT</span></div>
         <div class="reputation-track"><i id="reputation-fill"></i></div>
       </div>
-      <div id="weather" class="weather" data-weather="clear" aria-label="Day 1 weather: clear skies">CLEAR · BRIGHT SKIES</div>
+      <button type="button" id="weather" class="weather" data-weather="clear" aria-label="Day 1 weather: clear skies" aria-expanded="false" aria-controls="weather-forecast">CLEAR · BRIGHT SKIES</button>
+      <section id="weather-forecast" class="forecast-panel hidden" aria-label="Three-day field forecast">
+        <div class="forecast-head"><b>3-DAY FIELD FORECAST</b><button type="button" id="weather-forecast-close" aria-label="Close forecast">×</button></div>
+        <div id="weather-forecast-days" class="forecast-days" aria-live="polite"></div>
+        <p class="forecast-foot">Outdoor conditions affect yard plots. Greenhouse and warehouse rooms stay climate controlled.</p>
+      </section>
       <div id="clock"><b id="clock-phase">DAY</b><span id="clock-day">D1</span></div>
       </div>
       <section id="league-panel" class="league-panel hidden" aria-label="Weekly grower league standings">
