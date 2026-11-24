@@ -145,3 +145,55 @@ export class Butterflies {
     }
   }
 }
+
+/** A tiny, bounded instanced swarm that fades in after dusk and sleeps by day. */
+export class Fireflies {
+  constructor(scene, count = 16) {
+    this.items = Array.from({ length: Math.max(1, Math.min(20, count | 0)) }, (_, i) => ({
+      x: (Math.random() - 0.5) * 32,
+      z: -7 + Math.random() * 24,
+      y: 0.45 + Math.random() * 1.8,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.55 + Math.random() * 0.55,
+      size: 0.55 + Math.random() * 0.65,
+      color: new THREE.Color(i % 4 === 0 ? 0xb8ff8a : 0x8dff62),
+    }));
+    this.mesh = new THREE.InstancedMesh(
+      new THREE.SphereGeometry(0.075, 5, 4),
+      new THREE.MeshBasicMaterial({
+        color: 0x9dff72, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+      }),
+      this.items.length
+    );
+    this.mesh.count = this.items.length;
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = 4;
+    scene.add(this.mesh);
+    this.tmp = new THREE.Object3D();
+  }
+
+  update(time, night = 0) {
+    const level = THREE.MathUtils.clamp(night, 0, 1);
+    this.mesh.visible = level > 0.015;
+    this.mesh.material.opacity = level * 0.9;
+    if (!this.mesh.visible) return;
+    for (let i = 0; i < this.items.length; i++) {
+      const it = this.items[i];
+      const t = time * it.speed + it.phase;
+      const blink = 0.24 + 0.76 * Math.max(0, Math.sin(t * 2.1));
+      this.tmp.position.set(
+        it.x + Math.sin(t * 0.43) * 0.9,
+        it.y + Math.sin(t * 1.1) * 0.28,
+        it.z + Math.cos(t * 0.37) * 0.8
+      );
+      const pulse = it.size * (0.78 + blink * 0.42);
+      this.tmp.scale.setScalar(pulse);
+      this.tmp.updateMatrix();
+      this.mesh.setMatrixAt(i, this.tmp.matrix);
+      this.mesh.setColorAt(i, it.color.clone().multiplyScalar(0.45 + blink * 0.8));
+    }
+    this.mesh.instanceMatrix.needsUpdate = true;
+    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+  }
+}
