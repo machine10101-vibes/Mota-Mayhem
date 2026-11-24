@@ -1534,8 +1534,8 @@ async function refreshEnterprisePanel() {
     const brand = snapshot.brands[0] || null;
     const approvedBrand = snapshot.brands.find((item) => item.status === 'approved') || null;
     const brandForm = $('enterprise-brand-form');
-    brandForm.hidden = !app || app.status !== 'approved' || (!!brand && brand.status !== 'rejected');
-    if (brand && brand.status === 'rejected') {
+    brandForm.hidden = !app || app.status !== 'approved' || (!!brand && brand.status === 'approved');
+    if (brand && brand.status !== 'approved') {
       brandForm.hidden = false;
       setEnterpriseField('enterprise-brand-name', brand.display_name);
       setEnterpriseField('enterprise-brand-slug', brand.slug);
@@ -1562,7 +1562,7 @@ async function refreshEnterprisePanel() {
       campaignSelect.append(option);
     }
     renderEnterpriseSubmissions($('enterprise-campaign-list'), snapshot.campaigns, 'headline');
-    if (brand && brand.status === 'pending') $('enterprise-brand-status').textContent = 'BRAND PROFILE PENDING REVIEW — strain submissions unlock after approval.';
+    if (brand && brand.status === 'pending') $('enterprise-brand-status').textContent = 'BRAND PROFILE PENDING REVIEW — you can still update this submission; strain submissions unlock after approval.';
     if (brand && brand.status === 'rejected') $('enterprise-brand-status').textContent = 'BRAND PROFILE DECLINED — update it and submit again.';
   } catch (error) {
     applicationForm.hidden = true;
