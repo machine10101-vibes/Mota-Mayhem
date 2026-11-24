@@ -13,6 +13,7 @@ import { loadSave, writeSave, adoptAddress, unbindAddress } from './save.js';
 import { saleableJars, burpJar } from './economy.js';
 import { soundEnabled, setSoundEnabled, playSfx } from './audio.js';
 import { seasonForDay, weatherForDay, weatherForecast, seasonalMarketMultiplier } from './seasons.js';
+import { weatherEffect } from './weather-fx.js';
 import { clearKleverLogin, clearSession, inKleverHandoff, isMobile, launchKleverApp, markPrompt, promptIsCooling, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
 import { accountLabel, accountProblem, clearAccountSession, createAccount, freshAccessToken, readAccountSession, rememberWallet, signInAccount } from './wallet/account.js';
 import { clearCloudToken, flushCloud, schedulePush, syncGarden } from './wallet/cloud.js';
@@ -3539,6 +3540,7 @@ function updateDay(dt) {
 let last = performance.now();
 let smokeT = 0;
 let pollenT = 0;
+let weatherT = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000);
@@ -3612,6 +3614,30 @@ function frame(now) {
       g: 0,
       drag: 0.02,
     });
+  }
+  // Forecast-driven precipitation makes the outdoor estate feel alive without touching crop simulation.
+  weatherT -= dt;
+  const conditions = weatherForDay(1 + Math.floor(dayClock));
+  const weatherFx = weatherEffect(conditions);
+  if (weatherFx.type !== 'none' && state.mode !== 'loading' && weatherT <= 0) {
+    weatherT = weatherFx.interval;
+    for (let i = 0; i < weatherFx.burst; i++) {
+      const snow = weatherFx.type === 'snow';
+      particles.emit({
+        x: (Math.random() - 0.5) * 38,
+        y: snow ? 5 + Math.random() * 4 : 8 + Math.random() * 4,
+        z: -8 + Math.random() * 27,
+        vx: (Math.random() - 0.5) * weatherFx.wind,
+        vy: snow ? -0.45 - Math.random() * 0.45 : -9 - Math.random() * 3,
+        vz: (Math.random() - 0.5) * weatherFx.wind,
+        life: snow ? 4.2 + Math.random() * 1.8 : 0.7 + Math.random() * 0.25,
+        size: snow ? 0.045 + Math.random() * 0.025 : 0.035,
+        color: weatherFx.color,
+        color2: snow ? 0xffffff : 0x8fb7d1,
+        g: 0,
+        drag: snow ? 0.08 : 0,
+      });
+    }
   }
   particles.update(dt);
   updateCamera(dt);
