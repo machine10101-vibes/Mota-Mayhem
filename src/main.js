@@ -1445,7 +1445,7 @@ async function refreshEnterprisePanel() {
     const brand = snapshot.brands[0] || null;
     const approvedBrand = snapshot.brands.find((item) => item.status === 'approved') || null;
     const brandForm = $('enterprise-brand-form');
-    brandForm.hidden = !app || app.status !== 'approved' || (!!brand && brand.status !== 'rejected' && brand.status !== 'pending' && brand.status === 'approved');
+    brandForm.hidden = !app || app.status !== 'approved' || (!!brand && brand.status !== 'rejected');
     if (brand && brand.status === 'rejected') {
       brandForm.hidden = false;
       setEnterpriseField('enterprise-brand-name', brand.display_name);
@@ -4721,10 +4721,6 @@ function bindShop() {
     if (!btn) return;
     swallow(e);
     buySupply(btn.dataset.buy);
-  });
-  $('btn-enterprise-open').addEventListener('click', (e) => {
-    swallow(e);
-    openEnterprise();
   });
 }
 
