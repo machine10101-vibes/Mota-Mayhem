@@ -167,3 +167,51 @@ test('Enterprise signup and promotion surfaces are tied to the upstairs computer
   assert.match(migration, /status = 'approved'/);
   assert.match(migration, /with check \([\s\S]*status = 'pending'/);
 });
+
+
+test('four-season calendar creates distinct climates, weekly events and seasonal markets', async () => {
+  const { seasonForDay, weatherForDay, seasonalGrowthRate, seasonalMarketMultiplier } = await import('../src/seasons.js');
+  assert.deepEqual(
+    [1, 29, 57, 85, 113].map((day) => {
+      const season = seasonForDay(day);
+      return [season.name, season.year];
+    }),
+    [['SPRING', 1], ['SUMMER', 1], ['AUTUMN', 1], ['WINTER', 1], ['SPRING', 2]],
+  );
+  assert.deepEqual(
+    [1, 29, 57, 85].map((day) => seasonForDay(day).dayInSeason),
+    [1, 1, 1, 1],
+  );
+  assert.equal(seasonForDay(28).dayInSeason, 28);
+  assert.equal(seasonForDay(29).dayInSeason, 1);
+  assert.equal(seasonForDay(8).event.name, 'POLLINATOR BLOOM');
+  assert.equal(seasonForDay(15).event.name, 'RAIN GARDEN WEEK');
+  assert.equal(seasonForDay(22).event.name, 'GARDEN SHOWCASE');
+  assert.equal(weatherForDay(3).rain, true);
+  assert.equal(weatherForDay(31).id, 'heatwave');
+  assert.equal(weatherForDay(59).id, 'showers');
+  assert.equal(weatherForDay(86).id, 'frost');
+  assert.ok(seasonalGrowthRate(8) > seasonalGrowthRate(1));
+  assert.ok(seasonalMarketMultiplier(22) > seasonalMarketMultiplier(1));
+  for (const day of [1, 8, 15, 22, 29, 36, 57, 85, 113, 365]) {
+    const weather = weatherForDay(day);
+    assert.ok(Number.isFinite(weather.waterUse) && weather.waterUse > 0);
+    assert.ok(Number.isFinite(weather.growth) && weather.growth > 0);
+    assert.ok(Number.isFinite(seasonalMarketMultiplier(day)) && seasonalMarketMultiplier(day) > 0);
+  }
+});
+
+test('seasonal climates affect outdoor plants and buyer pricing while indoor rooms remain climate controlled', () => {
+  const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  assert.ok(main.includes("import { seasonForDay, weatherForDay, seasonalMarketMultiplier } from './seasons.js'"));
+  assert.ok(main.includes('const outdoorGrowth = conditions.growth'));
+  assert.ok(main.includes('(dt * outdoorGrowth) / (RIPE_TIME'));
+  assert.ok(main.includes('seasonalMarketMultiplier(order.day)'));
+  assert.ok(main.includes('seasonalMarketMultiplier(Math.floor(dayClock) + 1)'));
+  assert.ok(main.includes('Greenhouse and warehouse growing conditions are climate controlled.'));
+  assert.ok(html.includes('id="season"'));
+  assert.ok(css.includes('.season[data-season="summer"]'));
+  assert.ok(css.includes('.weather[data-weather="frost"]'));
+});
