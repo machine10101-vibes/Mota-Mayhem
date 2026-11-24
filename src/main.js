@@ -11,6 +11,7 @@ import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace, createHybridStrain, registerHybridStrain, hybridDefinitions, clearHybridStrains } from './strains.js';
 import { loadSave, writeSave, adoptAddress, unbindAddress } from './save.js';
 import { saleableJars, burpJar } from './economy.js';
+import { soundEnabled, setSoundEnabled, playSfx } from './audio.js';
 import { seasonForDay, weatherForDay, weatherForecast, seasonalMarketMultiplier } from './seasons.js';
 import { clearKleverLogin, clearSession, inKleverHandoff, isMobile, launchKleverApp, markPrompt, promptIsCooling, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
 import { accountLabel, accountProblem, clearAccountSession, createAccount, freshAccessToken, readAccountSession, rememberWallet, signInAccount } from './wallet/account.js';
@@ -1142,12 +1143,14 @@ function actPlot(plot) {
       const clone = state.clones.shift();
       beginGrow(plot, 2, true, clone.strain);
       toast(`${strainOf(clone.strain).name} CLONE PLANTED`, 'good');
+      playSfx('plant');
     } else {
       const pick = seedChoice();
       if (!pick.ok) return toast(seedTotal(state.seeds) ? pick.text : 'NO SEEDS OR CLONES');
       state.seeds[pick.id]--;
       beginGrow(plot, 0, false, pick.id);
       toast(`${strainOf(pick.id).name} PLANTED`, 'good');
+      playSfx('plant');
     }
     P.cool = 0.6;
     player.playAction('plant');
@@ -1159,6 +1162,7 @@ function actPlot(plot) {
     d.water = 1;
     P.cool = 0.75;
     player.playAction('water');
+    playSfx('water');
     toast(d.state === 'ripening' ? 'FLOWER WATERED — RIPENING CONTINUES' : 'PLANT WATERED', 'good');
     markDirty();
     for (let k = 0; k < 26; k++)
@@ -1172,6 +1176,7 @@ function actPlot(plot) {
       d.pop = 0.3;
       P.cool = 0.45;
       player.playAction('harvest');
+    playSfx('harvest');
       toast('TOPPED — THE CANOPY BUSHES OUT', 'good');
       markDirty();
       return;
@@ -3754,6 +3759,11 @@ function paintSettings() {
   const help = $('set-wallet-help');
   if (help && !walletBusy) help.classList.add('hidden');
   if ($('set-px')) $('set-px').textContent = pixelLabel();
+  const sound = $('set-sound');
+  if (sound) {
+    sound.textContent = soundEnabled() ? 'ON' : 'OFF';
+    sound.setAttribute('aria-pressed', String(soundEnabled()));
+  }
   if ($('set-fs')) $('set-fs').textContent = inFullscreen() ? 'WINDOW' : 'FULL';
 }
 
@@ -4053,6 +4063,11 @@ function bindWallet() {
   $('btn-settings-close')?.addEventListener('click', (e) => {
     swallow(e);
     closeSettings();
+  });
+  $('set-sound')?.addEventListener('click', () => {
+    const enabled = setSoundEnabled(!soundEnabled());
+    paintSettings();
+    if (enabled) playSfx('ui');
   });
   $('set-px-down')?.addEventListener('click', () => stepPixels(-1));
   $('set-px-up')?.addEventListener('click', () => stepPixels(1));
