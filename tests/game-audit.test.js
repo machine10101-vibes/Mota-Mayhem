@@ -215,7 +215,7 @@ test('seasonal climates affect outdoor plants and buyer pricing while indoor roo
   assert.ok(main.includes('SEASON_HORIZON[calendar.id]'));
   assert.ok(main.includes('SEASON_GROUND[calendar.id]'));
   assert.ok(main.includes('calendar.event.name} — ${calendar.event.detail}'));
-  assert.ok(main.includes('seasonEl.textContent = `${calendar.name} · ${calendar.event.name}`'));
+  assert.ok(main.includes('dayEl.textContent = `D${day} · ${calendar.name}`'));
   assert.ok(html.includes('id="clock-day"'));
   assert.ok(main.includes('dayEl.textContent = `D${day} · ${calendar.name}`'));
   assert.ok(!css.includes('.season[data-season="summer"]'));
