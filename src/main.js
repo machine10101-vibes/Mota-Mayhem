@@ -3389,7 +3389,7 @@ function updateWeatherHud(day = Math.floor(dayClock) + 1) {
   const calendar = seasonForDay(day);
   const weather = weatherForDay(day);
   if (seasonEl) {
-    seasonEl.textContent = `${calendar.name} · Y${calendar.year}`;
+    seasonEl.textContent = `${calendar.name} · ${calendar.event.name}`;
     seasonEl.dataset.season = calendar.id;
     seasonEl.title = `${calendar.name} · DAY ${calendar.dayInSeason}/28 · WEEK ${calendar.week}/4\n${calendar.event.name}: ${calendar.event.detail}\nOutdoor growth ${Math.round(weather.growth * 100)}% · outdoor water use ${Math.round(weather.waterUse * 100)}% · market ${Math.round(seasonalMarketMultiplier(day) * 100)}%`;
     seasonEl.setAttribute('aria-label', `${calendar.name}, year ${calendar.year}, day ${calendar.dayInSeason} of 28. Event: ${calendar.event.name}. ${calendar.event.detail}`);
@@ -3423,7 +3423,12 @@ function ensureBuyerOrder() {
   updateBuyerOrderHud();
   updateWeatherHud(day);
   updateTasks();
-  if (day > 1 && state.mode === 'play') toast(`NEW DAY ${day} — BUYER WANTS ${state.buyerOrder.count} ${state.buyerOrder.grade} JAR${state.buyerOrder.count > 1 ? 'S' : ''}`, 'good');
+  if (state.mode === 'play') {
+    const calendar = seasonForDay(day);
+    if (calendar.dayInSeason === 1) toast(`NEW SEASON — ${calendar.name} · YEAR ${calendar.year}`, 'good');
+    else if (calendar.dayInSeason % 7 === 1) toast(`${calendar.event.name} — ${calendar.event.detail}`, 'good');
+    else if (day > 1) toast(`NEW DAY ${day} — BUYER WANTS ${state.buyerOrder.count} ${state.buyerOrder.grade} JAR${state.buyerOrder.count > 1 ? 'S' : ''}`, 'good');
+  }
   return true;
 }
 let clockLabel = '';
@@ -3432,11 +3437,30 @@ const COL_NIGHT_Z = new THREE.Color(0x10182c);
 const COL_DAY_H = new THREE.Color(0xb7e4c8);
 const COL_DUSK_H = new THREE.Color(0xf0a36a);
 const COL_NIGHT_H = new THREE.Color(0x1a2038);
+const SEASON_SKY = {
+  spring: new THREE.Color(0xd9efdc),
+  summer: new THREE.Color(0xffdfb2),
+  autumn: new THREE.Color(0xe8c0a3),
+  winter: new THREE.Color(0xc4d8ef),
+};
+const SEASON_HORIZON = {
+  spring: new THREE.Color(0xc9e4b8),
+  summer: new THREE.Color(0xf1c18e),
+  autumn: new THREE.Color(0xd69a78),
+  winter: new THREE.Color(0xa8c1de),
+};
+const SEASON_GROUND = {
+  spring: new THREE.Color(0x88a85e),
+  summer: new THREE.Color(0xa7a45d),
+  autumn: new THREE.Color(0x9a7950),
+  winter: new THREE.Color(0x74899a),
+};
 
 function updateDay(dt) {
   if (!world || state.mode === 'loading') return;
   dayClock += dt / DAY_LEN;
   ensureBuyerOrder();
+  const calendar = seasonForDay(Math.floor(dayClock) + 1);
   const t = dayClock % 1;
   const elev = Math.sin(t * Math.PI * 2);
   const az = t * Math.PI * 2 + Math.PI;
@@ -3448,10 +3472,10 @@ function updateDay(dt) {
   sun.color.setHex(warm > 0.45 ? 0xffb07a : night > 0.6 ? 0x9eb6dd : 0xfff0cf);
   hemi.intensity = THREE.MathUtils.lerp(1.35, 0.5, night);
   hemi.color.setHex(night > 0.55 ? 0x24345c : 0xe7f4ff);
-  hemi.groundColor.setHex(night > 0.55 ? 0x1a2414 : 0x7d9a52);
+  hemi.groundColor.setHex(night > 0.55 ? 0x1a2414 : 0x7d9a52).lerp(SEASON_GROUND[calendar.id], 0.16);
   fill.intensity = THREE.MathUtils.lerp(0.62, 0.12, night);
-  post.uniforms.zenith.value.copy(COL_DAY_Z).lerp(COL_NIGHT_Z, night);
-  post.uniforms.horizon.value.copy(COL_DAY_H).lerp(COL_DUSK_H, warm * 0.85).lerp(COL_NIGHT_H, night);
+  post.uniforms.zenith.value.copy(COL_DAY_Z).lerp(COL_NIGHT_Z, night).lerp(SEASON_SKY[calendar.id], 0.12);
+  post.uniforms.horizon.value.copy(COL_DAY_H).lerp(COL_DUSK_H, warm * 0.85).lerp(COL_NIGHT_H, night).lerp(SEASON_HORIZON[calendar.id], 0.12);
   scene.background.copy(post.uniforms.zenith.value);
   scene.fog.color.copy(post.uniforms.horizon.value);
   const glow = THREE.MathUtils.smoothstep(night, 0.2, 0.75);
