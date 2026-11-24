@@ -3384,15 +3384,14 @@ function renderGrowerLeague() {
 
 function updateWeatherHud(day = Math.floor(dayClock) + 1) {
   const el = $('weather');
-  const seasonEl = $('season');
   if (!el) return;
   const calendar = seasonForDay(day);
   const weather = weatherForDay(day);
-  if (seasonEl) {
-    seasonEl.textContent = `${calendar.name} · ${calendar.event.name}`;
-    seasonEl.dataset.season = calendar.id;
-    seasonEl.title = `${calendar.name} · DAY ${calendar.dayInSeason}/28 · WEEK ${calendar.week}/4\n${calendar.event.name}: ${calendar.event.detail}\nOutdoor growth ${Math.round(weather.growth * 100)}% · outdoor water use ${Math.round(weather.waterUse * 100)}% · market ${Math.round(seasonalMarketMultiplier(day) * 100)}%`;
-    seasonEl.setAttribute('aria-label', `${calendar.name}, year ${calendar.year}, day ${calendar.dayInSeason} of 28. Event: ${calendar.event.name}. ${calendar.event.detail}`);
+  const dayEl = $('clock-day');
+  if (dayEl) {
+    dayEl.textContent = `D${day} · ${calendar.name}`;
+    dayEl.title = `${calendar.name} · YEAR ${calendar.year} · DAY ${calendar.dayInSeason}/28 · WEEK ${calendar.week}/4\n${calendar.event.name}: ${calendar.event.detail}\nOutdoor growth ${Math.round(weather.growth * 100)}% · outdoor water use ${Math.round(weather.waterUse * 100)}% · market ${Math.round(seasonalMarketMultiplier(day) * 100)}%`;
+    dayEl.setAttribute('aria-label', `Day ${day}, ${calendar.name}, year ${calendar.year}. ${calendar.event.name}: ${calendar.event.detail}`);
   }
   el.textContent = `${weather.label} · ${weather.detail}`;
   el.dataset.weather = weather.id;
