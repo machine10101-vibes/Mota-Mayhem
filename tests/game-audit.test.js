@@ -191,6 +191,15 @@ test('four-season calendar creates distinct climates, weekly events and seasonal
   assert.equal(weatherForDay(31).id, 'heatwave');
   assert.equal(weatherForDay(59).id, 'showers');
   assert.equal(weatherForDay(86).id, 'frost');
+  const { weatherForecast } = await import('../src/seasons.js');
+  assert.deepEqual(weatherForecast(28, 3).map((entry) => [entry.day, entry.season]), [
+    [28, 'SPRING'], [29, 'SUMMER'], [30, 'SUMMER'],
+  ]);
+  assert.equal(weatherForecast(1, 0).length, 1);
+  assert.equal(weatherForecast(Number.NaN, 2)[0].day, 1);
+  assert.ok(weatherForecast(84, 7).every((entry) =>
+    Number.isFinite(entry.weather.growth) && Number.isFinite(entry.weather.waterUse) && Number.isFinite(entry.market)
+  ));
   assert.ok(seasonalGrowthRate(8) > seasonalGrowthRate(1));
   assert.ok(seasonalMarketMultiplier(22) > seasonalMarketMultiplier(1));
   for (const day of [1, 8, 15, 22, 29, 36, 57, 85, 113, 365]) {
@@ -216,6 +225,11 @@ test('seasonal climates affect outdoor plants and buyer pricing while indoor roo
   assert.ok(main.includes('SEASON_GROUND[calendar.id]'));
   assert.ok(main.includes('calendar.event.name} — ${calendar.event.detail}'));
   assert.ok(main.includes('dayEl.textContent = `D${day} · ${calendar.name}`'));
+  assert.ok(main.includes('function renderWeatherForecast(day = Math.floor(dayClock) + 1)'));
+  assert.ok(main.includes('weatherForecast(day, 3)'));
+  assert.ok(html.includes('id="weather-forecast"'));
+  assert.ok(html.includes('aria-controls="weather-forecast"'));
+  assert.ok(css.includes('.forecast-panel'));
   assert.ok(html.includes('id="clock-day"'));
   assert.ok(main.includes('dayEl.textContent = `D${day} · ${calendar.name}`'));
   assert.ok(!css.includes('.season[data-season="summer"]'));
