@@ -190,7 +190,8 @@ body:has(#dress:not(.hidden)) #hud { z-index:12; }
 .set-err:empty { display:none; }
 .set-err { color:#ffb4a2; }
 .set-actions, .set-px { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-.set-actions .tbtn, .set-px .tbtn, #set-fs { min-height:44px; }
+.set-actions .tbtn, .set-px .tbtn, #set-fs, #set-sound { min-height:44px; }
+#set-sound[aria-pressed="false"] { color:#c9d6b5; opacity:.78; }
 #breeding { position:fixed; inset:0; z-index:10; display:flex; align-items:center; justify-content:center; padding:var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l); pointer-events:none; }
 .breed-card { pointer-events:auto; width:min(520px, 100%); max-height:min(82vh, 700px); overflow:auto; display:flex; flex-direction:column; gap:9px; touch-action:manipulation; }
 .breed-copy, .breed-status { margin:0; color:#d5e2c4; font-size:8px; line-height:1.65; }
