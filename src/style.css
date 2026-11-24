@@ -526,6 +526,10 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline:2px so
 .weather[data-weather="cloudy"] { color:#c4d0d8; border-left:2px solid #aab8c5; }
 .weather[data-weather="warm"] { color:#ffd28c; border-left:2px solid #e6a65f; }
 .weather[data-weather="breezy"] { color:#b9e6d5; }
+.weather[data-weather="heatwave"],.weather[data-weather="haze"] { color:#ffbd78; border-left:2px solid #ef9551; }
+.weather[data-weather="fog"],.weather[data-weather="frost"],.weather[data-weather="snow"] { color:#c4d9ed; border-left:2px solid #9dbbd5; }
+.weather[data-weather="storm"] { color:#b4b9f5; border-left:2px solid #878be8; }
+.weather[data-weather="aurora"] { color:#a6e8d8; border-left:2px solid #70cdb2; }
 @media (max-width:560px) { .weather { min-height:25px; padding:4px 6px; font-size:6px; } }
 @media (prefers-reduced-motion:reduce) { .weather { transition:none; } }
 
