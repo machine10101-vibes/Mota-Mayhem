@@ -336,6 +336,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Escape' && !$('weather-forecast')?.classList.contains('hidden')) {
     $('weather-forecast').classList.add('hidden');
     $('weather')?.setAttribute('aria-expanded', 'false');
+    $('weather')?.focus({ preventScroll: true });
     e.preventDefault();
     return;
   }
