@@ -1364,6 +1364,86 @@ function actStation(f) {
   if (f.kind === 'breed-pot') return actBreedPot(f.ref);
   if (f.kind === 'breeder') return world.house.vegCenter ? openBreeding() : tryUnlock('vegCenter', UNLOCK.vegCenter, 'BREEDING LAB');
 
+  if (f.kind === 'computer') return openShop();
+  if (f.kind === 'stand') return actStand();
+  if (f.kind === 'spigot') return actSpigot(f.ref);
+  if (f.kind === 'lot') return actBuyWarehouse();
+  if (f.kind === 'greenhouse') return actBuyGreenhouse();
+  if (f.kind === 'moon-garden') return actBuyMoonGarden();
+  if (f.kind === 'wh-lights') {
+    const W = world.warehouse;
+    W.lights = W.lights === 'flower' ? 'veg' : 'flower';
+    paintLights(W);
+    P.cool = 0.35;
+    const waiting = whData.some((d) => d.holdVeg);
+    toast(W.lights === 'flower' ? (waiting ? '12/12 — FLOWER STARTED' : '12/12 — FLOWERING LIGHTS') : '18/6 — VEG LIGHTS', 'good');
+    markDirty();
+    return true;
+  }
+  if (f.kind === 'hook') {
+    const h = f.ref;
+    if (!h.item) {
+      if (!state.wet.length) {
+        toast('HARVEST A PLANT FIRST');
+        return true;
+      }
+      const bud = state.wet[0];
+      if (!bud.trimmed) {
+        bud.trimmed = true;
+        P.cool = 0.35;
+        player.playAction('harvest');
+        toast('HAND TRIMMED — TRICHOMES KEPT', 'good');
+        markDirty();
+        return true;
+      }
+      state.wet.shift();
+      h.item = { ...bud, t: 0, dry: 0, hold: 0, dropped: false };
+      h.mesh.geometry = world.shed.nugGeo[strainOf(bud.strain).id] || world.shed.nugGeo.bd;
+      h.mesh.visible = true;
+      h.mesh.scale.setScalar(1);
+      P.cool = 0.4;
+      player.playAction('harvest');
+      toast(`${bud.grade} HUNG TO DRY`);
+      updateHud();
+      markDirty();
+      return true;
+    }
+    if (h.item.dry < 1) {
+      toast('STILL DRYING');
+      return true;
+    }
+    const slot = shed.cureJars.find((j) => !j.item);
+    if (!slot) {
+      toast('CURE JARS ARE FULL');
+      return true;
+    }
+    slot.item = { grade: h.item.grade, grams: gramsFor(h.item.grade), strain: h.item.strain || 'bd', t: 0, cure: 0, burped: false, missed: false, needsBurp: false, sealed: false };
+    slot.mesh.visible = true;
+    h.item = null;
+    h.mesh.visible = false;
+    P.cool = 0.4;
+    toast('JARRED — BURP IT WHILE IT CURES', 'good');
+    updateHud();
+    markDirty();
+    return true;
+  }
+  const it = f.ref.item;
+  if (it?.needsBurp && !it.burped && !it.missed) {
+    const result = burpJar(it);
+    if (!result) return toast('WAIT FOR THE BURP WINDOW');
+    if (result.upgraded) it.grams = gramsFor(it.grade);
+    P.cool = 0.3;
+    toast(result.perfect
+      ? (result.upgraded ? `PERFECT BURP — GRADE BOOSTED TO ${it.grade}` : 'PERFECT BURP — TOP GRADE LOCKED')
+      : 'BURPED — CURE STAYS ON TRACK', 'good');
+    markDirty();
+    return true;
+  }
+  if (it?.missed) return toast('BURP MISSED — LET IT FINISH');
+  toast(it?.burped ? 'CURING' : 'WAIT TO BURP');
+  return true;
+}
+
 let enterpriseSnapshot = null;
 
 function enterpriseField(id) {
@@ -1649,85 +1729,6 @@ function bindEnterprise() {
   $('enterprise-ad-close').addEventListener('click', () => $('enterprise-ad').classList.add('hidden'));
 }
 
-  if (f.kind === 'computer') return openShop();
-  if (f.kind === 'stand') return actStand();
-  if (f.kind === 'spigot') return actSpigot(f.ref);
-  if (f.kind === 'lot') return actBuyWarehouse();
-  if (f.kind === 'greenhouse') return actBuyGreenhouse();
-  if (f.kind === 'moon-garden') return actBuyMoonGarden();
-  if (f.kind === 'wh-lights') {
-    const W = world.warehouse;
-    W.lights = W.lights === 'flower' ? 'veg' : 'flower';
-    paintLights(W);
-    P.cool = 0.35;
-    const waiting = whData.some((d) => d.holdVeg);
-    toast(W.lights === 'flower' ? (waiting ? '12/12 — FLOWER STARTED' : '12/12 — FLOWERING LIGHTS') : '18/6 — VEG LIGHTS', 'good');
-    markDirty();
-    return true;
-  }
-  if (f.kind === 'hook') {
-    const h = f.ref;
-    if (!h.item) {
-      if (!state.wet.length) {
-        toast('HARVEST A PLANT FIRST');
-        return true;
-      }
-      const bud = state.wet[0];
-      if (!bud.trimmed) {
-        bud.trimmed = true;
-        P.cool = 0.35;
-        player.playAction('harvest');
-        toast('HAND TRIMMED — TRICHOMES KEPT', 'good');
-        markDirty();
-        return true;
-      }
-      state.wet.shift();
-      h.item = { ...bud, t: 0, dry: 0, hold: 0, dropped: false };
-      h.mesh.geometry = world.shed.nugGeo[strainOf(bud.strain).id] || world.shed.nugGeo.bd;
-      h.mesh.visible = true;
-      h.mesh.scale.setScalar(1);
-      P.cool = 0.4;
-      player.playAction('harvest');
-      toast(`${bud.grade} HUNG TO DRY`);
-      updateHud();
-      markDirty();
-      return true;
-    }
-    if (h.item.dry < 1) {
-      toast('STILL DRYING');
-      return true;
-    }
-    const slot = shed.cureJars.find((j) => !j.item);
-    if (!slot) {
-      toast('CURE JARS ARE FULL');
-      return true;
-    }
-    slot.item = { grade: h.item.grade, grams: gramsFor(h.item.grade), strain: h.item.strain || 'bd', t: 0, cure: 0, burped: false, missed: false, needsBurp: false, sealed: false };
-    slot.mesh.visible = true;
-    h.item = null;
-    h.mesh.visible = false;
-    P.cool = 0.4;
-    toast('JARRED — BURP IT WHILE IT CURES', 'good');
-    updateHud();
-    markDirty();
-    return true;
-  }
-  const it = f.ref.item;
-  if (it?.needsBurp && !it.burped && !it.missed) {
-    const result = burpJar(it);
-    if (!result) return toast('WAIT FOR THE BURP WINDOW');
-    if (result.upgraded) it.grams = gramsFor(it.grade);
-    P.cool = 0.3;
-    toast(result.perfect
-      ? (result.upgraded ? `PERFECT BURP — GRADE BOOSTED TO ${it.grade}` : 'PERFECT BURP — TOP GRADE LOCKED')
-      : 'BURPED — CURE STAYS ON TRACK', 'good');
-    markDirty();
-    return true;
-  }
-  if (it?.missed) return toast('BURP MISSED — LET IT FINISH');
-  toast(it?.burped ? 'CURING' : 'WAIT TO BURP');
-  return true;
-}
 
 function motherOpen(mom) {
   return !mom.locked || world.house.mother2;
