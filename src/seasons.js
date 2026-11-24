@@ -107,6 +107,19 @@ export function weatherForDay(day = 1) {
   return { ...season.weather[index], waterUse: season.weather[index].waterUse * calendar.water, growth: season.weather[index].growth * calendar.growth };
 }
 
+/** Deterministic short-range forecast for planning outdoor care and harvests. */
+export function weatherForecast(day = 1, count = 3) {
+  const numericDay = Number(day);
+  const firstDay = Number.isFinite(numericDay) ? Math.max(1, Math.floor(numericDay)) : 1;
+  const total = Number.isFinite(Number(count)) ? Math.max(1, Math.min(7, Math.floor(Number(count)))) : 3;
+  return Array.from({ length: total }, (_, index) => {
+    const forecastDay = firstDay + index;
+    const calendar = seasonForDay(forecastDay);
+    const weather = weatherForDay(forecastDay);
+    return { day: forecastDay, season: calendar.name, year: calendar.year, event: calendar.event.name, eventDetail: calendar.event.detail, market: calendar.market, weather };
+  });
+}
+
 export function seasonalGrowthRate(day = 1) {
   const calendar = seasonForDay(day);
   return calendar.growth;

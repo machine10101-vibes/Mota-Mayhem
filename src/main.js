@@ -11,7 +11,7 @@ import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace, createHybridStrain, registerHybridStrain, hybridDefinitions, clearHybridStrains } from './strains.js';
 import { loadSave, writeSave, adoptAddress, unbindAddress } from './save.js';
 import { saleableJars, burpJar } from './economy.js';
-import { seasonForDay, weatherForDay, seasonalMarketMultiplier } from './seasons.js';
+import { seasonForDay, weatherForDay, weatherForecast, seasonalMarketMultiplier } from './seasons.js';
 import { clearKleverLogin, clearSession, inKleverHandoff, isMobile, launchKleverApp, markPrompt, promptIsCooling, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
 import { accountLabel, accountProblem, clearAccountSession, createAccount, freshAccessToken, readAccountSession, rememberWallet, signInAccount } from './wallet/account.js';
 import { clearCloudToken, flushCloud, schedulePush, syncGarden } from './wallet/cloud.js';
@@ -333,6 +333,13 @@ function walletReady() {
 }
 
 addEventListener('keydown', (e) => {
+  if (e.code === 'Escape' && !$('weather-forecast')?.classList.contains('hidden')) {
+    $('weather-forecast').classList.add('hidden');
+    $('weather')?.setAttribute('aria-expanded', 'false');
+    $('weather')?.focus({ preventScroll: true });
+    e.preventDefault();
+    return;
+  }
   if (e.code === 'Escape' && tasksOpen) {
     setTasksOpen(false);
     $('tasks-toggle')?.focus({ preventScroll: true });
@@ -3382,6 +3389,32 @@ function renderGrowerLeague() {
   $('league-panel').setAttribute('aria-label', `Weekly league standings, you are in place ${place}`);
 }
 
+function renderWeatherForecast(day = Math.floor(dayClock) + 1) {
+  const root = $('weather-forecast-days');
+  if (!root) return;
+  root.replaceChildren();
+  for (const forecast of weatherForecast(day, 3)) {
+    const row = document.createElement('article');
+    row.className = 'forecast-day';
+    const head = document.createElement('div');
+    head.className = 'forecast-day-head';
+    const date = document.createElement('b');
+    date.textContent = `DAY ${forecast.day} · ${forecast.season}`;
+    const condition = document.createElement('strong');
+    condition.textContent = forecast.weather.label;
+    head.append(date, condition);
+    const detail = document.createElement('p');
+    detail.textContent = forecast.weather.detail;
+    const stats = document.createElement('small');
+    stats.textContent = `OUTDOOR GROWTH ${Math.round(forecast.weather.growth * 100)}% · WATER USE ${Math.round(forecast.weather.waterUse * 100)}% · MARKET ${Math.round(forecast.market * 100)}%`;
+    const event = document.createElement('small');
+    event.className = 'forecast-event';
+    event.textContent = `${forecast.event} — ${forecast.eventDetail}`;
+    row.append(head, detail, stats, event);
+    root.append(row);
+  }
+}
+
 function updateWeatherHud(day = Math.floor(dayClock) + 1) {
   const el = $('weather');
   if (!el) return;
@@ -3394,6 +3427,7 @@ function updateWeatherHud(day = Math.floor(dayClock) + 1) {
     dayEl.setAttribute('aria-label', `Day ${day}, ${calendar.name}, year ${calendar.year}. ${calendar.event.name}: ${calendar.event.detail}`);
   }
   el.textContent = `${weather.label} · ${weather.detail}`;
+  if (!$('weather-forecast')?.classList.contains('hidden')) renderWeatherForecast(day);
   el.dataset.weather = weather.id;
   el.title = `${weather.detail}. ${calendar.event.name}: ${calendar.event.detail} Outdoor growth multiplier ${weather.growth.toFixed(2)}; outdoor water use multiplier ${weather.waterUse.toFixed(2)}. Greenhouse and warehouse growing conditions are climate controlled.`;
   el.setAttribute('aria-label', `Day ${day} weather: ${weather.label}. ${weather.detail}. ${calendar.name}, ${calendar.event.name}.`);
@@ -4791,6 +4825,26 @@ function bindDress() {
       filter.classList.toggle('on', active);
     }
     paintBag(state.strainPick);
+  });
+  $('weather').addEventListener('click', (e) => {
+    swallow(e);
+    const panel = $('weather-forecast');
+    const open = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', !open);
+    $('weather').setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) renderWeatherForecast();
+  });
+  $('weather-forecast-close').addEventListener('click', (e) => {
+    swallow(e);
+    $('weather-forecast').classList.add('hidden');
+    $('weather').setAttribute('aria-expanded', 'false');
+    $('weather').focus({ preventScroll: true });
+  });
+  addEventListener('pointerdown', (e) => {
+    if (!e.target.closest?.('#weather-forecast, #weather')) {
+      $('weather-forecast')?.classList.add('hidden');
+      $('weather')?.setAttribute('aria-expanded', 'false');
+    }
   });
   $('tasks-toggle').addEventListener('click', () => {
     setTasksOpen(!tasksOpen);

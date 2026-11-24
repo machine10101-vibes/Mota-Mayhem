@@ -110,7 +110,12 @@
         <div class="reputation-head"><b id="reputation-rank">SEEDLING</b><span id="reputation-copy">0 REP · 100 TO NEXT</span></div>
         <div class="reputation-track"><i id="reputation-fill"></i></div>
       </div>
-      <div id="weather" class="weather" data-weather="clear" aria-label="Day 1 weather: clear skies">CLEAR · BRIGHT SKIES</div>
+      <button type="button" id="weather" class="weather" data-weather="clear" aria-label="Day 1 weather: clear skies" aria-expanded="false" aria-controls="weather-forecast">CLEAR · BRIGHT SKIES</button>
+      <section id="weather-forecast" class="forecast-panel hidden" aria-label="Three-day field forecast">
+        <div class="forecast-head"><b>3-DAY FIELD FORECAST</b><button type="button" id="weather-forecast-close" aria-label="Close forecast">×</button></div>
+        <div id="weather-forecast-days" class="forecast-days" aria-live="polite"></div>
+        <p class="forecast-foot">Outdoor conditions affect yard plots. Greenhouse and warehouse rooms stay climate controlled.</p>
+      </section>
       <div id="clock"><b id="clock-phase">DAY</b><span id="clock-day">D1</span></div>
       </div>
       <section id="league-panel" class="league-panel hidden" aria-label="Weekly grower league standings">

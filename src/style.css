@@ -534,6 +534,24 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline:2px so
 @media (prefers-reduced-motion:reduce) { .weather { transition:none; } }
 
 
+/* Compact forecast panel turns seasonal weather into a planning tool. */
+#tasks-row { position:relative; }
+.weather { appearance:none; -webkit-appearance:none; border:0; font-family:inherit; font-size:7px; line-height:1.35; letter-spacing:.025em; cursor:pointer; pointer-events:auto; }
+.weather:focus-visible { outline:2px solid #fff3c4; outline-offset:3px; }
+.forecast-panel { position:absolute; z-index:22; top:calc(100% + 8px); left:0; width:min(370px,calc(100vw - 24px)); max-height:min(68dvh,520px); overflow:auto; padding:10px; background:linear-gradient(145deg,rgba(22,32,17,.98),rgba(7,12,8,.98)); border:1px solid rgba(158,215,245,.42); box-shadow:0 14px 38px rgba(0,0,0,.46),var(--frame); pointer-events:auto; }
+.forecast-head,.forecast-day-head { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.forecast-head { color:#9ed7f5; font-size:8px; }
+.forecast-head button { border:0; background:transparent; color:#d5e2c4; font:20px Arial,sans-serif; cursor:pointer; }
+.forecast-days { display:grid; gap:7px; margin-top:8px; }
+.forecast-day { display:grid; gap:5px; padding:8px; background:rgba(0,0,0,.28); border-left:2px solid #6fb8e8; }
+.forecast-day-head { flex-wrap:wrap; color:#d5e2c4; font-size:7px; }
+.forecast-day-head strong { color:#9ed7f5; font-weight:normal; }
+.forecast-day p { margin:0; color:#c9d6b5; font-size:7px; line-height:1.45; }
+.forecast-day small { color:#aebca1; font-size:6px; line-height:1.55; }
+.forecast-day .forecast-event { color:#ffe0a8; }
+.forecast-foot { margin:8px 0 0; color:#9eac91; font:11px/1.45 Arial,sans-serif; }
+@media(max-width:560px) { .forecast-panel { width:min(350px,calc(100vw - 24px)); max-height:58dvh; } .weather { font-size:6px; } }
+
 /* Weekly league harvest target and milestone feedback. */
 .league-goal { margin:10px 0 8px; padding:8px; background:rgba(0,0,0,.3); border:1px solid rgba(198,245,106,.16); }
 .league-goal-head { display:flex; justify-content:space-between; align-items:center; gap:8px; color:#c9d6b5; font-size:6px; line-height:1.5; }
