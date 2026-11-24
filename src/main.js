@@ -1522,6 +1522,15 @@ async function refreshEnterprisePanel() {
     $('enterprise-application-status').textContent = app.status === 'pending'
       ? 'APPLICATION PENDING — your company details are private while they are reviewed.'
       : 'ENTERPRISE ACCOUNT APPROVED — continue building your public brand presence.';
+    if (app.status === 'pending') {
+      $('enterprise-brand-form').hidden = true;
+      $('enterprise-brand-status').textContent = 'Your public company profile unlocks after the application is approved.';
+      $('enterprise-strain-form').hidden = true;
+      $('enterprise-campaign-form').hidden = true;
+      $('enterprise-strain-list').replaceChildren();
+      $('enterprise-campaign-list').replaceChildren();
+      return;
+    }
     const brand = snapshot.brands[0] || null;
     const approvedBrand = snapshot.brands.find((item) => item.status === 'approved') || null;
     const brandForm = $('enterprise-brand-form');
