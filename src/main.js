@@ -11,6 +11,7 @@ import { Particles, Butterflies } from './fx.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace, createHybridStrain, registerHybridStrain, hybridDefinitions, clearHybridStrains } from './strains.js';
 import { loadSave, writeSave, adoptAddress, unbindAddress } from './save.js';
 import { saleableJars, burpJar } from './economy.js';
+import { seasonForDay, weatherForDay, seasonalMarketMultiplier } from './seasons.js';
 import { clearKleverLogin, clearSession, inKleverHandoff, isMobile, launchKleverApp, markPrompt, promptIsCooling, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
 import { accountLabel, accountProblem, clearAccountSession, createAccount, freshAccessToken, readAccountSession, rememberWallet, signInAccount } from './wallet/account.js';
 import { clearCloudToken, flushCloud, schedulePush, syncGarden } from './wallet/cloud.js';
@@ -965,7 +966,9 @@ function growTick(d, dt, speed, waterUse = 1) {
 }
 
 function updatePlants(dt, time) {
-  const outdoorWaterUse = weatherForDay(Math.floor(dayClock) + 1).waterUse;
+  const conditions = weatherForDay(Math.floor(dayClock) + 1);
+  const outdoorWaterUse = conditions.waterUse;
+  const outdoorGrowth = conditions.growth;
   slotsData.forEach((d, i) => {
     const mesh = plantMeshes[i];
     const s = world.slots[i];
@@ -979,8 +982,8 @@ function updatePlants(dt, time) {
         d.water = Math.max(0, d.water - (dt / THIRST) * (s.where === 'gh' ? (world.moonGarden.owned ? 0.68 : 0.74) : outdoorWaterUse));
         d.age += dt;
         if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
-        d.ripe = Math.min(1.25, (d.ripe || 0) + dt / (RIPE_TIME * strainPace(d.strain, 4)));
-      } else if (d.state === 'growing' && growTick(d, dt, s.where === 'gh' ? (world.moonGarden.owned ? 1.15 : 1.05) : 1, s.where === 'gh' ? (world.moonGarden.owned ? 0.68 : 0.74) : outdoorWaterUse)) {
+        d.ripe = Math.min(1.25, (d.ripe || 0) + (dt * outdoorGrowth) / (RIPE_TIME * strainPace(d.strain, 4)));
+      } else if (d.state === 'growing' && growTick(d, dt, s.where === 'gh' ? (world.moonGarden.owned ? 1.15 : 1.05) : outdoorGrowth, s.where === 'gh' ? (world.moonGarden.owned ? 0.68 : 0.74) : outdoorWaterUse)) {
         finishStage(d, mesh, false);
         burst(s, d.state === 'ripening' ? 0xfff3a0 : 0xbfe88a);
       }
@@ -1974,7 +1977,7 @@ function actStand() {
   if (order && !order.claimed && (state.jars[order.grade] | 0) >= order.count) {
     state.jars[order.grade] -= order.count;
     syncCuredGrams();
-    const base = order.count * gramsFor(order.grade) * MOTA_PER_G[order.grade];
+    const base = Math.round(order.count * gramsFor(order.grade) * MOTA_PER_G[order.grade] * seasonalMarketMultiplier(order.day));
     const payout = base + order.bonus;
     order.claimed = true;
     state.mota += payout;
@@ -1988,7 +1991,7 @@ function actStand() {
   const offer = GRADES.reduce((total, grade) => {
     const count = sale[grade] | 0;
     total.n += count;
-    total.mota += count * gramsFor(grade) * MOTA_PER_G[grade];
+    total.mota += count * gramsFor(grade) * MOTA_PER_G[grade] * seasonalMarketMultiplier(Math.floor(dayClock) + 1);
     return total;
   }, { n: 0, mota: 0 });
   if (offer.n > 0) {
@@ -3255,7 +3258,7 @@ function makeBuyerOrder(day, rep = state.reputation | 0) {
   const count = day % 3 === 0 ? 2 : 1;
   const client = buyerClient(rep);
   const baseBonus = Math.min(180, 30 + day * 12);
-  return { day, grade, count, customer: client.name, customerTier: client.short, customerColor: client.color, bonus: Math.round(baseBonus * client.multiplier), claimed: false };
+  return { day, grade, count, customer: client.name, customerTier: client.short, customerColor: client.color, bonus: Math.round(baseBonus * client.multiplier * seasonalMarketMultiplier(day)), claimed: false };
 }
 
 function updateBuyerOrderHud() {
@@ -3379,31 +3382,23 @@ function renderGrowerLeague() {
   $('league-panel').setAttribute('aria-label', `Weekly league standings, you are in place ${place}`);
 }
 
-function weatherForDay(day) {
-  const cycle = [
-    { id: 'clear', label: 'CLEAR', detail: 'BRIGHT SKIES', rain: false, waterUse: 1 },
-    { id: 'cloudy', label: 'CLOUDY', detail: 'SOIL DRIES 8% SLOWER', rain: false, waterUse: 0.92 },
-    { id: 'showers', label: 'SHOWERS', detail: 'RAIN AT DAWN · SLOWER DRYING', rain: true, waterUse: 0.82 },
-    { id: 'breezy', label: 'BREEZY', detail: 'SOIL DRIES 10% FASTER', rain: false, waterUse: 1.1 },
-    { id: 'warm', label: 'WARM', detail: 'SOIL DRIES 25% FASTER', rain: false, waterUse: 1.25 },
-    { id: 'clear', label: 'CLEAR', detail: 'BRIGHT SKIES', rain: false, waterUse: 1 },
-    { id: 'showers', label: 'SHOWERS', detail: 'RAIN AT DAWN · SLOWER DRYING', rain: true, waterUse: 0.82 },
-  ];
-  return cycle[(Math.max(1, day) - 1) % cycle.length];
-}
-
 function updateWeatherHud(day = Math.floor(dayClock) + 1) {
   const el = $('weather');
+  const seasonEl = $('season');
   if (!el) return;
+  const calendar = seasonForDay(day);
   const weather = weatherForDay(day);
+  if (seasonEl) {
+    seasonEl.textContent = `${calendar.name} · Y${calendar.year}`;
+    seasonEl.dataset.season = calendar.id;
+    seasonEl.title = `${calendar.name} · DAY ${calendar.dayInSeason}/28 · WEEK ${calendar.week}/4\n${calendar.event.name}: ${calendar.event.detail}\nOutdoor growth ${Math.round(weather.growth * 100)}% · outdoor water use ${Math.round(weather.waterUse * 100)}% · market ${Math.round(seasonalMarketMultiplier(day) * 100)}%`;
+    seasonEl.setAttribute('aria-label', `${calendar.name}, year ${calendar.year}, day ${calendar.dayInSeason} of 28. Event: ${calendar.event.name}. ${calendar.event.detail}`);
+  }
   el.textContent = `${weather.label} · ${weather.detail}`;
   el.dataset.weather = weather.id;
-  el.title = weather.rain
-    ? 'Rain refills active outdoor grow beds at dawn and slows soil drying by 18%. Indoor plants still need care.'
-    : `Outdoor soil dries ${weather.waterUse < 1 ? 'more slowly' : weather.waterUse > 1 ? 'faster' : 'at its normal rate'} today. This affects outdoor grow beds only; indoor and warehouse plants are unchanged.`;
-  el.setAttribute('aria-label', `Day ${day} weather: ${weather.label}. ${weather.detail}. Outdoor soil water use multiplier ${weather.waterUse.toFixed(2)}.`);
+  el.title = `${weather.detail}. ${calendar.event.name}: ${calendar.event.detail} Outdoor growth multiplier ${weather.growth.toFixed(2)}; outdoor water use multiplier ${weather.waterUse.toFixed(2)}. Greenhouse and warehouse growing conditions are climate controlled.`;
+  el.setAttribute('aria-label', `Day ${day} weather: ${weather.label}. ${weather.detail}. ${calendar.name}, ${calendar.event.name}.`);
 }
-
 function ensureBuyerOrder() {
   const day = Math.floor(dayClock) + 1;
   const week = Math.floor((day - 1) / 7) + 1;
