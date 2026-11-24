@@ -207,7 +207,7 @@ test('seasonal climates affect outdoor plants and buyer pricing while indoor roo
   const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   assert.ok(main.includes("import { seasonForDay, weatherForDay, seasonalMarketMultiplier } from './seasons.js'"));
   assert.ok(main.includes('const outdoorGrowth = conditions.growth'));
-  assert.ok(main.includes('(dt * outdoorGrowth) / (RIPE_TIME'));
+  assert.ok(main.includes(': outdoorGrowth)) / (RIPE_TIME'));
   assert.ok(main.includes('seasonalMarketMultiplier(order.day)'));
   assert.ok(main.includes('seasonalMarketMultiplier(Math.floor(dayClock) + 1)'));
   assert.ok(main.includes('Greenhouse and warehouse growing conditions are climate controlled.'));
