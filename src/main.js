@@ -982,7 +982,7 @@ function updatePlants(dt, time) {
         d.water = Math.max(0, d.water - (dt / THIRST) * (s.where === 'gh' ? (world.moonGarden.owned ? 0.68 : 0.74) : outdoorWaterUse));
         d.age += dt;
         if (d.water <= 0) d.stress += dt * (d.fromClone ? 0.7 : 1);
-        d.ripe = Math.min(1.25, (d.ripe || 0) + (dt * outdoorGrowth) / (RIPE_TIME * strainPace(d.strain, 4)));
+        d.ripe = Math.min(1.25, (d.ripe || 0) + (dt * (s.where === 'gh' ? (world.moonGarden.owned ? 1.15 : 1.05) : outdoorGrowth)) / (RIPE_TIME * strainPace(d.strain, 4)));
       } else if (d.state === 'growing' && growTick(d, dt, s.where === 'gh' ? (world.moonGarden.owned ? 1.15 : 1.05) : outdoorGrowth, s.where === 'gh' ? (world.moonGarden.owned ? 0.68 : 0.74) : outdoorWaterUse)) {
         finishStage(d, mesh, false);
         burst(s, d.state === 'ripening' ? 0xfff3a0 : 0xbfe88a);
@@ -1991,7 +1991,7 @@ function actStand() {
   const offer = GRADES.reduce((total, grade) => {
     const count = sale[grade] | 0;
     total.n += count;
-    total.mota += count * gramsFor(grade) * MOTA_PER_G[grade] * seasonalMarketMultiplier(Math.floor(dayClock) + 1);
+    total.mota += Math.round(count * gramsFor(grade) * MOTA_PER_G[grade] * seasonalMarketMultiplier(Math.floor(dayClock) + 1));
     return total;
   }, { n: 0, mota: 0 });
   if (offer.n > 0) {
