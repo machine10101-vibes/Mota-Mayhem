@@ -530,6 +530,16 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline:2px so
 @media (prefers-reduced-motion:reduce) { .weather { transition:none; } }
 
 
+.season { display:flex; align-items:center; min-height:27px; padding:6px 8px; background:linear-gradient(145deg,rgba(20,31,24,.94),rgba(8,14,12,.94)); box-shadow:var(--frame); color:#a9dc82; font-size:7px; line-height:1.35; letter-spacing:.025em; white-space:nowrap; }
+.season[data-season="summer"] { color:#ffd27c; }
+.season[data-season="autumn"] { color:#e9a36c; }
+.season[data-season="winter"] { color:#a9c9f2; }
+.weather[data-weather="heatwave"],.weather[data-weather="haze"] { color:#ffbd78; border-left:2px solid #ef9551; }
+.weather[data-weather="fog"],.weather[data-weather="frost"],.weather[data-weather="snow"] { color:#c4d9ed; border-left:2px solid #9dbbd5; }
+.weather[data-weather="storm"] { color:#b4b9f5; border-left:2px solid #878be8; }
+.weather[data-weather="aurora"] { color:#a6e8d8; border-left:2px solid #70cdb2; }
+@media (max-width:560px) { .season { min-height:25px; padding:4px 6px; font-size:6px; } }
+
 /* Weekly league harvest target and milestone feedback. */
 .league-goal { margin:10px 0 8px; padding:8px; background:rgba(0,0,0,.3); border:1px solid rgba(198,245,106,.16); }
 .league-goal-head { display:flex; justify-content:space-between; align-items:center; gap:8px; color:#c9d6b5; font-size:6px; line-height:1.5; }
