@@ -7,7 +7,8 @@ import { BEDS, buildWorld, SLOT_OFFSETS } from './world.js';
 import { buildCannabisSeed, buildPlant, PLANT_VS, PVS } from './plants.js';
 import { VoxelModel, toMesh, voxelMaterial } from './voxel.js';
 import { buildMotaToken, buildNutrientBottle, buildRootCube, HOUSE, LOFT, MOTA_PER_G, SEED_PACK, SUPPLIES, UNLOCK, WAREHOUSE_PRICE } from './estate.js';
-import { Particles, Butterflies } from './fx.js';
+import { Particles, Butterflies, Fireflies } from './fx.js';
+import { nightIntensity } from './ambience.js';
 import { STRAIN_IDS, STRAINS, seedTotal, starterSeeds, strainOf, strainPace, createHybridStrain, registerHybridStrain, hybridDefinitions, clearHybridStrains } from './strains.js';
 import { loadSave, writeSave, adoptAddress, unbindAddress } from './save.js';
 import { saleableJars, burpJar } from './economy.js';
@@ -171,6 +172,7 @@ let world;
 let player;
 let particles;
 let butterflies;
+let fireflies;
 const slotsData = [];
 const plantMeshes = [];
 const whData = [];
@@ -3503,7 +3505,7 @@ function updateDay(dt) {
   const t = dayClock % 1;
   const elev = Math.sin(t * Math.PI * 2);
   const az = t * Math.PI * 2 + Math.PI;
-  const night = 1 - THREE.MathUtils.smoothstep(elev, -0.12, 0.18);
+  const night = nightIntensity(t);
   const rising = Math.cos(t * Math.PI * 2) > 0;
   const warm = Math.max(0, 1 - Math.abs(elev) / 0.4) * (1 - night);
   sun.position.set(Math.cos(az) * 40, 6 + Math.max(elev, 0) * 36, Math.sin(az) * 28);
@@ -3589,6 +3591,7 @@ function frame(now) {
   updateShed(dt);
   updateDay(dt);
   butterflies.update(time);
+  fireflies.update(time, nightIntensity(dayClock % 1));
   smokeT -= dt;
   if (smokeT <= 0 && world.house.roof.visible) {
     smokeT = 0.32;
@@ -4939,6 +4942,7 @@ function boot() {
   scene.add(player.root);
   particles = new Particles(scene);
   butterflies = new Butterflies(scene);
+  fireflies = new Fireflies(scene, coarse ? 8 : 16);
   buildMarker();
   initSlots();
   initWarehouse();
