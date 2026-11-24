@@ -83,6 +83,17 @@
           <button type="button" id="btn-help-hud" class="icon-btn help-ico" aria-label="Help" aria-pressed="false">?</button>
         </div>
       </div>
+      <div id="enterprise-ad" class="enterprise-ad hidden" aria-label="Sponsored brand feature">
+        <div class="enterprise-ad-copy">
+          <span class="enterprise-ad-label">SPONSORED</span>
+          <b id="enterprise-ad-brand"></b>
+          <strong id="enterprise-ad-headline"></strong>
+          <span id="enterprise-ad-message"></span>
+          <small id="enterprise-ad-strain"></small>
+        </div>
+        <a id="enterprise-ad-link" class="tbtn tiny" target="_blank" rel="noopener noreferrer">BRAND INFO ↗</a>
+        <button type="button" id="enterprise-ad-close" class="enterprise-ad-close" aria-label="Dismiss sponsored content">×</button>
+      </div>
       <div id="tasks-row">
       <div id="tasks">
         <button type="button" id="tasks-toggle" aria-expanded="false" aria-controls="tasks-menu">
@@ -328,10 +339,86 @@
         <p class="shop-mota">MOTA <b id="shop-mota">0</b></p>
         <div id="shop-rows"></div>
         <div class="dress-actions">
+          <button type="button" id="btn-enterprise-open" class="tbtn welcome-primary">ENTERPRISE PROGRAM</button>
           <button type="button" id="btn-shop-close" class="tbtn">CLOSE</button>
         </div>
         <p class="dress-note">SEEDS, NUTRIENTS, AND ROOT CUBES</p>
       </div>
+    </div>
+    <div id="enterprise" class="hidden">
+      <section class="panel enterprise-card" role="dialog" aria-modal="true" aria-labelledby="enterprise-title">
+        <div class="enterprise-head">
+          <div>
+            <p class="enterprise-kicker">UPSTAIRS COMPUTER · BUSINESS NETWORK</p>
+            <h2 class="dress-title" id="enterprise-title">MOTA MAYHEM ENTERPRISE</h2>
+          </div>
+          <a class="enterprise-directory-link" href="./brands.html" target="_blank" rel="noopener noreferrer">PUBLIC BRAND DIRECTORY ↗</a>
+        </div>
+        <p class="enterprise-intro">Genetics companies can apply for an Enterprise account, submit brand profiles and strains, and propose sponsored in-game placements.</p>
+        <div class="enterprise-age">
+          <label><input type="checkbox" id="enterprise-adult-check"> I am 21+ and choose to view sponsored brand content.</label>
+          <button type="button" id="btn-enterprise-adult" class="tbtn tiny">ENABLE</button>
+        </div>
+        <p class="enterprise-legal">Age confirmation is a self-attestation, not identity verification. Brand, strain and campaign content is held for manual review. Real-world promotion must meet all local licensing and advertising rules. No sales or purchase links are supported.</p>
+        <p id="enterprise-status" class="enterprise-status" aria-live="polite">Connect an email account to apply.</p>
+        <form id="enterprise-application-form" class="enterprise-form" hidden>
+          <h3>APPLY FOR AN ENTERPRISE ACCOUNT</h3>
+          <div class="enterprise-grid">
+            <label>PUBLIC COMPANY NAME<input id="enterprise-company" name="company_name" maxlength="100" required></label>
+            <label>LEGAL BUSINESS NAME<input id="enterprise-legal" name="legal_name" maxlength="140" required></label>
+            <label>AUTHORIZED CONTACT<input id="enterprise-contact" name="contact_name" maxlength="100" required></label>
+            <label>BUSINESS EMAIL<input id="enterprise-email" name="business_email" type="email" maxlength="254" required></label>
+            <label>COMPANY WEBSITE (HTTPS)<input id="enterprise-website" name="website" type="url" placeholder="https://example.com" required></label>
+            <label>LICENSE JURISDICTION<input id="enterprise-jurisdiction" name="jurisdiction" maxlength="100" placeholder="State / country" required></label>
+            <label class="enterprise-wide">LICENSE / REGISTRATION REFERENCE<input id="enterprise-license" name="license_reference" maxlength="120" required></label>
+          </div>
+          <label class="enterprise-check"><input id="enterprise-age-attest" type="checkbox" required> I am at least 21 years old and authorized to apply for this business.</label>
+          <label class="enterprise-check"><input id="enterprise-rights-attest" type="checkbox" required> I own or am authorized to use the submitted brand, strain names, genetics information and artwork.</label>
+          <label class="enterprise-check"><input id="enterprise-compliance-attest" type="checkbox" required> The company holds the required licenses and will comply with age, jurisdiction, cannabis advertising, trademark and consumer-protection rules.</label>
+          <div class="dress-actions"><button type="submit" class="tbtn welcome-primary">SUBMIT APPLICATION</button></div>
+        </form>
+        <section id="enterprise-dashboard" hidden>
+          <div id="enterprise-application-status" class="enterprise-status"></div>
+          <form id="enterprise-brand-form" class="enterprise-form" hidden>
+            <h3>PUBLIC COMPANY PROFILE</h3>
+            <div class="enterprise-grid">
+              <label>PUBLIC BRAND NAME<input id="enterprise-brand-name" maxlength="80" required></label>
+              <label>PROFILE SLUG<input id="enterprise-brand-slug" maxlength="48" placeholder="your-brand" required></label>
+              <label class="enterprise-wide">TAGLINE<input id="enterprise-brand-tagline" maxlength="120" required></label>
+              <label class="enterprise-wide">ABOUT THE COMPANY<textarea id="enterprise-brand-about" rows="3" maxlength="1200" required></textarea></label>
+              <label>OFFICIAL WEBSITE<input id="enterprise-brand-website" type="url" placeholder="https://example.com" required></label>
+              <label>LOGO IMAGE URL (OPTIONAL)<input id="enterprise-brand-logo" type="url" placeholder="https://example.com/logo.png"></label>
+              <label class="enterprise-wide">ADVERTISING JURISDICTION<input id="enterprise-brand-jurisdiction" maxlength="100" required></label>
+            </div>
+            <div class="dress-actions"><button type="submit" class="tbtn welcome-primary">SUBMIT BRAND PROFILE</button></div>
+          </form>
+          <p id="enterprise-brand-status" class="enterprise-status"></p>
+          <form id="enterprise-strain-form" class="enterprise-form" hidden>
+            <h3>SUBMIT A COMPANY STRAIN</h3>
+            <div class="enterprise-grid">
+              <label>STRAIN NAME<input id="enterprise-strain-name" maxlength="80" required></label>
+              <label>GENETICS / LINEAGE<input id="enterprise-strain-lineage" maxlength="160" required></label>
+              <label class="enterprise-wide">DESCRIPTION<input id="enterprise-strain-description" maxlength="900" required></label>
+              <label>STRAIN IMAGE URL (OPTIONAL)<input id="enterprise-strain-image" type="url"></label>
+              <label>OFFICIAL STRAIN INFO URL (OPTIONAL)<input id="enterprise-strain-url" type="url"></label>
+            </div>
+            <div class="dress-actions"><button type="submit" class="tbtn welcome-primary">SUBMIT STRAIN</button></div>
+          </form>
+          <div id="enterprise-strain-list" class="enterprise-submissions"></div>
+          <form id="enterprise-campaign-form" class="enterprise-form" hidden>
+            <h3>PROPOSE A SPONSORED PLACEMENT</h3>
+            <label>APPROVED COMPANY STRAIN<select id="enterprise-campaign-strain" required></select></label>
+            <label>CAMPAIGN HEADLINE<input id="enterprise-campaign-headline" maxlength="90" required></label>
+            <label>SHORT SPONSORED MESSAGE<textarea id="enterprise-campaign-message" rows="2" maxlength="240" required></textarea></label>
+            <label>OFFICIAL BRAND INFORMATION URL<input id="enterprise-campaign-url" type="url" placeholder="https://example.com/strain" required></label>
+            <div class="dress-actions"><button type="submit" class="tbtn welcome-primary">SUBMIT CAMPAIGN</button></div>
+            <p class="dress-note">Campaigns run for up to 30 days after approval. Each ad is labelled SPONSORED and links only to an HTTPS company information page.</p>
+          </form>
+          <div id="enterprise-campaign-list" class="enterprise-submissions"></div>
+        </section>
+        <div class="dress-actions"><button type="button" id="btn-enterprise-close" class="tbtn">BACK TO SUPPLY COMPUTER</button></div>
+        <p class="dress-note">APPLICATIONS ARE REVIEWED BY MOTA MAYHEM BEFORE ANY PUBLIC OR IN-GAME PROMOTION APPEARS.</p>
+      </section>
     </div>
     <div id="dress" class="hidden">
       <div class="panel dress-card">
