@@ -14,6 +14,7 @@ import { saleableJars, burpJar } from './economy.js';
 import { clearKleverLogin, clearSession, inKleverHandoff, isMobile, launchKleverApp, markPrompt, promptIsCooling, shortAddress, showWalletHelp, signIn } from './wallet/klever.js';
 import { accountLabel, accountProblem, clearAccountSession, createAccount, freshAccessToken, readAccountSession, rememberWallet, signInAccount } from './wallet/account.js';
 import { clearCloudToken, flushCloud, schedulePush, syncGarden } from './wallet/cloud.js';
+import { loadEnterpriseDashboard, saveEnterpriseApplication, saveEnterpriseBrand, saveEnterpriseStrain, saveEnterpriseCampaign, loadPublicCatalog, isAdultAttested, setAdultAttested, safeHttpsUrl, slugifyBrand } from './enterprise.js';
 
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -398,7 +399,7 @@ function forChanged(e, fn) {
 }
 
 function uiTarget(el) {
-  return !!el?.closest?.('#touch, #hud, #dress, #shop, #settings, #strains, .title-actions, .wallet-box, button, .tbtn');
+  return !!el?.closest?.('#touch, #hud, #dress, #shop, #enterprise, #settings, #strains, .title-actions, .wallet-box, button, .tbtn');
 }
 
 function onCamDown(e) {
@@ -1362,6 +1363,292 @@ function actStation(f) {
   if (f.kind === 'veg') return actVeg(f.ref);
   if (f.kind === 'breed-pot') return actBreedPot(f.ref);
   if (f.kind === 'breeder') return world.house.vegCenter ? openBreeding() : tryUnlock('vegCenter', UNLOCK.vegCenter, 'BREEDING LAB');
+
+let enterpriseSnapshot = null;
+
+function enterpriseField(id) {
+  return $(id)?.value?.trim() || '';
+}
+
+function enterpriseMessage(text, kind = '') {
+  const el = $('enterprise-status');
+  if (!el) return;
+  el.textContent = text;
+  el.dataset.kind = kind;
+}
+
+function setEnterpriseField(id, value) {
+  const el = $(id);
+  if (el) el.value = value || '';
+}
+
+function renderEnterpriseSubmissions(root, rows, titleField) {
+  root.replaceChildren();
+  if (!rows.length) return;
+  const heading = document.createElement('h3');
+  heading.textContent = 'SUBMISSION STATUS';
+  root.append(heading);
+  for (const row of rows) {
+    const item = document.createElement('p');
+    item.className = 'enterprise-submission';
+    const name = document.createElement('b');
+    name.textContent = row[titleField] || 'Submission';
+    const status = document.createElement('span');
+    status.textContent = String(row.status || 'pending').toUpperCase();
+    status.dataset.status = row.status || 'pending';
+    item.append(name, status);
+    root.append(item);
+  }
+}
+
+async function refreshEnterprisePanel() {
+  const applicationForm = $('enterprise-application-form');
+  const dashboard = $('enterprise-dashboard');
+  const signed = walletSession?.provider === 'email' && !!walletSession.address;
+  enterpriseSnapshot = null;
+  $('enterprise-adult-check').checked = isAdultAttested();
+  $('btn-enterprise-adult').textContent = isAdultAttested() ? 'DISABLE' : 'ENABLE';
+  if (!signed) {
+    applicationForm.hidden = true;
+    dashboard.hidden = true;
+    enterpriseMessage('Sign in with an email account on the title screen to apply. Wallet-only accounts can add an email login first.');
+    return;
+  }
+  enterpriseMessage('Loading your Enterprise account…');
+  try {
+    const snapshot = await loadEnterpriseDashboard(walletSession);
+    enterpriseSnapshot = snapshot;
+    const app = snapshot.application;
+    if (!app || app.status === 'rejected') {
+      applicationForm.hidden = false;
+      dashboard.hidden = true;
+      enterpriseMessage(app ? 'Your application was declined. Update the details and submit it again.' : 'Apply to join the Mota Mayhem genetics company network.');
+      if (app) {
+        setEnterpriseField('enterprise-company', app.company_name);
+        setEnterpriseField('enterprise-legal', app.legal_name);
+        setEnterpriseField('enterprise-contact', app.contact_name);
+        setEnterpriseField('enterprise-email', app.business_email);
+        setEnterpriseField('enterprise-website', app.website);
+        setEnterpriseField('enterprise-jurisdiction', app.jurisdiction);
+        setEnterpriseField('enterprise-license', app.license_reference);
+        $('enterprise-age-attest').checked = !!app.age_attested;
+        $('enterprise-rights-attest').checked = !!app.rights_attested;
+        $('enterprise-compliance-attest').checked = !!app.compliance_attested;
+      }
+      return;
+    }
+    applicationForm.hidden = true;
+    dashboard.hidden = false;
+    $('enterprise-application-status').textContent = app.status === 'pending'
+      ? 'APPLICATION PENDING — your company details are private while they are reviewed.'
+      : 'ENTERPRISE ACCOUNT APPROVED — continue building your public brand presence.';
+    const brand = snapshot.brands[0] || null;
+    const approvedBrand = snapshot.brands.find((item) => item.status === 'approved') || null;
+    const brandForm = $('enterprise-brand-form');
+    brandForm.hidden = !app || app.status !== 'approved' || (!!brand && brand.status !== 'rejected' && brand.status !== 'pending' && brand.status === 'approved');
+    if (brand && brand.status === 'rejected') {
+      brandForm.hidden = false;
+      setEnterpriseField('enterprise-brand-name', brand.display_name);
+      setEnterpriseField('enterprise-brand-slug', brand.slug);
+      setEnterpriseField('enterprise-brand-tagline', brand.tagline);
+      setEnterpriseField('enterprise-brand-about', brand.about);
+      setEnterpriseField('enterprise-brand-website', brand.website);
+      setEnterpriseField('enterprise-brand-logo', brand.logo_url);
+      setEnterpriseField('enterprise-brand-jurisdiction', brand.jurisdiction);
+    }
+    $('enterprise-brand-status').textContent = brand
+      ? `BRAND PROFILE: ${String(brand.status).toUpperCase()}`
+      : 'Create the public company profile that will appear in the real-world brand directory.';
+    const canSubmitStrains = !!approvedBrand;
+    $('enterprise-strain-form').hidden = !canSubmitStrains;
+    $('enterprise-campaign-form').hidden = !canSubmitStrains || !snapshot.strains.some((item) => item.status === 'approved');
+    const strainList = $('enterprise-strain-list');
+    renderEnterpriseSubmissions(strainList, snapshot.strains, 'name');
+    const campaignSelect = $('enterprise-campaign-strain');
+    campaignSelect.replaceChildren();
+    for (const strain of snapshot.strains.filter((item) => item.status === 'approved')) {
+      const option = document.createElement('option');
+      option.value = strain.id;
+      option.textContent = strain.name;
+      campaignSelect.append(option);
+    }
+    renderEnterpriseSubmissions($('enterprise-campaign-list'), snapshot.campaigns, 'headline');
+    if (brand && brand.status === 'pending') $('enterprise-brand-status').textContent = 'BRAND PROFILE PENDING REVIEW — strain submissions unlock after approval.';
+    if (brand && brand.status === 'rejected') $('enterprise-brand-status').textContent = 'BRAND PROFILE DECLINED — update it and submit again.';
+  } catch (error) {
+    applicationForm.hidden = true;
+    dashboard.hidden = true;
+    enterpriseMessage(error.message || 'Could not load your Enterprise account.');
+  }
+}
+
+function openEnterprise() {
+  if (state.mode !== 'shop') return false;
+  state.mode = 'enterprise';
+  $('shop').classList.add('hidden');
+  $('enterprise').classList.remove('hidden');
+  $('touch').classList.add('hidden');
+  prompt.style.display = 'none';
+  void refreshEnterprisePanel();
+  return true;
+}
+
+function closeEnterprise() {
+  if (state.mode !== 'enterprise') return;
+  $('enterprise').classList.add('hidden');
+  state.mode = 'shop';
+  $('shop').classList.remove('hidden');
+  renderShop();
+}
+
+async function loadSponsoredCampaign() {
+  const slot = $('enterprise-ad');
+  if (!slot || !isAdultAttested()) {
+    slot?.classList.add('hidden');
+    return;
+  }
+  try {
+    const catalog = await loadPublicCatalog();
+    if (!catalog.campaigns.length) {
+      slot.classList.add('hidden');
+      return;
+    }
+    const day = Math.floor(Date.now() / 86400000);
+    const campaign = catalog.campaigns[day % catalog.campaigns.length];
+    const brand = campaign.brand;
+    const strain = campaign.strain;
+    $('enterprise-ad-brand').textContent = brand.display_name;
+    $('enterprise-ad-headline').textContent = campaign.headline;
+    $('enterprise-ad-message').textContent = campaign.message;
+    $('enterprise-ad-strain').textContent = strain.name;
+    const link = $('enterprise-ad-link');
+    link.href = safeHttpsUrl(campaign.destination_url) || safeHttpsUrl(brand.website) || './brands.html';
+    slot.classList.remove('hidden');
+  } catch {
+    slot.classList.add('hidden');
+  }
+}
+
+function bindEnterprise() {
+  $('btn-enterprise-open').addEventListener('click', (e) => {
+    swallow(e);
+    openEnterprise();
+  });
+  $('btn-enterprise-close').addEventListener('click', (e) => {
+    swallow(e);
+    closeEnterprise();
+  });
+  $('btn-enterprise-adult').addEventListener('click', (e) => {
+    swallow(e);
+    const enabled = $('enterprise-adult-check').checked;
+    if (!setAdultAttested(enabled)) return enterpriseMessage('Browser storage is unavailable. Enable site storage before changing this preference.');
+    $('btn-enterprise-adult').textContent = enabled ? 'DISABLE' : 'ENABLE';
+    if (enabled) void loadSponsoredCampaign();
+    else $('enterprise-ad').classList.add('hidden');
+    enterpriseMessage(enabled ? '21+ self-attestation saved. Approved sponsored placements may now appear.' : 'Sponsored brand content disabled.');
+  });
+  $('enterprise-application-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!walletSession || !enterpriseSnapshot) return enterpriseMessage('Sign in again before submitting.');
+    const website = safeHttpsUrl(enterpriseField('enterprise-website'));
+    if (!website) return enterpriseMessage('Company website must be a valid HTTPS URL.');
+    const data = {
+      company_name: enterpriseField('enterprise-company'),
+      legal_name: enterpriseField('enterprise-legal'),
+      contact_name: enterpriseField('enterprise-contact'),
+      business_email: enterpriseField('enterprise-email').toLowerCase(),
+      website,
+      jurisdiction: enterpriseField('enterprise-jurisdiction'),
+      license_reference: enterpriseField('enterprise-license'),
+      age_attested: $('enterprise-age-attest').checked,
+      rights_attested: $('enterprise-rights-attest').checked,
+      compliance_attested: $('enterprise-compliance-attest').checked,
+    };
+    if (!data.age_attested || !data.rights_attested || !data.compliance_attested) return enterpriseMessage('Confirm all three statements before submitting.');
+    const button = e.submitter;
+    if (button) button.disabled = true;
+    enterpriseMessage('Submitting your application…');
+    try {
+      await saveEnterpriseApplication(walletSession, enterpriseSnapshot.application, data);
+      await refreshEnterprisePanel();
+      enterpriseMessage('APPLICATION SUBMITTED — status is pending manual review.');
+    } catch (error) {
+      enterpriseMessage(error.message || 'Application submission failed.');
+    } finally { if (button) button.disabled = false; }
+  });
+  $('enterprise-brand-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const app = enterpriseSnapshot?.application;
+    if (!app || app.status !== 'approved') return enterpriseMessage('Your Enterprise application must be approved first.');
+    const website = safeHttpsUrl(enterpriseField('enterprise-brand-website'));
+    const logo = safeHttpsUrl(enterpriseField('enterprise-brand-logo'), true);
+    const slug = slugifyBrand(enterpriseField('enterprise-brand-slug') || enterpriseField('enterprise-brand-name'));
+    if (!website || slug.length < 3 || !enterpriseField('enterprise-brand-about')) return enterpriseMessage('Enter a valid HTTPS website, a 3+ character profile slug, and company details.');
+    const current = enterpriseSnapshot.brands[0] || null;
+    const data = {
+      slug, display_name: enterpriseField('enterprise-brand-name'),
+      tagline: enterpriseField('enterprise-brand-tagline'),
+      about: enterpriseField('enterprise-brand-about'),
+      website, logo_url: logo,
+      jurisdiction: enterpriseField('enterprise-brand-jurisdiction'),
+    };
+    const button = e.submitter;
+    if (button) button.disabled = true;
+    try {
+      await saveEnterpriseBrand(walletSession, app, current, data);
+      await refreshEnterprisePanel();
+      enterpriseMessage('BRAND PROFILE SUBMITTED — pending review.');
+    } catch (error) { enterpriseMessage(error.message || 'Brand profile submission failed.'); }
+    finally { if (button) button.disabled = false; }
+  });
+  $('enterprise-strain-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const brand = enterpriseSnapshot?.brands.find((item) => item.status === 'approved');
+    if (!brand) return enterpriseMessage('Your public brand profile must be approved first.');
+    const image = safeHttpsUrl(enterpriseField('enterprise-strain-image'), true);
+    const official = safeHttpsUrl(enterpriseField('enterprise-strain-url'), true);
+    if (enterpriseField('enterprise-strain-image') && !image || enterpriseField('enterprise-strain-url') && !official) return enterpriseMessage('Optional strain links must be valid HTTPS URLs.');
+    const data = {
+      name: enterpriseField('enterprise-strain-name'),
+      lineage: enterpriseField('enterprise-strain-lineage'),
+      description: enterpriseField('enterprise-strain-description'),
+      image_url: image, official_url: official,
+    };
+    const button = e.submitter;
+    if (button) button.disabled = true;
+    try {
+      await saveEnterpriseStrain(walletSession, brand, data);
+      e.target.reset();
+      await refreshEnterprisePanel();
+      enterpriseMessage('STRAIN SUBMITTED — it will appear in-game and in the public directory only after approval.');
+    } catch (error) { enterpriseMessage(error.message || 'Strain submission failed.'); }
+    finally { if (button) button.disabled = false; }
+  });
+  $('enterprise-campaign-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const brand = enterpriseSnapshot?.brands.find((item) => item.status === 'approved');
+    const strain = enterpriseSnapshot?.strains.find((item) => item.id === $('enterprise-campaign-strain').value && item.status === 'approved');
+    const destination = safeHttpsUrl(enterpriseField('enterprise-campaign-url'));
+    if (!brand || !strain) return enterpriseMessage('Choose an approved company strain first.');
+    if (!destination) return enterpriseMessage('Campaign destination must be an HTTPS company information page.');
+    const data = {
+      headline: enterpriseField('enterprise-campaign-headline'),
+      message: enterpriseField('enterprise-campaign-message'),
+      destination_url: destination,
+    };
+    const button = e.submitter;
+    if (button) button.disabled = true;
+    try {
+      await saveEnterpriseCampaign(walletSession, brand, strain, data);
+      e.target.reset();
+      await refreshEnterprisePanel();
+      enterpriseMessage('CAMPAIGN SUBMITTED — pending manual advertising and compliance review.');
+    } catch (error) { enterpriseMessage(error.message || 'Campaign submission failed.'); }
+    finally { if (button) button.disabled = false; }
+  });
+  $('enterprise-ad-close').addEventListener('click', () => $('enterprise-ad').classList.add('hidden'));
+}
+
   if (f.kind === 'computer') return openShop();
   if (f.kind === 'stand') return actStand();
   if (f.kind === 'spigot') return actSpigot(f.ref);
@@ -4435,6 +4722,10 @@ function bindShop() {
     swallow(e);
     buySupply(btn.dataset.buy);
   });
+  $('btn-enterprise-open').addEventListener('click', (e) => {
+    swallow(e);
+    openEnterprise();
+  });
 }
 
 function bindDress() {
@@ -4541,7 +4832,7 @@ function boot() {
   addEventListener('fullscreenchange', resize);
   addEventListener('webkitfullscreenchange', resize);
   const askFullscreen = (e) => {
-    const playing = state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress' || state.mode === 'settings' || state.mode === 'breeding';
+    const playing = state.mode === 'play' || state.mode === 'shop' || state.mode === 'dress' || state.mode === 'settings' || state.mode === 'breeding' || state.mode === 'enterprise';
     if (playing) enterFullscreen();
   };
   addEventListener('pointerdown', askFullscreen, true);
@@ -4576,6 +4867,7 @@ function boot() {
   bindTouch();
   bindDress();
   bindShop();
+  bindEnterprise();
   bindBreeding();
   bindWallet();
   setTouchUI(shouldTouch());
@@ -4592,7 +4884,7 @@ function boot() {
     flushSave();
     flushCloud();
   });
-  window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick, openDress, closeDress, openShop, closeShop, buySupply, newGrow, flushSave, loadSave, onWallet, openSettings, closeSettings, get day() { return dayClock; }, set day(v) { dayClock = v; } };
+  window.__mm = { scene, renderer, state, cam, P, slotsData, whData, world, camera, player, startGame, act, setStage, plantMeshes, whMeshes, stick, openDress, closeDress, openShop, closeShop, openEnterprise, closeEnterprise, loadSponsoredCampaign, buySupply, newGrow, flushSave, loadSave, onWallet, openSettings, closeSettings, get day() { return dayClock; }, set day(v) { dayClock = v; } };
   void openAccount();
 }
 
@@ -4602,6 +4894,7 @@ async function openAccount() {
   else refreshWalletUi();
   refreshTitle();
   updateHud();
+  if (isAdultAttested()) void loadSponsoredCampaign();
   $('loading').classList.add('gone');
   if (params.has('autostart')) startGame();
   else if (session?.provider === 'email' && !session.wallet && params.get('klever') === '1' && !promptIsCooling()) {
