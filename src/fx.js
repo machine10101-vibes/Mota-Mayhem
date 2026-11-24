@@ -171,6 +171,7 @@ export class Fireflies {
     this.mesh.renderOrder = 4;
     scene.add(this.mesh);
     this.tmp = new THREE.Object3D();
+    this.color = new THREE.Color();
   }
 
   update(time, night = 0) {
@@ -191,7 +192,7 @@ export class Fireflies {
       this.tmp.scale.setScalar(pulse);
       this.tmp.updateMatrix();
       this.mesh.setMatrixAt(i, this.tmp.matrix);
-      this.mesh.setColorAt(i, it.color.clone().multiplyScalar(0.45 + blink * 0.8));
+      this.mesh.setColorAt(i, this.color.copy(it.color).multiplyScalar(0.45 + blink * 0.8));
     }
     this.mesh.instanceMatrix.needsUpdate = true;
     if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
