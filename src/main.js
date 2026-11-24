@@ -1176,7 +1176,6 @@ function actPlot(plot) {
       d.pop = 0.3;
       P.cool = 0.45;
       player.playAction('harvest');
-    playSfx('harvest');
       toast('TOPPED — THE CANOPY BUSHES OUT', 'good');
       markDirty();
       return;
@@ -1244,6 +1243,7 @@ function actPlot(plot) {
     markDirty();
     P.cool = 0.7;
     player.playAction('harvest');
+    playSfx('harvest');
     d.state = 'empty';
     d.water = 0;
     d.ripe = 0;
